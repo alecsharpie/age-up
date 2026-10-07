@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sprite Lab</title>
+<style>
+:root{--bg:#1b1612;--panel:#2b2118;--edge:#6b5338;--gold:#d9b35a;--text:#f1e6cf;--muted:#b9a78a}
+html,body{margin:0;background:var(--bg);color:var(--text);font:13px Georgia,serif}
+#bar{display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:2px solid var(--edge);flex-wrap:wrap}
+#bar label{display:flex;gap:4px;align-items:center;color:var(--muted)}
+#bar select,#bar input,#bar button{background:#3a2c1f;color:var(--text);border:1px solid var(--edge);padding:3px 6px;font:13px Georgia,serif}
+#bar button{cursor:pointer}#bar button:hover{border-color:var(--gold)}
+#bar b{color:var(--gold);font-weight:normal;letter-spacing:1px;margin-right:6px}
+#wrap{padding:12px;overflow:auto}
+canvas#out{display:block;image-rendering:pixelated}
+#log{white-space:pre-wrap;font:12px Menlo,monospace;color:var(--muted);padding:8px 12px;max-height:40vh;overflow:auto}
+#log .err{color:#ff8a7a}
+body.headless #bar,body.headless #log{display:none}
+body.headless #wrap{padding:0}
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>SPRITE LAB</b>
+  <label>view <select id="view"><option value="sheet">sheet</option><option value="contact">contact</option><option value="scene">scene</option><option value="palette">palette</option></select></label>
+  <label>kind <select id="kind"><option value="building">building</option><option value="unit">unit</option><option value="resource">resource</option><option value="all">all</option></select></label>
+  <label>type <select id="type"></select></label>
+  <label>src <select id="src"><option value="both">draft vs current</option><option value="current">current</option><option value="draft">draft</option></select></label>
+  <label>team <input id="team" type="number" min="0" max="3" value="0" style="width:40px"></label>
+  <label>time <input id="time" type="number" min="0" step="0.1" value="0" style="width:52px"></label>
+  <label>zoom <input id="zoom" type="number" min="1" max="4" value="1" style="width:40px"></label>
+  <button id="go">render</button>
+  <button id="lintbtn">lint</button>
+  <button id="reload">reload drafts</button>
+</div>
+<div id="wrap"><canvas id="out" width="400" height="60"></canvas></div>
+<pre id="log"></pre>
+<script src="stubs.js"></script>
+<script type="module" src="lab.js"></script>
+</body>
+</html>

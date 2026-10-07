@@ -1,0 +1,393 @@
+<title>Age Up Sprite Catalogue</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: a two-pane catalogue (asset list · live stage + facts), three auxiliary tabs. Single committed look: the game's own wood-and-parchment UI. */
+:root{
+  --bg:#15100c; --panel:#2b2118; --panel2:#3a2c1f; --edge:#6b5338; --edge2:#4a3826;
+  --gold:#d9b35a; --fg:#f1e6cf; --muted:#b9a78a; --dim:#8e8070;
+  --ok:#6fbf63; --warn:#e0b04a; --bad:#e36a5a;
+  --display:'Cinzel',Georgia,'Times New Roman',serif; --body:'Spectral',Georgia,'Times New Roman',serif; --mono:Menlo,Consolas,'Liberation Mono',monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);padding-inline:16px;padding-block:0 24px}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.5px;text-wrap:balance;margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;padding-block:18px 12px;border-bottom:2px solid var(--edge)}
+header h1{font-size:22px;color:var(--gold)}
+header .sub{color:var(--muted);font-size:14px}
+nav.tabs{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+nav.tabs button{padding:6px 12px;border:1px solid var(--edge);background:var(--panel);border-radius:3px;color:var(--muted)}
+nav.tabs button[aria-selected="true"]{color:var(--gold);border-color:var(--gold);background:var(--panel2)}
+.cat{display:grid;grid-template-columns:272px minmax(0,1fr);gap:18px;padding-top:16px}
+aside{min-width:0}
+aside .search{width:100%;background:var(--panel2);border:1px solid var(--edge);color:var(--fg);padding:6px 8px;border-radius:3px;margin-bottom:10px}
+aside h3{font-size:12px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;font-weight:500;margin:12px 0 6px}
+.items{display:flex;flex-direction:column;gap:2px}
+.item{display:grid;grid-template-columns:56px 1fr 10px;align-items:center;gap:10px;padding:4px 6px;border-radius:3px;text-align:left;border:1px solid transparent}
+.item:hover{background:var(--panel)}
+.item[aria-current="true"]{background:var(--panel2);border-color:var(--edge)}
+.item canvas{width:56px;height:44px;background:#5f9a3e;border:1px solid var(--edge2);display:block}
+.item .nm{display:block;line-height:1.2}
+.item .meta{display:block;font-size:12px;color:var(--dim);line-height:1.2}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--edge2);display:block}
+.dot.ok{background:var(--ok)}.dot.notes{background:var(--warn)}.dot.problem{background:var(--bad)}
+#detail{min-width:0}
+.title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:10px}
+.title-row h2{font-size:26px;color:var(--gold)}
+.title-row .kind{color:var(--muted);font-size:14px}
+.badge{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);border:1px solid var(--edge);padding:1px 7px;border-radius:2px}
+.stage{background:#070503;border:2px solid var(--edge);border-radius:4px;padding:8px;display:flex;justify-content:center;align-items:center;min-height:240px;overflow:auto}
+.stage canvas{max-width:100%;image-rendering:pixelated;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:10px 2px;color:var(--muted);font-size:14px}
+.controls label{display:flex;align-items:center;gap:6px}
+.controls select,.controls input[type=range]{accent-color:var(--gold)}
+.controls select{background:var(--panel2);color:var(--fg);border:1px solid var(--edge);padding:3px 6px;border-radius:3px;font:inherit;font-size:13px}
+.chips{display:flex;gap:4px}
+.chip{width:22px;height:22px;border-radius:50%;border:2px solid transparent}
+.chip[aria-pressed="true"]{border-color:#fff}
+.tog{padding:3px 9px;border:1px solid var(--edge);border-radius:3px;color:var(--muted)}
+.tog[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:6px}
+.fact{min-width:0;background:var(--panel);border:1px solid var(--edge2);border-radius:3px;padding:12px 14px}
+.fact h3{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:8px}
+.fact p{margin:0 0 6px}
+.fact .lbl{color:var(--dim);font-size:12px;letter-spacing:.5px}
+.fact ul{margin:0;padding-left:18px}
+.fact li.bad{color:var(--bad)}.fact li.note{color:var(--muted)}
+table.spec{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+table.spec td{padding:2px 0;vertical-align:top}
+table.spec td:first-child{color:var(--dim);width:38%}
+details.sheet{margin-top:16px}
+details.sheet summary{cursor:pointer;color:var(--gold);font-family:var(--display);font-size:14px;letter-spacing:.5px}
+details.sheet .scroll{overflow-x:auto;margin-top:8px;border:1px solid var(--edge2)}
+details.sheet canvas{display:block}
+.panel{padding-top:16px}
+.panel .bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;color:var(--muted);margin-bottom:10px}
+.panel .scroll{overflow-x:auto;border:2px solid var(--edge);border-radius:4px;background:#070503}
+.panel canvas{display:block}
+.empty{color:var(--dim);padding:24px;text-align:center}
+/* paint tab */
+.paint{display:grid;grid-template-columns:150px minmax(0,1fr) 220px;gap:14px;align-items:start}
+.paint .pal{display:flex;flex-direction:column;gap:4px}
+.sw{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:center;padding:3px 6px;border:1px solid transparent;border-radius:3px;text-align:left;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.sw i{width:22px;height:18px;border:1px solid var(--edge2);display:block;background:repeating-conic-gradient(#2a2420 0 25%,#211c18 0 50%) 0 0/8px 8px}
+.sw[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.addsw{display:flex;gap:4px;align-items:center;margin-top:6px}
+.addsw input[type=text]{width:28px;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);padding:3px 4px;border-radius:3px;font:12px var(--mono);text-align:center}
+.addsw input[type=color]{width:28px;height:24px;padding:0;border:1px solid var(--edge);background:none}
+.gridwrap{overflow:auto;border:2px solid var(--edge);border-radius:4px;background:#070503;touch-action:none}
+#px-grid{display:block;cursor:crosshair}
+.prev{display:flex;flex-direction:column;gap:8px}
+.prev canvas{display:block;border:1px solid var(--edge2);image-rendering:pixelated;max-width:100%}
+.prev .row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.num{width:52px;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);padding:3px 4px;border-radius:3px;font:13px var(--body)}
+.exp textarea{width:100%;min-height:180px;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);border-radius:3px;font:12px/1.35 var(--mono);padding:8px}
+.exp .bar{margin-top:8px}
+.hint{color:var(--dim);font-size:13px}
+.btn{padding:4px 10px;border:1px solid var(--edge);border-radius:3px;color:var(--muted);background:var(--panel)}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+@media (max-width:820px){
+  .paint{grid-template-columns:1fr}.paint .pal{flex-direction:row;flex-wrap:wrap}
+
+  .cat{grid-template-columns:1fr}
+  .items{flex-direction:row;overflow-x:auto;padding-bottom:6px}
+  .item{grid-template-columns:48px;grid-auto-rows:auto;width:92px;flex:0 0 auto;gap:2px;justify-items:center;text-align:center;font-size:12px}
+  .item canvas{width:48px;height:38px}.item .meta{display:none}.item .dot{display:none}
+  aside h3{margin-top:8px}
+}
+@media (prefers-reduced-motion:reduce){ .chip,.tog,nav.tabs button{transition:none} }
+</style>
+
+<header>
+  <h1>Age Up Sprite Catalogue</h1>
+  <span class="sub" id="counts">loading…</span>
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="cat">Catalogue</button>
+    <button role="tab" aria-selected="false" data-tab="village">Village</button>
+    <button role="tab" aria-selected="false" data-tab="contact">Contact sheet</button>
+    <button role="tab" aria-selected="false" data-tab="palette">Palette</button>
+    <button role="tab" aria-selected="false" data-tab="paint">Paint</button>
+  </nav>
+</header>
+
+<section id="tab-cat" class="cat" role="tabpanel">
+  <aside>
+    <input class="search" id="search" type="search" placeholder="Filter assets…" aria-label="Filter assets">
+    <div id="side"></div>
+  </aside>
+  <div id="detail">
+    <div class="title-row"><h2 id="d-name">—</h2><span class="kind" id="d-kind"></span><span class="badge" id="d-badge" hidden>draft</span></div>
+    <div class="stage"><canvas id="live" width="320" height="240"></canvas></div>
+    <div class="controls">
+      <label>team <span class="chips" id="chips"></span></label>
+      <label id="c-state">state <select id="ustate"></select></label>
+      <label id="c-progress">built <input id="progress" type="range" min="0.05" max="1" step="0.05" value="1"></label>
+      <label id="c-variant">variant <select id="variant"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select></label>
+      <label id="c-amount">left <input id="amount" type="range" min="10" max="100" step="5" value="100"></label>
+      <label>zoom <input id="zoom" type="range" min="1" max="6" step="1" value="3"></label>
+      <button class="tog" id="vector" aria-pressed="false">vector</button>
+      <button class="tog" id="src" aria-pressed="false" hidden>show draft</button>
+      <button class="tog" id="play" aria-pressed="true">animating</button>
+    </div>
+    <div class="facts">
+      <div class="fact" id="f-truth"><h3>What the real one looks like</h3><div id="truth"></div></div>
+      <div class="fact" id="f-lint"><h3>Lint</h3><div id="lint"></div></div>
+      <div class="fact" id="f-spec"><h3>In the game</h3><table class="spec" id="spec"></table></div>
+    </div>
+    <details class="sheet" id="sheetbox"><summary>Full inspection sheet (teams · construction or walk · animation · states · ×N detail)</summary><div class="scroll"><canvas id="sheet"></canvas></div></details>
+  </div>
+</section>
+
+<section id="tab-village" class="panel" role="tabpanel" hidden>
+  <div class="bar"><span>A hand-placed village drawn in depth order on real terrain, animating.</span>
+    <label>team <select id="v-team"><option value="0">Blue</option><option value="1">Red</option><option value="2">Green</option><option value="3">Yellow</option></select></label>
+    <label>art <select id="v-src"><option value="current">current</option><option value="draft">with drafts</option></select></label>
+    <label>zoom <select id="v-zoom"><option value="1">1×</option><option value="2">2×</option></select></label></div>
+  <div class="scroll"><canvas id="village"></canvas></div>
+</section>
+<section id="tab-contact" class="panel" role="tabpanel" hidden>
+  <div class="bar"><span>Everything at ×2, pixel-true, so the set can be judged for consistency.</span>
+    <label>art <select id="k-src"><option value="current">current</option><option value="draft">with drafts</option></select></label></div>
+  <div class="scroll"><canvas id="contact"></canvas></div>
+</section>
+<section id="tab-paint" class="panel" role="tabpanel" hidden>
+  <div class="bar">
+    <label>sprite <select id="px-sprite"></select></label>
+    <span class="addsw"><input class="num" id="px-newid" type="text" placeholder="new id" style="width:90px"><input class="num" id="px-neww" type="number" value="14" min="2" max="96" title="width"><input class="num" id="px-newh" type="number" value="24" min="2" max="96" title="height"><button class="btn" id="px-new">new sprite</button></span>
+    <label>frame <select id="px-frame"></select></label>
+    <button class="btn" id="px-dup">duplicate frame</button><button class="btn" id="px-del">delete frame</button>
+    <label>new set <input class="num" id="px-setname" type="text" placeholder="attack" style="width:70px"><button class="btn" id="px-addset">add</button></label>
+    <label>zoom <select id="px-zoom"><option>8</option><option>12</option><option selected>16</option><option>24</option></select></label>
+    <label>team <select id="px-team"><option value="0">Blue</option><option value="1">Red</option><option value="2">Green</option><option value="3">Yellow</option></select></label>
+  </div>
+  <div class="paint">
+    <div class="pal" id="px-pal"></div>
+    <div class="gridwrap"><canvas id="px-grid" width="224" height="384"></canvas></div>
+    <div class="prev">
+      <span class="hint">1× on grass (right / left)</span><canvas id="px-prev1" width="152" height="76"></canvas>
+      <span class="hint">×4</span><canvas id="px-prev4" width="56" height="96"></canvas>
+      <div class="row"><label class="hint">anchor x <input class="num" id="px-ax" type="number"></label><label class="hint">y <input class="num" id="px-ay" type="number"></label></div>
+      <div class="row"><label class="hint">size w <input class="num" id="px-w" type="number" min="2" max="96"></label><label class="hint">h <input class="num" id="px-h" type="number" min="2" max="96"></label><button class="btn" id="px-resize">resize</button></div>
+      <span class="hint">Left button paints the selected colour, right button erases, drag to paint. Units whose draft calls <code>pixDraw</code> update live in the Catalogue tab.</span>
+    </div>
+  </div>
+  <details class="exp" style="margin-top:14px"><summary style="cursor:pointer;color:var(--gold);font-family:var(--display);font-size:14px">Export / import</summary>
+    <textarea id="px-out" spellcheck="false" aria-label="sprite source"></textarea>
+    <div class="bar"><button class="btn" id="px-copy">copy</button><button class="btn" id="px-load">load from text</button><span class="hint" id="px-msg">Save as <code>tools/sprite-lab/drafts/pixel.&lt;id&gt;.js</code> with <code>export default</code> in front, then <code>lab.mjs render pixel &lt;id&gt;</code>.</span></div>
+  </details>
+</section>
+<section id="tab-palette" class="panel" role="tabpanel" hidden>
+  <div class="bar"><span>Every colour literal in the drawing code, grouped by where it is used.</span></div>
+  <div class="scroll"><canvas id="palette"></canvas></div>
+</section>
+
+<script>/*@STUBS@*/</script>
+<script>/*@GAME@*/</script>
+<script>window.__INLINE__=/*@INLINE@*/;window.__REF__=/*@REF@*/;</script>
+<script>/*@SPLICE@*/</script>
+<script>/*@LAB@*/</script>
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const REF=window.__REF__;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const S={kind:'building',type:'townhall',team:0,src:'current',zoom:3,vector:false,p:1,ustate:'idle',v:0,amount:100,playing:!reduced,tab:'cat'};
+  const TEAM_OPTS=[[0,'#2f6fd6','Blue'],[1,'#cf3b2b','Red'],[2,'#3ba34a','Green'],[3,'#d9b13a','Yellow'],[-1,'#cfc4a8','Wild']];
+  const ageName=a=>AGES[a]||'Dark Age';
+  const costStr=c=>Object.entries(c||{}).map(([k,v])=>`${v} ${k}`).join(', ')||'free';
+  const lintCache={};
+  const lintOf=(k,t)=>lintCache[k+'.'+t]||(lintCache[k+'.'+t]=LAB.lint(k,t,LAB.hasDraft(k,t)?'draft':'current'));
+
+  // ---------- sidebar
+  function buildSidebar(){
+    const groups=[['Buildings',BUILD_ORDER.map(t=>['building',t])],['Units',Object.keys(UNITS).map(t=>['unit',t])],['Resources',LAB.meta.resources.map(t=>['resource',t])]];
+    const side=$('#side'); side.innerHTML='';
+    for(const [title,list] of groups){
+      const h=document.createElement('h3'); h.textContent=title; side.appendChild(h);
+      const box=document.createElement('div'); box.className='items'; side.appendChild(box);
+      for(const [k,t] of list){
+        const b=document.createElement('button'); b.className='item'; b.dataset.kind=k; b.dataset.type=t; b.setAttribute('role','option');
+        const name=k==='building'?BUILDINGS[t].name:k==='unit'?UNITS[t].name:t[0].toUpperCase()+t.slice(1);
+        const meta=k==='building'?`${BUILDINGS[t].w}×${BUILDINGS[t].h} · ${ageName(BUILDINGS[t].age)}`:k==='unit'?(UNITS[t].animal?'animal':UNITS[t].naval?'ship':ageName(UNITS[t].age)):'resource';
+        b.innerHTML=`<canvas width="56" height="44"></canvas><span><span class="nm">${name}</span><span class="meta">${meta}</span></span><i class="dot" title="lint pending"></i>`;
+        b.dataset.search=(name+' '+t+' '+meta).toLowerCase();
+        const cell=LAB.renderCell(k,t,{src:LAB.hasDraft(k,t)?'draft':'current',time:0.3,seed:5});
+        const tc=b.querySelector('canvas').getContext('2d'); const sc=Math.min(56/cell.width,44/cell.height); const dw=cell.width*sc,dh=cell.height*sc; tc.fillStyle='#5f9a3e';tc.fillRect(0,0,56,44); tc.drawImage(cell,(56-dw)/2,(44-dh)/2,dw,dh);
+        b.onclick=()=>select(k,t);
+        box.appendChild(b);
+      }
+    }
+    $('#search').oninput=e=>{const q=e.target.value.toLowerCase(); for(const it of $$('.item')) it.hidden=!!q&&!it.dataset.search.includes(q)};
+  }
+  function scheduleLint(){
+    const items=$$('.item'); let i=0, flagged=0;
+    const step=()=>{ const end=Math.min(items.length,i+3); for(;i<end;i++){ const it=items[i]; const r=lintOf(it.dataset.kind,it.dataset.type); const dot=it.querySelector('.dot'); dot.className='dot '+(r.problems.length?'problem':r.notes.some(n=>!/static|animated/.test(n))?'notes':'ok'); dot.title=r.problems.length?r.problems.join('\n'):'lint ok'; if(r.problems.length)flagged++; }
+      if(i<items.length) idle(step); else $('#counts').textContent=`${BUILD_ORDER.length} buildings · ${Object.keys(UNITS).length} units · ${LAB.meta.resources.length} resources · ${flagged} flagged by lint`; };
+    idle(step);
+  }
+  const idle=fn=>(window.requestIdleCallback||(f=>setTimeout(f,16)))(fn);
+
+  // ---------- selection
+  function select(kind,type){
+    S.kind=kind; S.type=type; if(kind==='unit'&&UNITS[type].animal&&S.team>=0&&type!=='sheep')S.team=-1; if(S.team<0&&!(kind==='unit'&&UNITS[type].animal))S.team=0;
+    if(!LAB.hasDraft(kind,type))S.src='current';
+    for(const it of $$('.item')) it.setAttribute('aria-current',it.dataset.kind===kind&&it.dataset.type===type?'true':'false');
+    try{ if(location.hash.slice(1)!==type) history.replaceState(null,'','#'+type); }catch(e){}
+    const d=kind==='building'?BUILDINGS[type]:kind==='unit'?UNITS[type]:null;
+    $('#d-name').textContent=d?d.name:type[0].toUpperCase()+type.slice(1);
+    $('#d-kind').textContent=kind==='building'?`building · ${d.w}×${d.h} tiles · ${ageName(d.age)}`:kind==='unit'?`unit · ${d.animal?'animal':d.naval?'ship':ageName(d.age)+(UNITS[type].at?' · from the '+(BUILDINGS[d.at]||{name:d.at}).name:'')}`:'resource';
+    $('#d-badge').hidden=!LAB.hasDraft(kind,type); $('#src').hidden=!LAB.hasDraft(kind,type); $('#src').setAttribute('aria-pressed',String(S.src==='draft')); $('#src').textContent=S.src==='draft'?'showing draft':'show draft';
+    $('#c-state').hidden=kind!=='unit'; $('#c-progress').hidden=kind!=='building'; $('#c-variant').hidden=kind!=='resource'; $('#c-amount').hidden=!(kind==='resource'&&(type==='gold'||type==='stone'));
+    if(kind==='unit'){ const u=UNITS[type]; const opts=[['idle','idle'],['move','walking']]; if(type==='villager')opts.push(['work','working'],['carry','carrying wood'],['carryfood','carrying food'],['carrygold','carrying gold']); else if(type==='monk')opts.push(['relic','holding a relic'],['convert','converting']); else if(type==='fishing')opts.push(['work','fishing']); else if(type==='tradecart')opts.push(['carrygold','carrying gold']); else if(!u.animal&&!u.naval||type==='warship')opts.push(['attack','attacking']);
+      $('#ustate').innerHTML=opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join(''); if(!opts.some(o=>o[0]===S.ustate))S.ustate='idle'; $('#ustate').value=S.ustate; }
+    buildChips(); renderTruth(); renderSpec(); renderLint();
+    $('#sheetbox').open=false; sheetDirty=true;
+    drawLive(liveTime);
+  }
+  function buildChips(){
+    const box=$('#chips'); box.innerHTML='';
+    const allowed=S.kind==='unit'&&UNITS[S.type].animal?(S.type==='sheep'?[-1,0,1,2,3]:[-1]):S.kind==='resource'?[]:[0,1,2,3];
+    for(const [t,col,name] of TEAM_OPTS){ if(!allowed.includes(t))continue; const b=document.createElement('button'); b.className='chip'; b.style.background=col; b.title=name; b.setAttribute('aria-label',name); b.setAttribute('aria-pressed',String(S.team===t)); b.onclick=()=>{S.team=t;buildChips();drawLive(liveTime)}; box.appendChild(b); }
+    box.parentElement.hidden=!allowed.length;
+  }
+  function renderTruth(){
+    const r=(REF[S.kind]||{})[S.type]; const el=$('#truth');
+    if(!r){el.innerHTML='<p class="lbl">No reference notes yet.</p>';return}
+    el.innerHTML=(r.aoe?`<p><span class="lbl">classic RTS</span><br>${r.aoe}</p>`:'')+`<p><span class="lbl">Reads as</span><br>${r.truth}</p>`+(r.delight?`<p><span class="lbl">Delight</span><br>${r.delight}</p>`:'')+(r.team?`<p><span class="lbl">Team colour on</span><br>${r.team}</p>`:'');
+  }
+  function renderSpec(){
+    const rows=[]; const T=$('#spec');
+    if(S.kind==='building'){ const d=BUILDINGS[S.type]; rows.push(['Hit points',d.hp],['Cost',costStr(d.cost)],['Build time',d.time+' s'],['Available',ageName(d.age)]); if(d.pop)rows.push(['Population','+'+d.pop]); if(d.trains)rows.push(['Trains',d.trains.map(t=>UNITS[t]?UNITS[t].name:t).join(', ')]); if(d.atk)rows.push(['Attack',`${d.atk} · range ${d.range}`]); if(d.garrison)rows.push(['Garrison',d.garrison]); if(d.drop)rows.push(['Drop-off',d.drop.join(', ')]); if(d.desc)rows.push(['',`<i>${d.desc}</i>`]); }
+    else if(S.kind==='unit'){ const d=UNITS[S.type]; rows.push(['Hit points',d.hp],['Attack',`${d.atk}${d.range>1?' · range '+d.range:''}`],['Armour',`${d.armor||0} / ${d.parmor||0} pierce`],['Speed',d.speed]); if(d.cost)rows.push(['Cost',costStr(d.cost)]); if(d.time)rows.push(['Train time',d.time+' s']); if(d.at)rows.push(['Trained at',(BUILDINGS[d.at]||{name:d.at}).name]); if(d.bonus)rows.push(['Bonus vs',Object.entries(d.bonus).map(([k,v])=>`${k} +${v}`).join(', ')]); if(d.desc)rows.push(['',`<i>${d.desc}</i>`]); }
+    else rows.push(['Gathered as',S.type],['Sprite','64×80 px, three variants'],['Depletes',S.type==='gold'||S.type==='stone'?'shrinks with amount left':'removed when empty']);
+    T.innerHTML=rows.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  }
+  function renderLint(){
+    const r=lintOf(S.kind,S.type); const m=r.measures; const el=$('#lint');
+    const parts=[]; if(m.widthPx)parts.push(`<p class="lbl">${m.widthPx}×${m.heightPx} px at 1× · rises ${m.riseAboveTop} px above its tile${m.teamColourPixels!==undefined?` · ${m.teamColourPixels} team-colour px`:''}</p>`);
+    parts.push('<ul>'+r.problems.map(p=>`<li class="bad">${p}</li>`).join('')+r.notes.map(n=>`<li class="note">${n}</li>`).join('')+(r.problems.length?'':'<li>No problems.</li>')+'</ul>');
+    el.innerHTML=parts.join('');
+  }
+
+  // ---------- live stage
+  let liveTime=0.3, t0=null, sheetDirty=true;
+  function liveOpts(time){
+    const o={src:S.src,team:S.team,time,seed:5};
+    if(S.kind==='building'){o.p=S.p;}
+    else if(S.kind==='unit'){ const st=S.ustate; o.anim=time;
+      if(st==='move')o.state='move'; else if(st==='attack'){o.state='attack';const ph=time%1.2;o.swing=ph<0.3?0.3-ph:0;} else if(st==='work')o.state='work'; else if(st==='carry'){o.state='carry';o.carryKind='wood'} else if(st==='carryfood'){o.state='carry';o.carryKind='food'} else if(st==='carrygold'){if(S.type==='tradecart'){o.carry=10;o.carryKind='gold';o.state='move'}else{o.state='carry';o.carryKind='gold'}} else if(st==='relic')o.relic=true; else if(st==='convert')o.state='convert'; }
+    else {o.v=S.v;o.amount=S.amount;}
+    return o;
+  }
+  function drawLive(time){
+    const cv=$('#live'); const o=liveOpts(time);
+    const img=S.vector?LAB.renderCellVector(S.kind,S.type,o,S.zoom):LAB.magnify(LAB.renderCell(S.kind,S.type,o),S.zoom);
+    if(cv.width!==img.width||cv.height!==img.height){cv.width=img.width;cv.height=img.height}
+    cv.getContext('2d').drawImage(img,0,0);
+  }
+  function drawVillage(time){
+    const cv=$('#village'); const img=LAB.sceneCanvas({team:+$('#v-team').value,src:$('#v-src').value,zoom:+$('#v-zoom').value,time,caption:false});
+    if(cv.width!==img.width||cv.height!==img.height){cv.width=img.width;cv.height=img.height}
+    cv.getContext('2d').drawImage(img,0,0);
+  }
+  let last=0;
+  function frame(now){
+    if(t0===null)t0=now; if(S.playing)liveTime=0.3+(now-t0)/1000;
+    if(now-last>33){ last=now; if(S.tab==='cat'&&S.playing)drawLive(liveTime); else if(S.tab==='village'&&S.playing)drawVillage(liveTime); }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- controls
+  function wire(){
+    $('#ustate').onchange=e=>{S.ustate=e.target.value;drawLive(liveTime)};
+    $('#progress').oninput=e=>{S.p=+e.target.value;drawLive(liveTime)};
+    $('#variant').onchange=e=>{S.v=+e.target.value;drawLive(liveTime)};
+    $('#amount').oninput=e=>{S.amount=+e.target.value;drawLive(liveTime)};
+    $('#zoom').oninput=e=>{S.zoom=+e.target.value;drawLive(liveTime)};
+    $('#vector').onclick=e=>{S.vector=!S.vector;e.currentTarget.setAttribute('aria-pressed',String(S.vector));drawLive(liveTime)};
+    $('#src').onclick=()=>{S.src=S.src==='draft'?'current':'draft';select(S.kind,S.type)};
+    $('#play').onclick=e=>{S.playing=!S.playing;e.currentTarget.setAttribute('aria-pressed',String(S.playing));e.currentTarget.textContent=S.playing?'animating':'paused';if(!S.playing){drawLive(liveTime);if(S.tab==='village')drawVillage(liveTime)}};
+    $('#sheetbox').ontoggle=e=>{ if(e.target.open&&sheetDirty){ LAB.target=$('#sheet'); try{LAB.sheet(S.kind,S.type,'both')}finally{LAB.target=null} sheetDirty=false; } };
+    for(const id of ['v-team','v-src','v-zoom']) $('#'+id).onchange=()=>drawVillage(liveTime);
+    $('#k-src').onchange=()=>drawContact();
+    for(const b of $$('nav.tabs button')) b.onclick=()=>showTab(b.dataset.tab);
+    $('#play').setAttribute('aria-pressed',String(S.playing)); $('#play').textContent=S.playing?'animating':'paused';
+    addEventListener('hashchange',applyHash);
+  }
+  let contactDone=false, paletteDone=false;
+  function drawContact(){ LAB.target=$('#contact'); try{LAB.contact('all',$('#k-src').value,2,Math.max(600,Math.min(1500,innerWidth-40)))}finally{LAB.target=null} contactDone=true; }
+  function showTab(tab){
+    S.tab=tab; for(const b of $$('nav.tabs button')) b.setAttribute('aria-selected',String(b.dataset.tab===tab));
+    for(const t of ['cat','village','contact','palette','paint']) $('#tab-'+t).hidden=t!==tab;
+    if(tab==='paint')Paint.show();
+    if(tab==='village')drawVillage(liveTime);
+    if(tab==='contact'&&!contactDone)drawContact();
+    if(tab==='palette'&&!paletteDone){LAB.target=$('#palette');try{LAB.palette()}finally{LAB.target=null}paletteDone=true}
+  }
+  function applyHash(){
+    const h=location.hash.slice(1); if(!h)return;
+    const k=BUILDINGS[h]?'building':UNITS[h]?'unit':LAB.meta.resources.includes(h)?'resource':null;
+    if(k&&(k!==S.kind||h!==S.type))select(k,h);
+  }
+
+  // ---------- paint: a pixel editor over PIXELS specs (same format the game stores)
+  const Paint=(()=>{
+    const P={id:null,set:'idle',fi:0,ch:'T',zoom:16,team:0,grid:null,shown:false,painting:0};
+    const spec=()=>PIXELS[P.id];
+    const tc=()=>TEAM[P.team];
+    const norm=g=>LAB.normaliseGrid(g).map(l=>l.split(''));
+    const toStr=()=>P.grid.map(r=>r.join('')).join('\n');
+    function commit(){ spec().frames[P.set][P.fi]='\n'+toStr()+'\n'; for(const k in PIX_CACHE)delete PIX_CACHE[k]; drawPrev(); exportText(); }
+    function pick(){ const s=spec(); if(!s.frames[P.set]){P.set=Object.keys(s.frames)[0];P.fi=0} if(!s.frames[P.set][P.fi])P.fi=0; P.grid=norm(s.frames[P.set][P.fi]); }
+    function fillSprites(){ const sel=$('#px-sprite'); const ids=Object.keys(PIXELS); sel.innerHTML=ids.map(i=>`<option>${i}</option>`).join(''); if(!ids.length){sel.innerHTML='<option value="">(none yet — make one)</option>'} if(P.id&&ids.includes(P.id))sel.value=P.id; }
+    function fillFrames(){ const s=spec(); const sel=$('#px-frame'); sel.innerHTML=Object.entries(s.frames).flatMap(([n,l])=>l.map((g,i)=>`<option value="${n}:${i}">${n} ${i}</option>`)).join(''); sel.value=P.set+':'+P.fi; }
+    function fillPal(){ const s=spec(); const box=$('#px-pal'); box.innerHTML=''; const entries=[['.','erase'],...Object.entries(s.palette)];
+      for(const [ch,col] of entries){ const b=document.createElement('button'); b.className='sw'; b.setAttribute('aria-pressed',String(P.ch===ch)); const real=col==='team'?tc().c:col==='teamdark'?tc().d:col==='teamlight'?tc().l:col; b.innerHTML=`<i style="${ch==='.'?'':'background:'+real}"></i><span>${ch==='.'?'· erase':ch+' '+col}</span>`; b.onclick=()=>{P.ch=ch;fillPal()}; box.appendChild(b); }
+      const add=document.createElement('div'); add.className='addsw'; add.innerHTML='<input type="text" id="px-addch" maxlength="1" placeholder="x" aria-label="new palette key"><input type="color" id="px-addcol" value="#8a6a3a" aria-label="new palette colour"><button class="btn" id="px-addbtn">add</button>'; box.appendChild(add);
+      add.querySelector('#px-addbtn').onclick=()=>{ const ch=add.querySelector('#px-addch').value.trim(); if(!ch||ch==='.')return; s.palette[ch]=add.querySelector('#px-addcol').value; P.ch=ch; fillPal(); commit(); };
+    }
+    function drawGrid(){ const cv=$('#px-grid'); const z=P.zoom,w=P.grid[0].length,h=P.grid.length; cv.width=w*z+1; cv.height=h*z+1; const c=cv.getContext('2d'); const s=spec();
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){ c.fillStyle=(x+y)%2?'#2a2420':'#211c18'; c.fillRect(x*z,y*z,z,z); const ch=P.grid[y][x]; if(ch!=='.'){ let col=s.palette[ch]; if(!col)continue; col=col==='team'?tc().c:col==='teamdark'?tc().d:col==='teamlight'?tc().l:col; c.fillStyle=col; c.fillRect(x*z,y*z,z,z);} }
+      c.strokeStyle='rgba(255,255,255,0.07)'; c.beginPath(); for(let x=0;x<=w;x++){c.moveTo(x*z+.5,0);c.lineTo(x*z+.5,h*z)} for(let y=0;y<=h;y++){c.moveTo(0,y*z+.5);c.lineTo(w*z,y*z+.5)} c.stroke();
+      const [ax,ay]=s.anchor; c.strokeStyle='rgba(255,80,80,0.9)'; c.lineWidth=2; c.beginPath(); c.moveTo(ax*z-8,ay*z); c.lineTo(ax*z+8,ay*z); c.moveTo(ax*z,ay*z-8); c.lineTo(ax*z,ay*z+8); c.stroke(); c.lineWidth=1;
+    }
+    function drawPrev(){ const s=spec(); const g=toStr(); const img=pixBuild(s,g,tc());
+      const p1=$('#px-prev1'); const c1=p1.getContext('2d'); c1.clearRect(0,0,152,76); for(const [ox,face] of [[38,1],[114,-1]]){ const cell=document.createElement('canvas'); cell.width=76; cell.height=76; const cc=cell.getContext('2d'); LAB.drawGround(cc,38,76-22-HH,76,76,3); cc.save(); cc.translate(38,76-22); cc.scale(face,1); cc.fillStyle='rgba(0,0,0,0.25)'; cc.beginPath(); cc.ellipse(0,0,7,3.5,0,0,7); cc.fill(); cc.imageSmoothingEnabled=false; cc.drawImage(img,-s.anchor[0],-s.anchor[1]); cc.restore(); c1.drawImage(cell,ox-38,0); }
+      const p4=$('#px-prev4'); p4.width=img.width*4; p4.height=img.height*4; const c4=p4.getContext('2d'); c4.imageSmoothingEnabled=false; c4.drawImage(img,0,0,p4.width,p4.height);
+      $('#px-ax').value=s.anchor[0]; $('#px-ay').value=s.anchor[1]; $('#px-w').value=P.grid[0].length; $('#px-h').value=P.grid.length;
+    }
+    function exportText(){ $('#px-out').value='// @pixel '+P.id+'\nexport default '+LAB.serializePixelSpec(spec())+';\n'; }
+    function paintAt(ev){ const cv=$('#px-grid'); const r=cv.getBoundingClientRect(); const x=Math.floor((ev.clientX-r.left)*(cv.width/r.width)/P.zoom), y=Math.floor((ev.clientY-r.top)*(cv.height/r.height)/P.zoom); if(y<0||y>=P.grid.length||x<0||x>=P.grid[0].length)return; const ch=P.painting===2?'.':P.ch; if(P.grid[y][x]===ch)return; P.grid[y][x]=ch; drawGrid(); }
+    function all(){ pick(); fillFrames(); fillPal(); drawGrid(); drawPrev(); exportText(); }
+    function wire(){
+      const cv=$('#px-grid'); cv.oncontextmenu=e=>e.preventDefault();
+      cv.onpointerdown=e=>{P.painting=e.button===2?2:1;cv.setPointerCapture(e.pointerId);paintAt(e)}; cv.onpointermove=e=>{if(P.painting)paintAt(e)}; cv.onpointerup=cv.onpointercancel=()=>{if(P.painting){P.painting=0;commit()}};
+      $('#px-sprite').onchange=e=>{P.id=e.target.value;P.set='idle';P.fi=0;all()};
+      $('#px-frame').onchange=e=>{const [n,i]=e.target.value.split(':');P.set=n;P.fi=+i;pick();drawGrid();drawPrev()};
+      $('#px-zoom').onchange=e=>{P.zoom=+e.target.value;drawGrid()}; $('#px-team').onchange=e=>{P.team=+e.target.value;fillPal();drawGrid();drawPrev()};
+      $('#px-dup').onclick=()=>{const l=spec().frames[P.set];l.splice(P.fi+1,0,l[P.fi]);P.fi++;all()};
+      $('#px-del').onclick=()=>{const l=spec().frames[P.set];if(l.length<=1){if(Object.keys(spec().frames).length>1){delete spec().frames[P.set];P.set=Object.keys(spec().frames)[0];P.fi=0}}else{l.splice(P.fi,1);P.fi=Math.max(0,P.fi-1)}for(const k in PIX_CACHE)delete PIX_CACHE[k];all()};
+      $('#px-addset').onclick=()=>{const n=$('#px-setname').value.trim(); if(!/^[a-z]+$/.test(n)||spec().frames[n])return; spec().frames[n]=[spec().frames[P.set][P.fi]]; P.set=n; P.fi=0; all()};
+      $('#px-ax').onchange=$('#px-ay').onchange=()=>{spec().anchor=[+$('#px-ax').value,+$('#px-ay').value];commit();drawGrid()};
+      $('#px-resize').onclick=()=>{const w=+$('#px-w').value,h=+$('#px-h').value; if(!(w>1&&h>1))return; const s=spec(); for(const n in s.frames)s.frames[n]=s.frames[n].map(g=>{const rows=norm(g).map(r=>r.slice(0,w));while(rows.length<h)rows.push([]);return '\n'+rows.slice(0,h).map(r=>r.join('').padEnd(w,'.')).join('\n')+'\n'}); for(const k in PIX_CACHE)delete PIX_CACHE[k]; all()};
+      $('#px-new').onclick=()=>{const id=$('#px-newid').value.trim(); if(!/^[a-z]+$/.test(id)){$('#px-msg').textContent='id: lowercase letters only';return} const w=+$('#px-neww').value||14,h=+$('#px-newh').value||24; PIXELS[id]={id,anchor:[Math.floor(w/2),h],palette:{k:'#3b2a1a',s:'#e8c39e',h:'#5a3a1a',T:'team',D:'teamdark',L:'teamlight',p:'#6a5a48',w:'#8a6a3a',m:'#cfd4d8'},frames:{idle:['\n'+Array.from({length:h},()=>'.'.repeat(w)).join('\n')+'\n']}}; P.id=id;P.set='idle';P.fi=0; fillSprites(); all(); $('#px-msg').textContent='new sprite "'+id+'" — a unit draft shows it with pixDraw(PIXELS.'+id+',"idle",0,tc)';};
+      $('#px-copy').onclick=async e=>{const t=$('#px-out'); try{await navigator.clipboard.writeText(t.value);$('#px-msg').textContent='copied'}catch(err){t.select();$('#px-msg').textContent='select-all and copy from the box'}};
+      $('#px-load').onclick=()=>{try{const sp=LAB.parsePixelDraft($('#px-out').value); if(!sp.id)throw new Error('spec needs an id'); PIXELS[sp.id]=sp; for(const k in PIX_CACHE)delete PIX_CACHE[k]; P.id=sp.id;P.set=Object.keys(sp.frames)[0];P.fi=0; fillSprites(); all(); $('#px-msg').textContent='loaded "'+sp.id+'"'}catch(err){$('#px-msg').textContent='could not load: '+err.message}};
+    }
+    return { show(){ if(!P.shown){ wire(); P.shown=true; } fillSprites(); if(!P.id)P.id=Object.keys(PIXELS)[0]||null; if(!P.id){ $('#px-pal').innerHTML='<span class="hint">No painted sprites yet. Give one an id and a size, then press “new sprite”.</span>'; return; } all(); } };
+  })();
+
+  function start(){
+    buildSidebar(); wire();
+    const h=location.hash.slice(1); const k=BUILDINGS[h]?'building':UNITS[h]?'unit':LAB.meta.resources.includes(h)?'resource':null;
+    select(k||'building',k?h:'townhall');
+    requestAnimationFrame(frame); scheduleLint();
+    $('#counts').textContent=`${BUILD_ORDER.length} buildings · ${Object.keys(UNITS).length} units · ${LAB.meta.resources.length} resources · linting…`;
+  }
+  if(window.LAB&&LAB.ready)start(); else addEventListener('lab-ready',start,{once:true});
+})();
+</script>
