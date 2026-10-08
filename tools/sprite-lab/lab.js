@@ -254,7 +254,7 @@ function pixelPanel(id) {
   const rows = []; const tc0 = TEAM[0]; const first = Object.keys(spec.frames)[0];
   const big = spec.kind === 'building'; const mag = big ? Math.max(1, Math.min(3, Math.floor(400 / pixBuild(spec, spec.frames[first][0], tc0).width))) : 6;
   for (const [name, list] of Object.entries(spec.frames)) rows.push({ label: `${name} · ${list.length} frame(s) · ×${mag} · red cross = anchor`, cells: list.map((g, i) => ({ label: name + ' ' + i, img: pixCell(spec, g, tc0, mag) })) });
-  rows.push({ label: `team colours · first frame · ×${big ? 1 : 4}`, cells: [0, 1, 2, 3].map(t => ({ label: teamName(t), img: pixCell(spec, spec.frames[first][0], TEAM[t], big ? 1 : 4, false) })) });
+  if (spec.kind !== 'resource') rows.push({ label: `team colours · first frame · ×${big ? 1 : 4}`, cells: [0, 1, 2, 3].map(t => ({ label: teamName(t), img: pixCell(spec, spec.frames[first][0], TEAM[t], big ? 1 : 4, false) })) });
   if (big) rows.push({ label: 'at 1× on its footprint · construction clip 0.3 / 0.65 / 1 · frames over time', cells: [
     { label: 'clip 0.3', img: pixBuildingCell(spec, first, 0, tc0, 0.3) }, { label: 'clip 0.65', img: pixBuildingCell(spec, first, 0, tc0, 0.65) }, { label: 'built', img: pixBuildingCell(spec, first, 0, tc0, 1) },
     ...(spec.frames[first].length > 1 ? spec.frames[first].slice(1).map((g, i) => ({ label: 'frame ' + (i + 1), img: pixBuildingCell(spec, first, i + 1, tc0, 1) })) : []) ] });
@@ -409,8 +409,8 @@ LAB.lint = (kind, type, src = 'both') => {
   m.animPixels = tA.err ? -1 : pixelDiff(base, tA);
   rep.notes.push(m.animPixels > 0 ? `animated when idle (${m.animPixels}px change over time)` : 'static when idle');
   if (kind === 'unit') {
-    const mv = transparentRender(kind, type, { src, state: 'move', anim: 0.11 }); const dm = mv.err ? -1 : pixelDiff(base, mv); m.walkPixels = dm;
-    if (dm === 0) rep.problems.push('no walk animation: moving frame identical to idle');
+    const mv = transparentRender(kind, type, { src, state: 'move', anim: 0.11 }), mv2 = transparentRender(kind, type, { src, state: 'move', anim: 0.27 }); const dm = mv.err || mv2.err ? -1 : Math.max(pixelDiff(base, mv), pixelDiff(mv, mv2)); m.walkPixels = dm;
+    if (dm === 0) (UNITS[type].naval ? rep.notes : rep.problems).push(UNITS[type].naval ? 'no walk animation (ships bob in code instead)' : 'no walk animation: moving frames identical to idle');
     const u = UNITS[type]; if (u.atk && !u.animal && !['villager', 'monk'].includes(type)) { const at = transparentRender(kind, type, { src, state: 'attack', swing: 0.15 }); const da = at.err ? -1 : pixelDiff(base, at); m.attackPixels = da; if (da === 0) rep.problems.push('no attack animation'); }
   }
   // palette

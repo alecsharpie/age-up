@@ -30,6 +30,11 @@ function readDrafts() {
   return { files, helpers: fs.existsSync(hp) ? fs.readFileSync(hp, 'utf8') : null };
 }
 function draftPath(kind, type) { return path.join(DRAFTS, `${kind}.${type}.js`); }
+/** Generated pixel drafts call the grid kit from drafts/helpers.js; make those functions globals in node so the drafts can be evaluated here too. */
+function installHelpersInNode() {
+  const hp = path.join(DRAFTS, 'helpers.js'); if (!fs.existsSync(hp)) return;
+  for (const h of parseHelpers(fs.readFileSync(hp, 'utf8'))) { try { globalThis[h.name] = new Function(h.text + ';return ' + h.name)(); } catch { } }
+}
 function loadDraft(kind, type) {
   const p = draftPath(kind, type); if (!fs.existsSync(p)) die(`no draft at ${rel(p)} — run: lab.mjs new ${kind} ${type}`);
   const d = parseDraft(fs.readFileSync(p, 'utf8'));
@@ -174,6 +179,7 @@ const commands = {
     console.log(`\n${reps.length} checked, ${bad} problem(s)`);
   },
   async diff() {
+    installHelpersInNode();
     const kind = kindOf(pos[0]), type = pos[1];
     if (kind === 'pixel') { const src = fs.readFileSync(draftPath('pixel', type), 'utf8'); const spec = parsePixelDraft(src); spec.id = type; console.log('--- would store in index.html as ---\nPIXELS.' + type + '=' + (isGeneratedPixelDraft(src) ? generatedPixelText(src, type) + '  // generated: stored as code' : serializePixelSpec(spec)) + ';'); return; }
     const d = loadDraft(kind, type);
@@ -184,6 +190,7 @@ const commands = {
     console.log(`\nwhole-script parse: ok. Apply with: lab.mjs apply ${kind} ${type}`);
   },
   async apply() {
+    installHelpersInNode();
     if (pos[0] === 'all') {
       // helpers → painted sprites → case bodies, one backup, keep going on errors, report at the end
       const dry = !!flags.dry; const d = readDrafts(); const results = []; let backupFile = null;
@@ -231,6 +238,8 @@ const commands = {
     try {
       await page.goto(`http://127.0.0.1:${port}/index.html`); await page.waitForTimeout(800);
       if (flags.seed) await page.fill('#s-seed', String(flags.seed));
+      if (flags.age) await page.selectOption('#s-age', String(flags.age)).catch(() => { });
+      if (flags.map) await page.selectOption('#s-map', String(flags.map)).catch(() => { });
       await page.selectOption('#s-reveal', 'visible').catch(() => { });
       await page.click('#play'); await page.waitForTimeout(+(flags.wait || 4000));
       fs.mkdirSync(OUT, { recursive: true }); await page.screenshot({ path: path.join(OUT, 'game.png') });
@@ -267,7 +276,7 @@ if (!cmd || cmd === 'help' || cmd === '--help' || !commands[cmd]) {
   catalog                           build out/catalog.html: a self-contained browsable catalogue (also served at /catalog.html)
   diff <kind> <type>                show what apply would change
   apply <kind> <type> [--dry]       splice the draft into index.html (backup first); apply helpers → drafts/helpers.js; apply all → everything
-  verify [--seed s] [--wait ms]     smoke-test the real game headlessly (press Play, run, report errors, out/game.png)
+  verify [--seed s] [--age n] [--map m] [--wait ms]  smoke-test the real game headlessly (press Play, run, report errors, out/game.png)
   revert [--to file]  · backups     restore index.html from a backup
   serve [--port 8765]               interactive lab in a browser
 

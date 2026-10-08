@@ -57,7 +57,8 @@ export function gameJs(html = readIndex()) {
   // pixel-sprite support: present in the game once `apply helpers` / `apply pixel` have run; otherwise the lab supplies stubs + drafts/helpers.js
   parts.push(src.includes('\nconst PIXELS={};') ? 'const PIXELS={};' : 'const PIXELS={}; // (not yet in the game)');
   parts.push(src.includes('\nconst PIX_CACHE={};') ? 'const PIX_CACHE={};' : 'const PIX_CACHE={};');
-  for (const f of ['pixBuild', 'pixDraw']) if (new RegExp('\\nfunction ' + f + '\\(').test(src)) parts.push(grabFunction(src, f).text);
+  // every pixel helper the game has (pixBuild, pixDraw, the grid kit…) must precede the PIXELS statements that call them
+  for (const m of src.matchAll(/\nfunction (pix[A-Za-z0-9_]*)\(/g)) parts.push(grabFunction(src, m[1]).text);
   for (const m of src.matchAll(/\nPIXELS\.([a-z]+)=/g)) { const start = m.index + 1; parts.push(src.slice(start, statementEnd(src, start))); }
   const out = parts.join('\n') + '\n';
   new vm.Script(out, { filename: 'game.generated.js' }); // throws a SyntaxError with line info if extraction went wrong
