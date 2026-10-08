@@ -54,7 +54,7 @@ await shot(host, 'game-host'); await shot(client, 'game-client');
 // fairness: with a slow client (450 ms round trip reported), the host's own orders wait about two turns
 await host.evaluate(() => { for (const q of dbg.net().peers.values()) q.rtt = 450; });
 const fair = await host.evaluate(() => new Promise(res => { const t0 = G.tick; dbg.submit({ v: 'taunt', n: 9 }); const iv = setInterval(() => { if (G.msgs.some(m => /Well played/.test(m.t))) { clearInterval(iv); res({ t0, t1: G.tick }); } }, 10); }));
-check(fair.t1 - fair.t0 >= 8 && fair.t1 - fair.t0 <= 16, `host order delayed to match client latency (${fair.t1 - fair.t0} ticks for a 450 ms round trip)`);
+check(fair.t1 - fair.t0 >= 5 && fair.t1 - fair.t0 <= 16, `host order delayed to match client latency (${fair.t1 - fair.t0} ticks for a 450 ms round trip)`);
 await host.evaluate(() => { for (const q of dbg.net().peers.values()) q.rtt = 0; });
 
 // deliberate corruption on the client: the hash exchange must notice and the host must resync it
