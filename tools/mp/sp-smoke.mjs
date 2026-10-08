@@ -1,0 +1,31 @@
+// Single-player smoke test through the real UI code paths (orders, build placement, buttons, menu, resign).
+import { chromium } from '/Users/alec/me/agentic-evals/node_modules/playwright-core/index.mjs';
+import { fileURLToPath } from 'url'; import path from 'path';
+const here = path.dirname(fileURLToPath(import.meta.url));
+const url = 'file://' + path.resolve(here, '../../index.html');
+const browser = await chromium.launch({ headless: true, channel: 'chrome' });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const errs = []; page.on('pageerror', e => errs.push(e.message));
+await page.goto(url); await page.waitForFunction(() => !!window.dbg);
+const r = await page.evaluate(() => {
+  const out = {};
+  dbg.start(7, 1, { mapType: 'plains' }); out.started = !!G && G.players[0].ai === false && G.players[1].ai === true;
+  const v = G.units.find(u => u.team === 0 && u.type === 'villager'); const tree = G.resources.find(x => x.res === 'wood');
+  setSel([v]); const sp = w2s(tree.tx + 0.5, tree.ty + 0.5); rightClick(sp.x, sp.y, false); out.gatherState = v.state;
+  const th = G.buildings.find(b => b.team === 0 && b.type === 'townhall'); setSel([th]);
+  const btn = buildButtons().find(b => b.label === 'Villager'); btn.act(); out.queued = th.queue.length === 1 && th.queue[0].unit === 'villager';
+  const bell = buildButtons().find(b => b.label === 'Town Bell'); bell.act(); out.bell = G.players[0].bell === true; buildButtons().find(b => /Back to work/.test(b.label)).act(); out.bellOff = G.players[0].bell === false;
+  setSel([v]); let spot=null;for(let d=3;d<12&&!spot;d++)for(let dy=-d;dy<=d&&!spot;dy++)for(let dx=-d;dx<=d&&!spot;dx++)if(canPlace('house',th.tx+dx,th.ty+dy,0))spot={x:th.tx+dx,y:th.ty+dy}; ui.build = { type: 'house', tx: spot.x, ty: spot.y }; placeBuild(false); out.placed = G.buildings.some(b => b.team === 0 && b.type === 'house' && !b.built) && ui.build === null;
+  dbg.ff(30); out.ticked = G.tick === 600 && !G.over;
+  chatSubmit('bounty'); out.cheat = G.players[0].res.wood > 1000;
+  chatSubmit('3'); out.taunt = G.msgs.some(m => /Send food/.test(m.t));
+  setSel(G.units.filter(u => u.team === 0 && u.type === 'villager')); const stance = buildButtons().find(b => b.label === 'Stop'); stance.act(); out.stopped = G.units.filter(u => u.team === 0 && u.type === 'villager').every(u => u.state === 'idle');
+  resign(); out.resigned = G.over === true && document.getElementById('endTitle').textContent === 'Defeat (cheats used)';
+  document.getElementById('again').click(); out.reset = G === null && !NET.active;
+  return out;
+});
+console.log(r); console.log(errs.length ? 'page errors: ' + errs.join(' | ') : 'no page errors');
+await browser.close();
+const bad = Object.entries(r).filter(([k, v]) => !v).map(([k]) => k);
+console.log(bad.length ? 'FAILED: ' + bad.join(', ') : 'single-player smoke test passed');
+process.exit(bad.length || errs.length ? 1 : 0);
