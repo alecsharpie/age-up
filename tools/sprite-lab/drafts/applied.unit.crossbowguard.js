@@ -1,8 +1,6 @@
 // @sprite unit crossbowguard
-// Painted crossbowguard (PIXELS.crossbowguard): idle, walk ×4, attack ×3 (wind-up, release, follow-through).
+// Painted crossbowguard (PIXELS.crossbowguard): idle 6 / walk 8 / ready 3 (aimed at the cheek) / attack 6 (trigger,
+// kick, nose down, crank, crank, bolt laid) / death 6 (played by the engine). The bolt in flight is the game's projectile.
 export default function crossbowguard(u,{tc,d,swing,working,wph,r,wx,wy}){
-  const moving=u.goal&&u.state!=='idle';
-  const frame=moving?'walk':u.swing>0?'attack':'idle';
-  const i=moving?Math.floor(u.anim*12):u.swing>0?Math.floor((0.3-u.swing)/0.3*3):0;
-  pixDraw(PIXELS.crossbowguard,frame,i,tc);
+  pixUnit(u,PIXELS.crossbowguard,tc);
 }

@@ -1,5 +1,5 @@
 // @sprite unit boar
-// Painted boar (PIXELS.boar); wild, no team colour.
+// Painted boar (PIXELS.boar) through pixUnit; wild, no team colour. Fights back: the attack set (tusk gore) plays on each swing.
 export default function boar(u,{tc,d,swing,working,wph,r,wx,wy}){
-  pixDraw(PIXELS.boar,u.goal?'walk':'idle',Math.floor(u.anim*12),null);
+  pixUnit(u,PIXELS.boar,null);
 }

@@ -1,13 +1,13 @@
 // @sprite unit villager
-// Hybrid villager: painted body (PIXELS.villager, see drafts/pixel.villager.js) plus code-drawn carried resource.
-// Needs pixDraw/pixBuild in the game (lab.mjs apply helpers) and the sprite stored (lab.mjs apply pixel villager).
+// Painted villager (PIXELS.villager). Work set by job: build → hammer, wood → axe, gold/stone → pick, food/farm → hoe.
+// Hunting uses the spear `attack` set. Carried loads are painted props (loadwood/loadfood/loadgold/loadstone) drawn over the
+// walk/idle frames; their grids are cropped to their rows, so they are drawn at a per-kind y and bob 1 px with the walk.
 export default function villager(u,{tc,d,swing,working,wph,r,wx,wy}){
-  const moving=u.goal&&u.state!=='idle'&&!(u.state==='gather'&&u.phase==='gathering');
-  const frame=moving?'walk':working?'work':'idle';
-  const i=moving?Math.floor(u.anim*12):working?Math.floor(u.anim*6):0;
-  pixDraw(PIXELS.villager,frame,i,tc);
-  if(u.carry>0){ // what is being carried, on the back shoulder
-    ctx.fillStyle=RES_COLORS[u.carryKind]||'#8a5a2b';ctx.fillRect(-7,-17,4,4);
-    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillRect(-7,-17,2,1);
+  const S=PIXELS.villager;
+  const work=u.state==='build'?'build':u.carryKind==='wood'?'chop':(u.carryKind==='gold'||u.carryKind==='stone')?'mine':'farm';
+  const set=pixUnit(u,S,tc,{work});
+  if(u.carry>0&&(set==='walk'||set==='idle')&&S.frames['load'+u.carryKind]){
+    const bob=set==='walk'?[0,1,0,-1][Math.floor(u.anim*12)%4]:0;
+    pixDraw(S,'load'+u.carryKind,0,tc,0,{wood:-11,food:-8,gold:-8,stone:-11}[u.carryKind]+bob);
   }
 }

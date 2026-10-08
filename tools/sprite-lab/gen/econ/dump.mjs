@@ -1,0 +1,12 @@
+import fs from 'fs';
+const [,, type, set = 'idle'] = process.argv;
+const D = './tools/sprite-lab/drafts/';
+const helpers = fs.readFileSync(D + 'helpers.js', 'utf8').replace(/export function/g, 'function');
+const src = fs.readFileSync(D + 'pixel.' + type + '.js', 'utf8').replace(/\bexport\s+default\b/, 'return');
+const t0 = Date.now();
+const spec = new Function(helpers + '\n;return (()=>{' + src + '})();')();
+const ms = Date.now() - t0;
+const TEAM = { team: '#2f6fd6', teamdark: '#1f4a94', teamlight: '#6f9ff0' };
+const pal = Object.fromEntries(Object.entries(spec.palette).map(([k, v]) => [k, TEAM[v] || v]));
+fs.writeFileSync('tools/sprite-lab/gen/econ/' + type + '.json', JSON.stringify({ pal, frames: spec.frames }));
+console.log('built in', ms, 'ms; sets', Object.entries(spec.frames).map(([k, v]) => k + ':' + v.length).join(' '));

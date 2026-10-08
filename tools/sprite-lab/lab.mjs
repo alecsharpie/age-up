@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import * as X from './extract.mjs';
+import * as AAA from './aaa.mjs';
 import { parseDraft, parseHelpers, caseBody, DRAFT_LOCALS, parsePixelDraft, serializePixelSpec, isGeneratedPixelDraft, generatedPixelText } from './splice.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -178,6 +179,24 @@ const commands = {
     }
     console.log(`\n${reps.length} checked, ${bad} problem(s)`);
   },
+  async aaa() {
+    installHelpersInNode();
+    const ids = !pos[0] || pos[0] === 'all'
+      ? [...new Set(fs.readdirSync(DRAFTS).map(f => (/^(?:applied\.)?pixel\.([a-z]+)\.js$/.exec(f) || [])[1]).filter(Boolean))].sort()
+      : pos;
+    let bad = 0, pass = 0;
+    for (const id of ids) {
+      const f = [draftPath('pixel', id), path.join(DRAFTS, `applied.pixel.${id}.js`)].find(p => fs.existsSync(p));
+      if (!f) { console.log(`${id.padEnd(14)} no pixel draft`); bad++; continue; }
+      let spec; try { spec = parsePixelDraft(fs.readFileSync(f, 'utf8')); } catch (e) { console.log(`${id.padEnd(14)} FAILS TO PARSE: ${e.message}`); bad++; continue; }
+      const r = AAA.check(id, spec); const M = r.m;
+      const sets = Object.entries(M.sets).map(([k, v]) => k + ':' + v).join(' ');
+      const head = `${id.padEnd(14)} ${r.cls.padEnd(9)} ${path.basename(f).startsWith('applied') ? 'applied' : 'draft  '} ${String(M.colours).padStart(2)} col  outline ${String(M.outline).padStart(3)}%  ${sets}`;
+      if (!r.problems.length) { pass++; console.log(head + '  AAA ✓' + (r.notes.length && flags.verbose ? '\n    note ' + r.notes.join('\n    note ') : '')); continue; }
+      bad++; console.log(head); for (const p of r.problems) console.log('    MISSING  ' + p); if (flags.verbose) for (const n of r.notes) console.log('    note     ' + n);
+    }
+    console.log(`\n${ids.length} sprites: ${pass} at AAA, ${bad} short of it (bar: tools/sprite-lab/AAA.md)`);
+  },
   async diff() {
     installHelpersInNode();
     const kind = kindOf(pos[0]), type = pos[1];
@@ -271,6 +290,7 @@ if (!cmd || cmd === 'help' || cmd === '--help' || !commands[cmd]) {
   render <kind> <type> [--src s]    sheet PNG: teams · construction/walk · animation · states · ×N detail (draft vs current)
   sheet [kind|all] [--zoom 2]       contact sheet of everything, for consistency
   scene [--team n] [--time t]       a composed village on terrain, in depth order [--src draft] [--zoom 2]
+  aaa [id|all] [--verbose]          the AAA bar for painted sprites: frame counts, ramps, outline, ground contact (AAA.md)
   lint [kind [type] | all]          overflow, team colour, construction stages, animation, new colours, exceptions
   palette                           every colour currently in use, by section
   catalog                           build out/catalog.html: a self-contained browsable catalogue (also served at /catalog.html)

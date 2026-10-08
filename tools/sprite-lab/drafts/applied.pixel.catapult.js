@@ -1,67 +1,684 @@
 // @pixel catapult
-// Mangonel: four-wheel cart (two visible side-on), throwing arm with a bucket, padded stop post in front.
-// Generated: wheels/bucket are hand-painted stamps; beams and the arm are laid with the kit so every frame lines up.
-// Faces right. Grid 26×24, anchor at the wheels' ground line, bottom centre.
-const W = 26, H = 24;
-const WHEEL_A = `
-.xxxxx.
-xx.d.xx
-x..d..x
-xdddddx
-x..d..x
-xx.d.xx
-.xxxxx.
-`;
-const WHEEL_B = `
-.xxxxx.
-xd...dx
-x.d.d.x
-x..d..x
-x.d.d.x
-xd...dx
-.xxxxx.
-`;
-const BUCKET_FULL = `
-.ddd.
-dsSsd
-.ddd.
-`;
-const BUCKET_EMPTY = `
-.ddd.
-d...d
-.ddd.
-`;
-function base(wheel) {
-  const g = pixGrid(W, H);
-  pixLine(g, 9, 20, 16, 20, 'd');                  // axle
-  pixStamp(g, 2, 17, wheel); pixStamp(g, 17, 17, wheel);
-  pixRect(g, 3, 13, 21, 1, 'W'); pixRect(g, 3, 14, 21, 1, 'w'); pixRect(g, 3, 15, 21, 1, 'T'); pixRect(g, 3, 16, 21, 1, 'd'); // bed with team band
-  pixRect(g, 10, 12, 5, 1, 'd'); pixSet(g, 12, 12, 'n');  // pivot beam, iron pin
-  pixRect(g, 18, 8, 2, 5, 'd'); pixRect(g, 18, 7, 2, 1, 'r'); // padded stop post
-  pixLine(g, 4, 12, 7, 12, 'd'); pixLine(g, 4, 11, 4, 12, 'd'); // winch block at the back
-  return g;
-}
-function arm(g, x1, y1, bucket, bx, by) {
-  pixLine(g, 12, 11, x1, y1, 'w'); pixLine(g, 13, 11, x1 + 1, y1, 'W');
-  pixStamp(g, bx, by, bucket);
-}
-const rest = base(WHEEL_A); arm(rest, 9, 4, BUCKET_FULL, 7, 1);
-const walk0 = base(WHEEL_A); arm(walk0, 9, 4, BUCKET_FULL, 7, 1);
-const walk1 = base(WHEEL_B); arm(walk1, 9, 4, BUCKET_FULL, 7, 1);
-const cocked = base(WHEEL_A); arm(cocked, 4, 9, BUCKET_FULL, 1, 6);
-const fired = base(WHEEL_A); arm(fired, 17, 4, BUCKET_EMPTY, 15, 1);
-const settle = base(WHEEL_A); arm(settle, 11, 4, BUCKET_EMPTY, 9, 1);
-
+// Mangonel (painter-siege AAA pass): four-wheel cart (two wheels side-on), torsion skein + arm with bucket,
+// padded crossbar on front uprights, winch at the back, team side board + pennant. Faces right, 26×26, anchor at the ground.
+// idle = cocked + loaded (rope/arm creak, pennant flutters) · walk 8 (spokes 22.5°/frame) · attack 6: arm whips (smear) →
+// slams the crossbar (frame jolts, dust) → rebound → settle → winch back ×2 · death 6 (34×26): arm snaps → front wheel
+// gives way → bed hits the ground → wheel rolls off → settles as timbers with the team board.
 export default {
-  id: 'catapult', anchor: [13, 24],
+  id: 'catapult', anchor: [13,26],
+  anchors: {death: [15,26]},
+  fps: {idle: 3,death: 9},
   palette: {
-    W: '#a3803f', w: '#8a6a3a', d: '#5a3a18', x: '#4a3520',   // wood lit / mid / dark, wheel rim
-    n: '#555555', r: '#6a4a2a', s: '#8d8478', S: '#aab3b5',   // iron pin, leather pad, stone, stone highlight
-    T: 'team', D: 'teamdark',
+    o: '#24180f',
+    W: '#a07a4a',
+    w: '#8a6a3a',
+    d: '#5a3a18',
+    q: '#3b2614',
+    s: '#e6eaee',
+    m: '#9aa0a6',
+    n: '#5f656c',
+    e: '#efe6d2',
+    R: '#d9c7a0',
+    r: '#a8946e',
+    a: '#cfc8b8',
+    b: '#8d8478',
+    c: '#5e5850',
+    T: 'team',
+    D: 'teamdark',
+    L: 'teamlight',
   },
   frames: {
-    idle: [pixText(rest)],
-    walk: [pixText(walk0), pixText(walk1)],
-    attack: [pixText(cocked), pixText(fired), pixText(settle)],
+    idle: [`
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd.ooood.
+WbcdWoo......o.oWd.oTTTLd.
+owdddWWooo.....dWdooDTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd..oood.
+WbcdWoo......o.oWd..oTTLd.
+owdddWWooo.....dWdooTTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oabo........Rrddddd.ooood.
+Wbcdooo......o.oWd.oTTTLd.
+owddWWWoo......dWdodoTTod.
+.o..ddWWWooo...dWdwWooood.
+......dddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oabo........Rrddddd.ooood.
+Wbcdooo......o.oWd.oDTTLd.
+owddWWWoo......dWdooTTTod.
+.o..ddWWWooo...dWdwWooo.d.
+......dddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`],
+    walk: [`
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd.ooood.
+WbcdWoo......o.oWd.oTTTLd.
+owdddWWooo.....dWdooDTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd..oood.
+WbcdWoo......o.oWd..oTTLd.
+owdddWWooo.....dWdooTTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW..dwo........dW..dwo..
+.dWdddd.wo......dWdddd.wo.
+.oW.dnd.do......oW.dnd.do.
+.ow.dddddo......ow.dddddo.
+..owd..no........owd..no..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oabo........Rrddddd.ooood.
+Wbcdooo......o.oWd.oTTTLd.
+owddWWWoo......dWdodoTTod.
+.o..ddWWWooo...dWdwWooood.
+......dddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dd...do........dd...do..
+.dW.d.d.wo......dW.d.d.wo.
+.oW..n..do......oW..n..do.
+.ow.d.d.do......ow.d.d.do.
+..ow...do........ow...do..
+..oowdnoo........oowdnoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd.ooood.
+WbcdWoo......o.oWd.oDTTLd.
+owdddWWooo.....dWdooTTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dWd..wo........dWd..wo..
+.dW.ddddwo......dW.ddddwo.
+.oW.dnd.do......oW.dnd.do.
+.owdddd.do......owdddd.do.
+..ow..ddo........ow..ddo..
+..oowndoo........oowndoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd.ooood.
+WbcdWoo......o.oWd.oTTTLd.
+owdddWWooo.....dWdooDTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..do......ow..d..do.
+..ow.d.do........ow.d.do..
+..oonddoo........oonddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd..oood.
+WbcdWoo......o.oWd..oTTLd.
+owdddWWooo.....dWdooTTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW..dwo........dW..dwo..
+.dWdddd.wo......dWdddd.wo.
+.oW.dnd.do......oW.dnd.do.
+.ow.dddddo......ow.dddddo.
+..ond..do........ond..do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oabo........Rrddddd.ooood.
+Wbcdooo......o.oWd.oTTTLd.
+owddWWWoo......dWdodoTTod.
+.o..ddWWWooo...dWdwWooood.
+......dddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW...do........dW...do..
+.dW.d.d.wo......dW.d.d.wo.
+.oW..n..do......oW..n..do.
+.on.d.d.do......on.d.d.do.
+..ow...do........ow...do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+..o.........RRWWWWWo...omo
+oaboo.......Rrddddd.ooood.
+WbcdWoo......o.oWd.oDTTLd.
+owdddWWooo.....dWdooTTTod.
+.o...ddWWWoo...dWdwWooo.d.
+.......ddWWWoo.dWddwWo..d.
+..ooo....ddwqmodWd.dwWo.d.
+.omsno..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dWd..wo........dWd..wo..
+.dW.ddddwo......dW.ddddwo.
+.on.dnd.do......on.dnd.do.
+.owdddd.do......owdddd.do.
+..ow..ddo........ow..ddo..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`],
+    attack: [`
+......o...................
+.....oWqqd................
+......owdd................
+.......oWd....ddddd.....o.
+.....R..oWd.RRWWWWWo...omo
+....r.R.oWd.Rrddddd.ooood.
+.....r.RoWd..o.oWd.oTTTLd.
+......r.RoWd...dWdooDTTod.
+.......r.RWd...dWdwWooo.d.
+........roRd.o.dWddwWo..d.
+..ooo....rWwdmodWd.dwWo.d.
+.omsno..onqqrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........oWqqd...........
+...........ewd............
+...........oedodddd.....o.
+...........eWdWWWWWo...omo
+..........oWddddddd.ooood.
+..........oWd..oWd.oTTTLd.
+..........oWd..dWdooDTTod.
+..........oWd..dWdwWooo.d.
+..........oWdo.dWddwWo..d.
+..ooo....qWwdmodWd.dwWo.d.
+.omsno..onqqrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oooooooooooooooooooooo..
+....doo............doo....
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+.........o................
+........oWqqd.............
+.........oedd.............
+..........oWd.ddddd.....o.
+..........oedRWWWWWo...omo
+..........oWdrddddd.ooood.
+..........oWdo.oWd.oTTTLd.
+..........oWd..dWdooDTTod.
+..........oWd..dWdwWooo.d.
+..........oWdo.dWddwWo..d.
+..ooo....qWwdmodWd.dwWo.d.
+.omsno..onqqrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+...........o..............
+..........oWqqd...........
+...........owd............
+...........oWdodddd.....o.
+...........oWdWWWWWo...omo
+..........oWdrddddd.ooood.
+..........oWdo.oWd.oTTTLd.
+..........oWd..dWdooDTTod.
+..........oWd..dWdwWooo.d.
+..........oWdo.dWddwWo..d.
+..ooo....qWwdmodWd.dwWo.d.
+.omsno..onqqrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+....o.....................
+...oWqqd..................
+....owdd......ddddd.....o.
+.....oWWd...RRWWWWWo...omo
+......oWd...Rrddddd.ooood.
+.......oWd...o.oWd.oTTTLd.
+.......oWRd....dWdooDTTod.
+........RWd....dWdwWooo.d.
+......RR.oWd.o.dWddwWo..d.
+..oooR...qWwqmodWd.dwWo.d.
+.omsRo..onqqrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`, `
+..........................
+..........................
+..........................
+..............ddddd.....o.
+............RRWWWWWo...omo
+o...o.......Rrddddd.ooood.
+WqqdWoo......o.oWd.oTTTLd.
+owdddWWooo.....dWdooDTTod.
+.o...dRWWWoo...dWdwWooo.d.
+.....R.ddWWWoo.dWddwWo..d.
+..oooR...ddwqmodWd.dwWo.d.
+.omsRo..onrdrnodWd..dwWod.
+.onnnoddwwwwwwwoWdododwod.
+.dWWWWWWWWWWWWWWWWWWWWWWo.
+.dwwwwwwwwwwwwwwwwwwwwwwo.
+.oLTTTnTTTTTTnTTTTTTnTTTo.
+.oLDDDDDDDDDDDDDDDDDDDDDo.
+..oodoooooooooooooodoooo..
+..ddWWwoo........ddWWwoo..
+..dW.d.wo........dW.d.wo..
+.dW..d..wo......dW..d..wo.
+.oWddndddo......oWddndddo.
+.ow..d..no......ow..d..no.
+..ow.d.do........ow.d.do..
+..oowddoo........oowddoo..
+....ooo............ooo....
+`],
+    death: [`
+..................................
+........R.......e.................
+.......W.d......ddddd.....o.......
+..............ReWWWWWo...omo......
+..............Rrddddd..oood.......
+..........dd...o.oWd..oTTLd.......
+.........dwWo....dWdooTTTod.......
+..........dwWo...dWdwWooo.d.......
+...........dwWoo.dWddwWo..d.......
+....ooo...ondwrmodWd.dwWo.d.......
+...omsno..onrrrnodWd..dwWod.......
+...onnnoddwwwwwwwoWdododwod.......
+...dWWWWWWWWWWWWWWWWWWWWWWo.......
+...dwwwwwwwwwwwwwwwwwwwwwwo.......
+...oLTTTnTTTTTTnTTTTTTnTTTo.......
+...oLDDDDDDDDDDDDDDDDDDDDDo.......
+....oooooooooooooooooooooo........
+......doo............doo..........
+....ddWWwoo........ddWWwoo........
+....dW..dwo........dW..dwo........
+...dWdddd.wo......dWdddd.wo.......
+...oW.dnd.do......oW.dnd.do.......
+...ow.dddddo......ow.dddddo.......
+....owd..no........owd..no........
+....oowddoo........oowddoo........
+......ooo............ooo..........
+`, `
+..................................
+..................................
+..................................
+..................................
+...............o.........eR.......
+......R.......oWooooooo...........
+.......d......owWWWWWWWo..........
+........o......dddddddwo..........
+.......owd.........oWdd...........
+.......oWdd.......oWwd............
+...ooo..oWd.......oWd.............
+..onnno..oWd.....oWwd.............
+..qnnnqooqWWd....oWd..............
+..oqqqWWWWqWwqooqqwd..............
+..oTwwwwwwwqqWWWWWqooooooo........
+..oTTTTTTTTwwwwwwwWWWWWWWWo.......
+..oDDDDDDDDTTTTTTTwwwwwwwwo.......
+...oooqqqooDDDDDDDTTTTTTTTo.......
+....ddWWwoooooooooDDDDDDDTq.......
+....dW..dwo.......ooooqqqDqoo.....
+...dWdddd.wo..........dWoqowo.....
+...oW.dnd.do.........dWo.d.owo....
+...ow.dddddo.........oWddndddo....
+....owd..no..........owo.d..do....
+....oowddoo...........owod.do.....
+......ooo.............oonddoo.....
+`, `
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+........oo........................
+.......oWwd..............oo.......
+...ooo..oWd.............owWo......
+..onnno.oWd..............ddWoo....
+..onnnq.oWwd............ooddWWo...
+..oqqqWooqWd...........oWWdddWWo..
+..oTwwwWWqWdoo........oWWdd..dwo..
+..oTTTTwwqWwdWoooo..ooWwd.....o...
+..oDDDDTTTqqwwWWWWoqqWdd....doo...
+...qqqqDDDTTTTwwwwWWWqqoo.ddWWwoo.
+...dW..qqqDDDDTTTwwwwWWWWodWdoowo.
+..dWdddd.wqoooDDDTTTTwwwwqWododdwo
+..oW.dnd.do...oooDDDDTTTwqWoond.do
+..ow.dddddo......ooooDDDTqndddd.do
+...owd..no...eR...Re.oeRo.owo.ddo.
+...oowddoo................oowddoo.
+.....ooo....................ooo...
+`, `
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..............dddd.....dd.........
+.............dWwwWo..ddWwo........
+...........RedWeRo.ddWWdo.........
+........dddWWWwo..dWWdd....doo....
+...oooodWWWwddd..dWdd....ddWWwoo..
+..oWnnnowdddooooowdooooo.dn..dwo..
+..ownnnWdWWWWWWWWWWWWWWWdWdddd.wo.
+..oTwwwwwwwwwwwwwwwwwwwwoW.dnd.do.
+..oTTTTTTTTTTTTTTTTTTTTTow..d.ddo.
+..eRDDDDDDDDDDDDDDDDDDDToRed..do..
+...ooooooooooooooooooooDooowddoo..
+.......................o...ooo....
+`, `
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..............dddd.....dd.........
+.............dWwwWo..ddWwo........
+...........dddWddo.ddWWdo.........
+........dddWWWwo..dWWdd.....doo...
+...oooodWWWwddd..dWdd.....ddWnwoo.
+..oWnnnowdddooooowdooooo..dWd..wo.
+..ownnnWdWWWWWWWWWWWWWWWodW.ddddwo
+..oTwwwwwwwwwwwwwwwwwwwwooW.dnd.do
+..oReTTTTTTTTTTTTTTTTTTToeRd.d..do
+..oDDDDDDDDDDDDDDDDDDDDTo.ow..ddo.
+...ooooooooooooooooooooDo.oowddoo.
+.......................o....ooo...
+`, `
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..................................
+..............dddd.....dd.........
+.............dWwwWo..ddWwo........
+...........dddWddo.ddWWdo.........
+........dddWWWwo..dWWdd...........
+...oooodWWWwddd..dWdd.............
+..oWnnnowdddooooowdooooo..........
+..ownnnWdWWWWWWWWWWWWWWWo.ddodd...
+..oTwwwwwwwwwwwwwwwwwwwwooWWnWWo..
+..oTTTTTTTTTTTTTTTTTTTTTowwwwwwwo.
+..oDDDDDDDDDDDDDDDDDDDDTqqqqqqqqq.
+...ooooooooooooooooooooDo.........
+.......................o..........
+`],
   },
 };

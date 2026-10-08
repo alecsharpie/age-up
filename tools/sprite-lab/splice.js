@@ -25,6 +25,14 @@ export function balanced(src, from) {
   throw new Error('unbalanced braces from offset ' + from);
 }
 
+/** Offset just past the parameter list of the function whose `(` is the first one at or after `from`, so that
+ *  `balanced(src, functionBodyFrom(src, at))` finds the body even when a default parameter is `{}`. */
+export function functionBodyFrom(src, from) {
+  let i = src.indexOf('(', from), depth = 0;
+  for (; i < src.length; i++) { const ch = src[i]; if (ch === '(') depth++; else if (ch === ')' && --depth === 0) return i + 1; }
+  return from;
+}
+
 /**
  * Split the body of drawBuilding/drawUnit into switch segments.
  * The game formats every case on its own line with exactly two leading spaces:
@@ -118,7 +126,7 @@ export function parseDraft(src) {
 export function parseHelpers(src) {
   const out = []; const re = /export\s+function\s+([A-Za-z0-9_$]+)\s*\(/g; let m;
   while ((m = re.exec(src))) {
-    const close = balanced(src, m.index);
+    const close = balanced(src, functionBodyFrom(src, m.index));
     out.push({ name: m[1], text: src.slice(m.index, close + 1).replace(/^export\s+/, '') });
   }
   return out;

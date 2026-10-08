@@ -1,123 +1,247 @@
 // @pixel market
-// Market (3×3): a low plank platform with four stalls around an open square — posts and striped awnings in team colour,
-// tables of goods (pots, bolts of cloth, fruit, sacks), a well in the middle and crates by the front stall.
+// Market (3×3): a cobbled courtyard on a low stone kerb, four stalls on timber posts under pitched awnings striped in team
+// colour and cream with scalloped hems, counters of goods (terracotta pots, bolts of cloth, fruit baskets, grain sacks), a
+// well in the middle, crates and barrels, a pennant pole at the left corner. The code flag flies from the back corner.
+// idle ×4: the awning hems flutter and the pennant waves.
+// Drawn by drafts/building.market.js: pixDraw(PIXELS.market,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
+// ---- local kit: iso faces with surface coordinates, structured textures, selective outline, seeded rng ----
+const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+const clone = gr => gr.map(r => r.slice());
+const hash = (x, y, k = 0) => { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(k | 0, 1442695041)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const mulberry = s => () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+/** footprint coords (a along the T→Rr edge, c along T→L, in tiles; z up in px) → cell */
+const iso = (a, c, z = 0) => [OX + (a - c) * 32, OY + (a + c) * 16 - z];
+const sub2 = (p, q) => [p[0] - q[0], p[1] - q[1]];
+/** Fill the parallelogram o + s·u + t·v (s,t ∈ [0,1)); fn(s,t,x,y) → char or null. tri: only s+t ≤ 1. */
+function face(gr, o, u, v, fn, tri) {
+  const det = u[0] * v[1] - u[1] * v[0]; if (!det) return;
+  const xs = [o[0], o[0] + u[0], o[0] + v[0], o[0] + u[0] + v[0]], ys = [o[1], o[1] + u[1], o[1] + v[1], o[1] + u[1] + v[1]];
+  for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y++) for (let x = Math.floor(Math.min(...xs)); x <= Math.ceil(Math.max(...xs)); x++) {
+    const px = x + 0.5 - o[0], py = y + 0.5 - o[1];
+    const s = (px * v[1] - py * v[0]) / det, t = (u[0] * py - u[1] * px) / det;
+    if (s < 0 || s >= 1 || t < 0 || t >= 1 || (tri && s + t > 1)) continue;
+    const ch = fn(s, t, x, y); if (ch) pixSet(gr, x, y, ch);
+  }
+}
+/** A vertical wall on the plane c = const (front-left, lit) from a0→a1, z0→z1. fn(U,V,x,y): U = px along the wall, V = px up. */
+const wallC = (gr, c, a0, a1, z0, z1, fn) => { const o = iso(a0, c, z0); face(gr, o, sub2(iso(a1, c, z0), o), sub2(iso(a0, c, z1), o), (s, t, x, y) => fn(s * (a1 - a0) * 32, t * (z1 - z0), x, y)); };
+/** A vertical wall on the plane a = const (front-right, shade) from c0→c1 (c1 < c0 runs Bm→Rr), z0→z1. */
+const wallA = (gr, a, c0, c1, z0, z1, fn) => { const o = iso(a, c0, z0); face(gr, o, sub2(iso(a, c1, z0), o), sub2(iso(a, c0, z1), o), (s, t, x, y) => fn(s * Math.abs(c1 - c0) * 32, t * (z1 - z0), x, y)); };
+/** A flat patch at height z over the footprint rectangle a0..a1 × c0..c1. fn(s,t,x,y) */
+const flat = (gr, a0, a1, c0, c1, z, fn) => { const o = iso(a0, c0, z); face(gr, o, sub2(iso(a1, c0, z), o), sub2(iso(a0, c1, z), o), fn); };
+/** Staggered block courses: course height ch, block length bl; tones = [lit-lip, body…, shadow] chars; mortar char. */
+const blocks = (tones, mortar, ch, bl, k = 0) => (U, V) => {
+  const vi = Math.floor(V), ui = Math.floor(U), row = Math.floor(vi / ch), r = vi - row * ch;
+  const off = (row % 2) * Math.floor(bl / 2) + Math.floor(hash(row, k, 7) * 2), col = Math.floor((ui + off) / bl), cu = ui + off - col * bl;
+  if (r === 0 || cu === 0) return mortar;
+  const h = hash(col, row, k); const body = tones[1 + Math.floor(h * (tones.length - 2))];
+  if (r === ch - 1 && cu > 0) return tones[0];                       // lit top lip
+  if (r === 1 && cu === bl - 1) return tones[tones.length - 1];        // shaded under-corner
+  return body;
+};
+/** Edge pass: every solid cell 4-adjacent to transparency becomes ink (inkOf(ch) may pick a material-dark or return null to keep). */
+function outline(gr, inkOf) {
+  const H = gr.length, W = gr[0].length, solid = (x, y) => x >= 0 && y >= 0 && x < W && y < H && gr[y][x] !== '.';
+  const hits = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (solid(x, y) && (!solid(x - 1, y) || !solid(x + 1, y) || !solid(x, y - 1) || !solid(x, y + 1))) hits.push([x, y]);
+  for (const [x, y] of hits) { const n = inkOf(gr[y][x], x, y); if (n) gr[y][x] = n; }
+}
+/** Remove lone single cells of `ch` (no 8-neighbour of the same char) by giving them the most common neighbour. */
+function declump(gr, chars) {
+  const H = gr.length, W = gr[0].length;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const c = gr[y][x]; if (!chars.includes(c)) continue;
+    let same = 0; const cnt = {};
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const n = gr[y + dy][x + dx]; if (n === c) same++; cnt[n] = (cnt[n] || 0) + 1; }
+    if (!same) { const best = Object.entries(cnt).filter(([n]) => n !== '.').sort((p, q) => q[1] - p[1])[0]; if (best) gr[y][x] = best[0]; }
+  }
+}
+/** Line of cells drawn with a per-step char: fn(i, n) */
+function line(gr, p, q, fn) { const n = Math.max(1, Math.round(Math.max(Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1])))); for (let i = 0; i <= n; i++) { const ch = typeof fn === 'function' ? fn(i, n) : fn; if (ch) pixSet(gr, p[0] + (q[0] - p[0]) * i / n, p[1] + (q[1] - p[1]) * i / n, ch); } }
+/** Fill polygon pts with fn(x,y) per cell (or a char). */
+function poly(gr, pts, fn) { const m = pixGrid(gr[0].length, gr.length); pixPoly(m, pts, '#'); for (let y = 0; y < gr.length; y++) for (let x = 0; x < gr[0].length; x++) if (m[y][x] === '#') { const ch = typeof fn === 'function' ? fn(x, y) : fn; if (ch) gr[y][x] = ch; } }
+/** Disc of radius r centred at (cx,cy); fn(dx,dy,ring) → char or null. */
+function disc(gr, cx, cy, r, fn) { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const d = dx * dx + dy * dy; if (d > r * r + r * 0.6) continue; const ring = d > (r - 1) * (r - 1) + (r - 1) * 0.6; const ch = fn(dx, dy, ring); if (ch) pixSet(gr, cx + dx, cy + dy, ch); } }
+/** A heap (dome over an oval base) lit from the upper-left: tones = [light, mid, shade, deep]; lumps = cluster size for the lumpy texture. */
+function heap(gr, cx, cy, rx, ry, tones, k = 0, lumps = 2) {
+  const rb = Math.max(2, rx / 2.6), cells = [];
+  for (let dy = -ry; dy <= rb; dy++) for (let dx = -rx; dx <= rx; dx++) {
+    const q = dy <= 0 ? (dx / rx) ** 2 + (dy / ry) ** 2 : (dx / rx) ** 2 + (dy / rb) ** 2; if (q > 1) continue;
+    const lx = Math.floor((dx + 40) / lumps), ly = Math.floor((dy + 40) / lumps), h = hash(lx, ly, k);
+    const sub = ((dx + 40) % lumps === 0 || (dy + 40) % lumps === lumps - 1) ? 0.18 : 0;   // a shaded seam between lumps
+    const l = -(dx / rx) * 0.55 - (Math.min(dy, 0) / ry) * 0.55 + (dy > 0 ? -0.5 : 0) + (h - 0.5) * 0.5 - sub;
+    cells.push([cx + dx, cy + dy, l]);
+  }
+  for (const [x, y, l] of cells) pixSet(gr, x, y, l > 0.45 ? tones[0] : l > 0.05 ? tones[1] : l > -0.4 ? tones[2] : tones[3]);
+}
 const W = 3, H = 3;
 const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 44;
-const bx = W * 32 + 2, by = GH - 4;
+const bx = W * 32 + 2, by = GH - 4, OX = bx, OY = by - 96;
 const g = pixGrid(GW, GH);
-const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-let seed = 3; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-const speckle = (from, to, prob) => { for (const r of g) for (let x = 0; x < r.length; x++) if (r[x] === from && rnd() < prob) r[x] = to; };
-const bmOf = (x0, y0, w, h) => [bx + ((x0 + w) - (y0 + h)) * 32, by - 96 + ((x0 + w) + (y0 + h)) * 16];
+const KZ = 3;                                             // kerb height
 
-// plank platform, 4 px high, with plank seams running along x
-const plat = pixIsoBox(g, bx, by, W, H, 4, 1, { left: 'z', right: 'x', top: 'y' });
-for (let k = 1; k < 12; k++) { const a = lerp(plat.T, plat.L, k / 12), b = lerp(plat.Rr, plat.Bm, k / 12); pixLine(g, a[0], a[1], b[0], b[1], 'Y'); }
-speckle('y', 'Y', 0.04);
+// ---- courtyard: stone kerb faces, cobbled setts on top in staggered rows with mortar
+wallC(g, 3, 0, 3, 0, KZ, (U, V) => (Math.floor(U) % 9 === 0 ? 'j' : V >= 2 ? 'P' : 'p'));
+wallA(g, 3, 3, 0, 0, KZ, (U, V) => (Math.floor(U) % 9 === 0 ? 'J' : V >= 2 ? 'Q' : 'U'));
+flat(g, 0, 3, 0, 3, KZ, (s, t, x, y) => {
+  const a = s * 3 / 0.16, c = t * 3 / 0.13, row = Math.floor(c), col = Math.floor(a + (row % 2) * 0.5), fa = a + (row % 2) * 0.5 - col, fc = c - row;
+  if (fc < 0.2 || fa < 0.14) return 'j';
+  const h = hash(col, row, 3); return h < 0.3 ? 'q' : h < 0.75 ? 'p' : 'P';
+});
 
-// a stall: posts at the corners of its footprint, a striped awning 14 px up with a scalloped fringe, a table of goods under it
-function stall(x0, y0, w, h, stripeAlongX, goods) {
-  const bm = bmOf(x0, y0, w, h); bm[1] -= 4;
-  const PZ = 18;
-  const aw = pixIsoBox(g, bm[0], bm[1], w, h, PZ, 1, {});        // no faces: just the geometry
-  const B = aw.base;
-  // posts
-  for (const p of [B.L, B.Bm, B.Rr, B.T]) pixRect(g, p[0], p[1] - PZ, 1, PZ, 't');
-  // table under the awning (a small box) and its goods
-  const tb = bmOf(x0 + 0.42, y0 + 0.42, w - 0.4, h - 0.4); tb[1] -= 4;
-  const tt = pixIsoBox(g, tb[0], tb[1], w - 0.4, h - 0.4, 6, 1, { left: 'w', right: 'v', top: 'u' });
-  goods(tt);
-  // awning: cream with team-colour stripes, slightly raised in the middle
-  pixPoly(g, [aw.T, aw.Rr, aw.Bm, aw.L], 'c');
-  const n = 10;
-  for (let k = 0; k < n; k++) { if (k % 2) continue; const f0 = k / n, f1 = (k + 1) / n;
-    const a0 = stripeAlongX ? lerp(aw.T, aw.Rr, f0) : lerp(aw.T, aw.L, f0), a1 = stripeAlongX ? lerp(aw.T, aw.Rr, f1) : lerp(aw.T, aw.L, f1);
-    const b0 = stripeAlongX ? lerp(aw.L, aw.Bm, f0) : lerp(aw.Rr, aw.Bm, f0), b1 = stripeAlongX ? lerp(aw.L, aw.Bm, f1) : lerp(aw.Rr, aw.Bm, f1);
-    pixPoly(g, [a0, a1, b1, b0], 'T'); }
-  // fringe below the two front edges, alternating
-  for (let k = 0; k < 16; k++) { const p = lerp(aw.L, aw.Bm, (k + 0.5) / 16); pixSet(g, p[0], p[1] + 1, k % 2 ? 'D' : 'c'); const q = lerp(aw.Bm, aw.Rr, (k + 0.5) / 16); pixSet(g, q[0], q[1] + 1, k % 2 ? 'D' : 'c'); }
-  pixLine(g, aw.L[0], aw.L[1], aw.Bm[0], aw.Bm[1], 'D'); pixLine(g, aw.Bm[0], aw.Bm[1], aw.Rr[0], aw.Rr[1], 'D');
+// ---- props
+const pot = (gr, x, y) => pixStamp(gr, x, y, `
+.kkk.
+kOook
+kOoik
+kooik
+.kkk.
+`);
+const goods = {
+  pots: (gr, x, y) => { pixStamp(gr, x, y - 3, `
+..kkk....kkk..
+.kOook..kOook.
+.kOooik.kOooik
+.kooiik.kooiik
+..kkkk...kkkk.
+`); pot(gr, x + 5, y + 1); },
+  cloth: (gr, x, y) => pixStamp(gr, x, y - 3, `
+kkkkkkk.......
+kRRRRrk.kkkkk.
+krrrrrkkbBBbbk
+.kkkkkkkbbbbak
+..kkkkkk.kkkk.
+..kxXxxNk.....
+..kNNNNNk.....
+..kkkkkkk.....
+`),
+  fruit: (gr, x, y) => pixStamp(gr, x, y - 3, `
+..k.k.k...kk..
+.kFfkFfk.kAek.
+.kffkffk.keeek
+kwwwwwwvkkeek.
+kWWWWWWvkwwwvk
+.kkkkkkk.kkkk.
+`),
+  sacks: (gr, x, y) => pixStamp(gr, x, y - 4, `
+...k......k...
+..kvk....kvk..
+.kSssk..kSssk.
+kSSsssk.kSsssk
+kSsssmk.ksssmk
+ksssmmk.kssmmk
+.kkkkk...kkkk.
+`),
+};
+function crate(gr, a, c) { const p = iso(a, c, KZ); pixStamp(gr, Math.round(p[0]) - 4, Math.round(p[1]) - 8, `
+..kkkkk..
+.kwwwwwk.
+kwwwwwwWk
+kWkWWWvvk
+kWWkWvvvk
+kWWWkvvvk
+kWWkWvvvk
+.kkWvvvk.
+...kkkk..
+`); }
+function barrel(gr, a, c) { const p = iso(a, c, KZ); pixStamp(gr, Math.round(p[0]) - 3, Math.round(p[1]) - 9, `
+.kkkkk.
+kWvvvWk
+kwWWWvk
+knnnnnk
+kwWWWvk
+kwWWWvk
+knnnnnk
+kwWWWvk
+.kkkkk.
+`); }
+
+// ---- stalls
+const PZ = 19;
+const post = (gr, a, c, z0, z1) => { const p = iso(a, c, z0); for (let z = 0; z < z1 - z0; z++) { pixSet(gr, p[0], p[1] - z, 'w'); pixSet(gr, p[0] + 1, p[1] - z, 'v'); } };
+function stall(gr, s0, f) {
+  const { a0, a1, c0, c1, kind } = s0;
+  post(gr, a0, c0, KZ, PZ + 5); post(gr, a1, c0, KZ, PZ + 5);
+  // counter along the front edge, goods on it
+  const ta0 = a0 + 0.08, ta1 = a1 - 0.08, tc0 = c1 - 0.32, tc1 = c1 - 0.06, TZ = KZ + 7;
+  wallC(gr, tc1, ta0, ta1, KZ, TZ, (U, V) => { const u = Math.floor(U); if (V >= TZ - KZ - 1) return 'w'; return u % 8 === 0 ? 'v' : V < 1 ? 'v' : 'W'; });
+  wallA(gr, ta1, tc1, tc0, KZ, TZ, (U, V) => (V >= TZ - KZ - 1 ? 'W' : 'v'));
+  flat(gr, ta0, ta1, tc0, tc1, TZ, (s, t) => (t > 0.85 ? 'w' : Math.floor(s * 20) % 5 === 0 ? 'W' : 'u'));
+  for (const fa of [0.27, 0.72]) { const m = iso(ta0 + (ta1 - ta0) * fa, (tc0 + tc1) / 2, TZ); goods[kind](gr, Math.round(m[0]) - 7, Math.round(m[1]) - 2); }
+  const cm = c0 + (c1 - c0) * 0.5;
+  post(gr, a0, cm, KZ, PZ); post(gr, a1, cm, KZ, PZ);
+  // awning: back edge high, front edge low; stripes run front-to-back
+  const o = iso(a0 - 0.04, c0 - 0.04, PZ + 5), u = sub2(iso(a1 + 0.04, c0 - 0.04, PZ + 5), o), v = sub2(iso(a0 - 0.04, cm + 0.06, PZ), o);
+  const n = Math.max(6, Math.round((a1 - a0) * 8)) | 1;
+  face(gr, o, u, v, (s, t) => { const st = Math.floor(s * n) % 2 === 0; if (st) return t < 0.12 ? 'D' : s * n % 1 < 0.2 ? 'L' : 'T'; return t < 0.12 ? 'C' : s * n % 1 < 0.2 ? 'c' : (s > 0.75 ? 'C' : 'c'); });
+  // bargeboard along the front, ink edge
+  line(gr, iso(a0 - 0.04, cm + 0.06, PZ), iso(a1 + 0.04, cm + 0.06, PZ), 'k');
+  // scalloped hems on the front and right edges; they flutter by shifting the scallops
+  const sh = [0, 1, 2, 1][f];
+  wallC(gr, cm + 0.06, a0 - 0.04, a1 + 0.04, PZ - 4, PZ, (U, V) => { const u = Math.floor(U) + sh, k = Math.floor(Math.floor(U) / (32 * (a1 - a0 + 0.08)) * n); const team = k % 2 === 0; if (V >= 2) return team ? 'T' : 'c'; const sc = (u % 5); if (V >= 1) return sc < 4 ? (team ? 'D' : 'C') : null; return sc > 0 && sc < 3 ? (team ? 'D' : 'C') : null; });
+  wallA(gr, a1 + 0.04, cm + 0.06, c0 - 0.04, PZ - 3 + 1, PZ + 5, (U, V) => (V >= 2 + U * 5 / ((cm - c0 + 0.1) * 32) ? null : ((Math.floor(U) + sh) % 5 < 3 ? 'D' : V >= 1 ? 'C' : null)));
 }
-const pots = tt => { const c = lerp(lerp(tt.L, tt.Rr, 0.5), tt.Bm, 0.55); pixStamp(g, c[0] - 7, c[1] - 7, `
-..oo....oo..
-.oooo..oooo.
-.oOoo..oOoo.
-..oo....oo..
-.....oo.....
-....oooo....
-....oOoo....
-.....oo.....
-`); };
-const cloth = tt => { const c = lerp(lerp(tt.L, tt.Rr, 0.5), tt.Bm, 0.55); pixStamp(g, c[0] - 8, c[1] - 6, `
-RRRRR.......
-RRRRRbbbbb..
-.....bbbbb..
-..ggggg.....
-..ggggg.ppp.
-........ppp.
-`); };
-const fruit = tt => { const c = lerp(lerp(tt.L, tt.Rr, 0.5), tt.Bm, 0.55); pixStamp(g, c[0] - 7, c[1] - 6, `
-..ff..aaa...
-.ffff.aaaa..
-.fFff.aAaa..
-..ff...aa...
-.....ssss...
-....ssssss..
-....sSssss..
-`); };
-const sacks = tt => { const c = lerp(lerp(tt.L, tt.Rr, 0.5), tt.Bm, 0.55); pixStamp(g, c[0] - 8, c[1] - 7, `
-..ss....mmm.
-.ssss..mmmmm
-.sSss..mMmmm
-.ssss..mmmmm
-..ss....mmm.
-....ssss....
-...ssssss...
-`); };
-stall(0.15, 0.15, 1.1, 1.1, true, pots);     // back stall
-stall(1.75, 0.15, 1.1, 1.0, false, cloth);   // back-right
-stall(0.15, 1.8, 1.0, 1.05, false, fruit);   // front-left
-stall(1.85, 1.85, 1.0, 1.0, true, sacks);    // front-right
+const STALLS = [
+  { a0: 0.2, a1: 1.2, c0: 0.2, c1: 1.15, kind: 'pots' },
+  { a0: 1.85, a1: 2.8, c0: 0.2, c1: 1.1, kind: 'cloth' },
+  { a0: 0.2, a1: 1.12, c0: 1.88, c1: 2.8, kind: 'fruit' },
+  { a0: 1.9, a1: 2.8, c0: 1.9, c1: 2.8, kind: 'sacks' },
+];
 
-// the well in the middle of the square: stone ring, two posts and a little roof
-{ const c = bmOf(1.3, 1.3, 0.45, 0.45); c[1] -= 4; const ring = pixIsoBox(g, c[0], c[1], 0.45, 0.45, 6, 1, { left: 'q', right: 'Q', top: 'n' });
-  pixRect(g, ring.L[0] + 2, ring.L[1] - 14, 1, 14, 't'); pixRect(g, ring.Rr[0] - 2, ring.Rr[1] - 14, 1, 14, 't');
-  pixLine(g, ring.L[0] + 2, ring.L[1] - 14, ring.Rr[0] - 2, ring.Rr[1] - 14, 'w'); pixRect(g, ring.L[0] + 4, ring.L[1] - 19, ring.Rr[0] - ring.L[0] - 6, 2, 'c'); pixRect(g, ring.L[0] + 5, ring.L[1] - 17, ring.Rr[0] - ring.L[0] - 8, 1, 'T'); }
-// crates and a barrel by the front corner of the platform
-pixStamp(g, bx - 30, by - 20, `
-.wwww.
-wvvvvw
-wvwwvw
-wvvvvw
-.wwww.
+// ---- the well: stone ring, dark water, two posts, crossbar and bucket
+function well(gr) {
+  const c = iso(1.52, 1.52, KZ), cx = Math.round(c[0]), cy = Math.round(c[1]);
+  for (let z = 0; z <= 6; z++) for (let dx = -8; dx <= 8; dx++) { const yy = Math.round(Math.sqrt(Math.max(0, 64 - dx * dx)) / 2); pixSet(gr, cx + dx, cy + yy - z, Math.abs(dx) >= 8 || z === 0 ? 'k' : z % 3 === 0 ? (dx > 3 ? 'J' : 'j') : dx < -3 ? 'P' : dx > 3 ? 'Q' : 'p'); }
+  for (let dy = -4; dy <= 4; dy++) for (let dx = -8; dx <= 8; dx++) { const d = Math.hypot(dx, dy * 2); if (d > 8.3) continue; pixSet(gr, cx + dx, cy - 6 + dy, d > 7.2 ? 'k' : d > 5.5 ? (dx + dy < 0 ? 'P' : 'q') : d > 4.6 ? 'k' : 'z'); }
+  pixSet(gr, cx - 2, cy - 7, 'Z'); pixSet(gr, cx - 1, cy - 7, 'Z');
+  for (const dx of [-7, 6]) for (let z = 6; z < 20; z++) { pixSet(gr, cx + dx, cy - z, 'w'); pixSet(gr, cx + dx + 1, cy - z, 'v'); }
+  line(gr, [cx - 7, cy - 19], [cx + 7, cy - 19], 'w'); line(gr, [cx - 7, cy - 20], [cx + 7, cy - 20], 'k');
+  for (let y = cy - 18; y < cy - 12; y++) pixSet(gr, cx, y, 'R');
+  pixStamp(gr, cx - 2, cy - 12, `
+kkkkk
+kwWvk
+.kkk.
 `);
-pixStamp(g, bx - 22, by - 24, `
-.ooo.
-ookoo
-ooooo
-ookoo
-.ooo.
-`);
-// a merchant standing by the well
-pixStamp(g, bx - 10, by - 44, `
-.hh.
-.ee.
-TTTT
-TTTT
-.pp.
-.kk.
-`);
+}
+// ---- pennant pole at the left corner
+const pole = iso(0.12, 2.88, KZ);
+function pennant(gr, f) {
+  for (let z = 0; z < 40; z++) { pixSet(gr, pole[0], pole[1] - z, 'w'); pixSet(gr, pole[0] + 1, pole[1] - z, 'v'); }
+  pixSet(gr, pole[0], pole[1] - 40, 'O'); pixSet(gr, pole[0] + 1, pole[1] - 40, 'o');
+  const x0 = pole[0] + 2, y0 = pole[1] - 39, len = 14;
+  for (let i = 0; i < len; i++) {
+    const wave = Math.round(Math.sin((i / len) * Math.PI * 1.6 - f * Math.PI / 2) * 1.4 * (i / len)), hgt = Math.max(1, Math.round(6 * (1 - i / len)));
+    const top = y0 + Math.round((6 - hgt) / 2) + wave;
+    for (let k = 0; k < hgt; k++) pixSet(gr, x0 + i, top + k, k === 0 ? 'L' : k === hgt - 1 ? 'D' : 'T');
+  }
+}
+
+const frames = [];
+for (let f = 0; f < 4; f++) {
+  const fr = clone(g);
+  // back to front: back stall, back-right stall, well, front-left, front-right, loose crates/barrels in depth order
+  stall(fr, STALLS[0], f); stall(fr, STALLS[1], (f + 1) % 4);
+  barrel(fr, 2.7, 1.4); crate(fr, 1.0, 1.55);
+  well(fr);
+  stall(fr, STALLS[2], (f + 2) % 4);
+  crate(fr, 1.5, 2.55); barrel(fr, 1.36, 2.72);
+  stall(fr, STALLS[3], (f + 3) % 4);
+  pennant(fr, f);
+  outline(fr, () => 'k');
+  frames.push(pixText(fr));
+}
 
 export default {
   id: 'market', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
-    y: '#b9a070', Y: '#a8905f', z: '#9a7a4a', x: '#7a5a30',          // platform planks
-    t: '#5a3a18', w: '#8a6a3a', v: '#6a4a2a', u: '#a07a44',          // posts, table wood
-    c: '#efe4cc', T: 'team', D: 'teamdark', L: 'teamlight',          // awning cream + stripes
-    o: '#b5703a', O: '#d9955a', R: '#c0392b', b: '#2f6fb0', g: '#3ba34a', p: '#8a4a8a',   // pots, cloth bolts
-    f: '#c9303a', F: '#ff7a7a', a: '#e1b12c', A: '#ffe39a', s: '#c9b58e', S: '#e5dcc5',  // fruit, sacks
-    m: '#9a7040', M: '#b58a5a', q: '#8d8478', Q: '#6f6a60', k: '#2a2018', n: '#2f6fb0',
-    h: '#5a3a1a', e: '#e8c39e',
+    P: '#c4bba9', p: '#a89f8e', q: '#948b7b', Q: '#7c7466', U: '#655e53', j: '#6f675a', J: '#4f4940',    // kerb + setts, mortar
+    w: '#a07a4a', W: '#8a6a3a', v: '#5a3a18', u: '#b58a54',                                           // timber, counter top
+    c: '#efe6d2', C: '#bfae88', T: 'team', D: 'teamdark', L: 'teamlight',                             // awning cream / team
+    O: '#d9955a', o: '#b5703a', i: '#7f4a24',                                                         // terracotta
+    R: '#d0473a', r: '#8e2a1f', b: '#4a7fb0', B: '#7aa8d8', a: '#2a4f78', x: '#9a5a9a', X: '#c08ac0', N: '#5e3060', // cloth bolts
+    F: '#e0503a', f: '#a8281e', A: '#ffc061', e: '#e08a2a',                                           // apples, oranges
+    S: '#e3d2a8', s: '#c4ad7c', m: '#937c55', n: '#5f656c', z: '#2a4a66', Z: '#8ab8e0',               // sacks, hoops, well water
+    k: '#24180f',
   },
-  frames: { idle: [pixText(g)] },
+  frames: { idle: frames },
 };

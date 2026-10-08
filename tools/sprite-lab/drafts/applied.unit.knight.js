@@ -1,8 +1,5 @@
 // @sprite unit knight
-// Painted knight (PIXELS.knight): mounted; walk ×4 (legs cycle), attack ×3. Splits off the shared horseman/knight/scout case when applied.
+// Painted knight (PIXELS.knight): idle ×6 (tail swish, head dip, breath, hoof shift), walk ×8 (canter), attack ×4, death ×7 (played by the engine).
 export default function knight(u,{tc,d,swing,working,wph,r,wx,wy}){
-  const moving=u.goal&&u.state!=='idle';
-  const frame=moving?'walk':u.swing>0?'attack':'idle';
-  const i=moving?Math.floor(u.anim*12):u.swing>0?Math.floor((0.3-u.swing)/0.3*3):0;
-  pixDraw(PIXELS.knight,frame,i,tc);
+  pixUnit(u,PIXELS.knight,tc);
 }

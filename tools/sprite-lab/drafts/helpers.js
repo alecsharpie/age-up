@@ -27,18 +27,53 @@ export function pixFrame(spec, frame, i, tc) {
 
 /** Blit onto any 2D context with the sprite's anchor at (x,y) of the current transform. o.clip (0..1) reveals the bottom part only — construction. */
 export function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
-  const c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
+  let c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
+  if (o && o.flash) c = pixFlash(c);
   const m = c2d.getTransform();
   c2d.save(); c2d.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); c2d.imageSmoothingEnabled = false;
   if (o && o.alpha !== undefined) c2d.globalAlpha *= o.alpha;
-  const dx = Math.round(x - spec.anchor[0] * sc), dy = Math.round(y - spec.anchor[1] * sc);
+  const an = (spec.anchors && spec.anchors[frame]) || spec.anchor;  // a set may have its own size/anchor (death: lying down is wider)
+  const dx = Math.round(x - an[0] * sc), dy = Math.round(y - an[1] * sc);
   const clip = o && o.clip !== undefined ? Math.max(0, Math.min(1, o.clip)) : 1;
   if (clip < 1) { const sh = Math.round(c.height * clip); if (sh > 0) c2d.drawImage(c, 0, c.height - sh, c.width, sh, dx, dy + c.height - sh, c.width, sh); }
   else c2d.drawImage(c, dx, dy);
   c2d.restore();
 }
 
+/** The hit flash: the frame with its pixels pushed towards white (cached per frame canvas). */
+export function pixFlash(c) {
+  if (c._flash) return c._flash;
+  const f = document.createElement('canvas'); f.width = c.width; f.height = c.height; const x = f.getContext('2d');
+  x.drawImage(c, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(255,250,235,0.65)'; x.fillRect(0, 0, f.width, f.height);
+  return (c._flash = f);
+}
 export function pixDraw(spec, frame, i, tc, x = 0, y = 0, o) { pixBlit(ctx, spec, frame, i, tc, x, y, o); }
+
+/**
+ * Draw a unit from its painted sprite, choosing the frame set from the unit's state. One rule for every unit:
+ * moving → walk (u.anim × fps.walk), attacking → attack (spread over the 0.3 s swing), working → o.work || 'work',
+ * in combat between blows → ready (if painted), otherwise idle, looping on G.time and offset per unit so a crowd does not breathe in step. Frame sets that a sprite
+ * does not have fall back to idle. spec.fps = {idle,walk,work,attack?} overrides the default rates. o.set forces a set.
+ * Returns the set drawn, so a case body can add code-drawn props for it.
+ */
+export function pixUnit(u, spec, tc, o = {}) {
+  const F = spec.frames, fps = spec.fps || {};
+  const moving = u.goal && u.state !== 'idle' && !(u.state === 'gather' && u.phase === 'gathering');
+  const working = (u.state === 'gather' && u.phase === 'gathering') || (u.state === 'build' && !u.goal);
+  let set = 'idle', i = (G.time + (u.id % 7) * 0.37) * (fps.idle || 4);
+  if (o.set && F[o.set]) { set = o.set; i = (o.i !== undefined ? o.i : G.time * (fps[o.set] || 8)); }
+  else if (moving && F.walk) { set = 'walk'; i = u.anim * (fps.walk || 12); }
+  else if (u.swing > 0 && F.attack) { const n = F.attack.length; set = 'attack'; i = Math.min(n - 1, Math.floor((0.3 - u.swing) / 0.3 * n)); }
+  else if (u.state === 'attack' && F.ready) { set = 'ready'; i = (G.time + (u.id % 7) * 0.37) * (fps.ready || fps.idle || 4); }
+  else if (working && F[o.work || 'work']) { set = o.work || 'work'; i = u.anim * (fps.work || 8); }
+  pixDraw(spec, set, i, tc, 0, 0, u.flash > 0 ? { flash: true } : undefined);
+  return set;
+}
+/** Death: play `death` once at fps.death (default 10) from time t0, then hold the last frame (the corpse). */
+export function pixDeath(c2d, spec, t0, tc) {
+  const n = spec.frames.death.length; const fps = (spec.fps && spec.fps.death) || 10;
+  pixBlit(c2d, spec, 'death', Math.min(n - 1, Math.floor((G.time - t0) * fps)), tc);
+}
 
 // ---- grid painting kit for *generated* pixel drafts (code before `export default` builds the grids) ----
 // Grids are arrays of rows of single characters. Coordinates are cells. All take/return plain data; nothing touches the DOM.

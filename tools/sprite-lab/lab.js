@@ -27,11 +27,13 @@ async function boot() {
   let db = meta.fn.drawBuilding, du = meta.fn.drawUnit, rs = meta.fn.resSprite;
   // painted sprites first, so case bodies can refer to them
   for (const k in PIX_CACHE) delete PIX_CACHE[k];
+  LAB.pixSets = { current: Object.assign({}, PIXELS), draft: null }; LAB.pixActive = 'draft';
   for (const f of drafts.files) {
     if (!/^pixel\./.test(f.name)) continue;
     try { const spec = parsePixelDraft(f.src); spec.id = spec.id || f.name.slice(6, -3); PIXELS[spec.id] = spec; LAB.drafts.pixel[spec.id] = { file: f.name, spec }; }
     catch (e) { LAB.errors.push(f.name + ': ' + e.message); }
   }
+  LAB.pixSets.draft = Object.assign({}, PIXELS);
   for (const f of drafts.files) {
     if (/^pixel\./.test(f.name)) continue;
     try {
@@ -109,7 +111,14 @@ function cellGeom(kind, type) {
   if (kind === 'unit') { const cw = 76, ch = 76; return { cw, ch, ax: cw / 2, ay: ch - 22 - HH }; }
   const cw = 84, ch = 104; return { cw, ch, ax: cw / 2, ay: ch - 26 - HH };
 }
+/** Point PIXELS at the game's painted sprites ('current') or the drafts ('draft'); the frame cache is per set. */
+function usePixels(which) {
+  if (!LAB.pixSets || LAB.pixActive === which) return;
+  const set = LAB.pixSets[which]; for (const k of Object.keys(PIXELS)) if (!(k in set)) delete PIXELS[k]; Object.assign(PIXELS, set);
+  for (const k in PIX_CACHE) delete PIX_CACHE[k]; LAB.pixActive = which;
+}
 function drawEntity(c, kind, type, o) {
+  usePixels(o.src === 'draft' ? 'draft' : 'current');
   const F = LAB.fns[o.src === 'draft' ? 'draft' : 'current'];
   ctx = c; G.time = o.time ?? 0;
   if (kind === 'building') F.drawBuilding(fakeBuilding(type, o), !!o.sel);
@@ -183,7 +192,7 @@ function buildingPanel(type, src) {
   rows.push({ label: 'animation over time (s)', cells: [0, 0.4, 0.8, 1.2].map(t => ({ label: 't=' + t, img: renderCell('building', type, { src, time: t }) })) });
   rows.push({ label: 'states', cells: [
     { label: 'selected', img: renderCell('building', type, { src, sel: true }) },
-    { label: 'damaged 40%', img: renderCell('building', type, { src, hpf: 0.4 }) },
+    ...[0.7, 0.4, 0.2].map(f => ({ label: `damaged ${f * 100}%`, img: renderCell('building', type, { src, hpf: f, time: 0.3 }) })),
     { label: 'garrison 3', img: renderCell('building', type, { src, garrison: [1, 2, 3] }) },
     { label: 'relics 2', img: renderCell('building', type, { src, relics: 2 }) },
   ] });
@@ -229,11 +238,11 @@ function resourcePanel(type, src) {
   return { title: `${src}${src === 'draft' && !hasDraft('resource', type) ? ' (no draft file → same as current)' : ''}`, rows };
 }
 
-function pixCell(spec, grid, tc, mag, showAnchor = true) {
+function pixCell(spec, grid, tc, mag, showAnchor = true, set) {
   const img = pixBuild(spec, grid, tc); const sc = spec.scale || 1; const off = document.createElement('canvas'); off.width = img.width * mag + 8; off.height = img.height * mag + 8; const c = off.getContext('2d');
   for (let y = 0; y < off.height; y += 4) for (let x = 0; x < off.width; x += 4) { c.fillStyle = ((x + y) / 4) % 2 ? '#2a2420' : '#211c18'; c.fillRect(x, y, 4, 4); }
   c.imageSmoothingEnabled = false; c.drawImage(img, 4, 4, img.width * mag, img.height * mag);
-  if (showAnchor) { c.strokeStyle = 'rgba(255,80,80,0.9)'; const ax = 4 + spec.anchor[0] * sc * mag, ay = 4 + spec.anchor[1] * sc * mag; c.beginPath(); c.moveTo(ax - 6, ay); c.lineTo(ax + 6, ay); c.moveTo(ax, ay - 6); c.lineTo(ax, ay + 6); c.stroke(); }
+  if (showAnchor) { c.strokeStyle = 'rgba(255,80,80,0.9)'; const an = (set && spec.anchors && spec.anchors[set]) || spec.anchor; const ax = 4 + an[0] * sc * mag, ay = 4 + an[1] * sc * mag; c.beginPath(); c.moveTo(ax - 6, ay); c.lineTo(ax + 6, ay); c.moveTo(ax, ay - 6); c.lineTo(ax, ay + 6); c.stroke(); }
   return off;
 }
 function pixGroundCell(spec, frame, i, tc, face) {
@@ -250,10 +259,11 @@ function pixBuildingCell(spec, frame, i, tc, clip) {
   try { pixBlit(c, spec, frame, i, tc, k.Bm[0], k.Bm[1], { clip }); } catch (e) { off.error = e.message; } c.restore(); return off;
 }
 function pixelPanel(id) {
+  usePixels('draft');
   const spec = PIXELS[id]; if (!spec) throw new Error('no pixel sprite ' + id);
   const rows = []; const tc0 = TEAM[0]; const first = Object.keys(spec.frames)[0];
   const big = spec.kind === 'building'; const mag = big ? Math.max(1, Math.min(3, Math.floor(400 / pixBuild(spec, spec.frames[first][0], tc0).width))) : 6;
-  for (const [name, list] of Object.entries(spec.frames)) rows.push({ label: `${name} · ${list.length} frame(s) · ×${mag} · red cross = anchor`, cells: list.map((g, i) => ({ label: name + ' ' + i, img: pixCell(spec, g, tc0, mag) })) });
+  for (const [name, list] of Object.entries(spec.frames)) rows.push({ label: `${name} · ${list.length} frame(s) · ×${mag} · red cross = anchor`, cells: list.map((g, i) => ({ label: name + ' ' + i, img: pixCell(spec, g, tc0, mag, true, name) })) });
   if (spec.kind !== 'resource') rows.push({ label: `team colours · first frame · ×${big ? 1 : 4}`, cells: [0, 1, 2, 3].map(t => ({ label: teamName(t), img: pixCell(spec, spec.frames[first][0], TEAM[t], big ? 1 : 4, false) })) });
   if (big) rows.push({ label: 'at 1× on its footprint · construction clip 0.3 / 0.65 / 1 · frames over time', cells: [
     { label: 'clip 0.3', img: pixBuildingCell(spec, first, 0, tc0, 0.3) }, { label: 'clip 0.65', img: pixBuildingCell(spec, first, 0, tc0, 0.65) }, { label: 'built', img: pixBuildingCell(spec, first, 0, tc0, 1) },
@@ -261,6 +271,10 @@ function pixelPanel(id) {
   else rows.push({ label: 'at 1× on grass, as the game shows it · facing right / left · walk frames', cells: [
     { label: 'idle →', img: pixGroundCell(spec, first, 0, tc0, 1) }, { label: 'idle ←', img: pixGroundCell(spec, first, 0, tc0, -1) },
     ...(spec.frames.walk || []).map((g, i) => ({ label: 'walk ' + i, img: pixGroundCell(spec, 'walk', i, tc0, 1) })) ] });
+  if (!big) for (const name of Object.keys(spec.frames).filter(n => !['walk'].includes(n) && spec.frames[n].length > 1))
+    rows.push({ label: `${name} at 1× on grass`, cells: spec.frames[name].map((g, i) => ({ label: name + ' ' + i, img: pixGroundCell(spec, name, i, tc0, 1) })) });
+  if (!big) { const pick = Object.keys(spec.frames).map(n => [n, n === 'death' ? spec.frames[n].length - 1 : Math.floor(spec.frames[n].length / 2)]);
+    rows.push({ label: 'the 1× render magnified ×3 (what a player sees, zoomed in) · one frame per set', cells: pick.map(([n, i]) => ({ label: `${n} ${i}`, img: magnify(pixGroundCell(spec, n, i, tc0, 1), 3) })) }); }
   const g0 = normaliseGrid(spec.frames[first][0]);
   return { title: `pixel sprite "${id}" · ${g0[0].length}×${g0.length} cells${spec.scale > 1 ? ' × scale ' + spec.scale : ''} · anchor [${spec.anchor}]${spec.footprint ? ' · footprint ' + spec.footprint.join('×') : ''} · ${Object.keys(spec.palette).length} colours`, rows };
 }
@@ -319,7 +333,7 @@ LAB.sceneCanvas = (o = {}) => {
   const r = mulberry32(9);
   for (let y = 0; y < M; y++) for (let x = 0; x < M; x++) tile(c, ox + wpx(x, y), oy + wpy(x, y), terrainAt(x, y), r);
   c.save(); c.translate(ox, oy); ctx = c; G.time = time;
-  const F = LAB.fns[src === 'draft' ? 'draft' : 'current'];
+  usePixels(src === 'draft' ? 'draft' : 'current'); const F = LAB.fns[src === 'draft' ? 'draft' : 'current'];
   const errors = [];
   const safely = (fn) => { try { fn(); } catch (e) { errors.push(e.message); } };
   for (const b of blds) if (b.type === 'farm') safely(() => F.drawBuilding(b, false));

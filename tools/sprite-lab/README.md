@@ -65,6 +65,16 @@ sprites can be **painted** as character grids and blitted by `pixDraw`:
   add frame sets and colours, see it at 1× on grass and ×4, and export the draft text to paste into `drafts/`.
   Loading text there updates every unit that uses the sprite, live.
 
+## The AAA bar
+
+`AAA.md` is the quality bar every sprite meets (outline, ramps, frame sets, timing, death, buildings' ambient life);
+`lab.mjs aaa [id|all] [--verbose]` checks the measurable part (`aaa.mjs`). Units are wired with one helper,
+`pixUnit(u, PIXELS.<id>, tc, {work, set, i})` (drafts/helpers.js), which picks idle / ready / walk / attack / work from the
+unit's state; the engine plays `frames.death` on death (`pixDeath`, corpse fades over 12 s), uses an animal's last death
+frame as its carcass, flashes painted units white when hit (`pixFlash`), and sets `PIXELS.fire` on buildings below
+75/50/25 % hp. A set may have its own size via `spec.anchors.<set>`; `spec.fps` overrides the rates.
+`gen/` holds the scripts that generated the current sprites (see `gen/README.md`).
+
 ## Batch apply and smoke test
 
 - `lab.mjs apply all [--dry]` applies helpers, then every `pixel.*` draft, then every case-body draft, with one backup,
@@ -84,6 +94,8 @@ sprites can be **painted** as character grids and blitted by `pixDraw`:
 | `REFERENCE.md`, `reference.json` | what classic RTS assets truly look like + this game's style rules (json feeds the catalogue) |
 | `catalog.template.html` | the browsable catalogue; `lab.mjs catalog` inlines the game code, drafts and engine into `out/catalog.html` |
 | `drafts/helpers.js` | shared helpers drafts may call (`pixBuild`, `pixDraw`); installed by `apply helpers` |
+| `AAA.md`, `aaa.mjs` | the AAA bar and its checker |
+| `gen/` | sprite generator scripts (regenerate a draft instead of hand-editing grids) |
 | `drafts/` | your work in progress; `out/` rendered PNGs; `backups/` pre-apply copies of `index.html` |
 
 Playwright is resolved from this folder's `node_modules` or from `~/.claude/skills/screenshot-verify/`.

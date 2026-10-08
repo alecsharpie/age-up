@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { balanced, caseSegments, spliceCase, spliceResource, splicePixel, statementEnd } from './splice.js';
+import { balanced, functionBodyFrom, caseSegments, spliceCase, spliceResource, splicePixel, statementEnd } from './splice.js';
 
 export const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(HERE, '../..');
@@ -24,7 +24,7 @@ export function grabFunction(src, name) {
   const m = new RegExp('(^|\\n)function ' + name + '\\(').exec(src);
   if (!m) throw new Error('function ' + name + '( not found in index.html');
   const start = m.index + m[1].length;
-  const end = balanced(src, start) + 1;
+  const end = balanced(src, functionBodyFrom(src, start)) + 1;
   return { start, end, text: src.slice(start, end) };
 }
 export function grabLine(src, startsWith) {

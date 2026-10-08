@@ -1,6 +1,6 @@
 // @sprite unit fireship
-// Painted fire ship (PIXELS.fireship): brazier flames flicker between two frames; a bigger blaze while attacking.
+// Painted fire ship (PIXELS.fireship): bobs; fire-basket flickers in idle/walk and flares into a blaze on attack.
 export default function fireship(u,{tc,d,swing,working,wph,r,wx,wy}){
   ctx.translate(0,Math.sin(G.time*2+u.id)*1.2);
-  pixDraw(PIXELS.fireship,u.swing>0?'attack':'idle',Math.floor(G.time*8+u.id),tc);
+  pixUnit(u,PIXELS.fireship,tc);
 }
