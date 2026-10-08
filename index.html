@@ -17,7 +17,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 .res small:not(:empty)::before{content:'\00b7';margin-right:3px}
 .ci{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}.ci img{width:12px;height:12px;image-rendering:pixelated}
 #bottom{height:240px;background:var(--panel);border-top:3px solid #5a4530;display:flex;flex-shrink:0}
-#cmds{flex:1;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));grid-auto-rows:46px;gap:5px;align-content:start;overflow:hidden auto;scrollbar-width:thin}
+#cmds{flex:1;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));grid-auto-rows:46px;gap:5px;align-content:start;overflow:hidden auto;scrollbar-width:thin}
 .btn{background:var(--panel2);border:2px solid var(--edge);border-radius:4px;color:var(--text);font:10.5px Georgia,serif;cursor:pointer;display:grid;grid-template-columns:26px 1fr;grid-template-rows:1fr auto;align-items:center;gap:0 4px;padding:3px 3px 3px 2px;position:relative;text-align:left;line-height:1.1}
 .btn:hover{border-color:var(--gold)}
 .btn.disabled{opacity:.4}
@@ -233,7 +233,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
           <div><b>Right click</b> move / gather / attack / build / garrison / repair</div>
           <div><b>Shift</b> add to selection, queue orders</div>
           <div><b>Dbl-click</b> select all of a type on screen</div>
-          <div><b>A</b> attack-move, <b>Z</b> patrol, <b>D</b> stand ground</div>
+          <div><b>A</b> attack-move, <b>Z</b> patrol, <b>X</b> explore, <b>D</b> stand ground</div>
           <div><b>H</b> Town Hall, <b>.</b> idle villager, <b>,</b> idle army</div>
           <div><b>Ctrl+1-9</b> set group, <b>1-9</b> recall</div>
           <div><b>Arrows</b> / edge / middle-drag to scroll</div>
@@ -464,7 +464,7 @@ function genMap(){
   const at=(ang,dist)=>({x:Math.round(c.x+Math.cos(toward+ang)*dist),y:Math.round(c.y+Math.sin(toward+ang)*dist)});
   const place=(kind,p,count,amt,spread=1)=>{for(let k=0;k<count;k++){const x=p.x+RI(-spread,spread),y=p.y+RI(-spread,spread);if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5)makeResource(kind,x,y,amt)}};
   const f1=at(1.9,8.5),f2=at(-1.6,9);blob(f1.x,f1.y,3.6,tree);blob(f2.x,f2.y,3.2,tree);
-  place('food',at(-0.7,5),8,200);place('food',at(1.2,10),6,150);place('gold',at(0.6,6.5),5,400);place('stone',at(2.6,6),4,350);place('gold',at(-2.4,11),4,400);
+  place('food',at(-0.7,5),8,200);place('food',at(1.2,10),6,150);place('gold',at(0.6,6.5),6,500);place('stone',at(2.6,6),5,400);place('gold',at(-2.4,11),4,500);
  });
  // random forests + scattered trees
  if(mt!=='forest'){for(let k=0;k<Math.round(MAP/3);k++){const x=RI(2,MAP-3),y=RI(2,MAP-3);if(dBase(x,y)<12)continue;blob(x,y,R(2,4.5),tree)}
@@ -618,6 +618,10 @@ function cmdRepair(u,b){if(u.type!=='villager')return;releaseGather(u);u.state='
 function cmdMove(u,x,y){releaseGather(u);u.state='move';u.target=null;u.patrol=null;const tx=Math.floor(x),ty=Math.floor(y);const blocked=!isWalkable(tx,ty,u.team,u.naval);moveTo(u,{x0:blocked?tx:x,y0:blocked?ty:y,x1:blocked?tx+1:x,y1:blocked?ty+1:y},blocked)}
 function cmdAttackMove(u,x,y){releaseGather(u);u.state='amove';u.target=null;u.amDest={x,y};const tx=Math.floor(x),ty=Math.floor(y);const blocked=!isWalkable(tx,ty,u.team,u.naval);moveTo(u,{x0:blocked?tx:x,y0:blocked?ty:y,x1:blocked?tx+1:x,y1:blocked?ty+1:y},blocked)}
 function cmdPatrol(u,x,y){cmdAttackMove(u,x,y);u.patrol={a:{x:u.x,y:u.y},b:{x,y},to:'b'}}
+// Explore: keep walking to unexplored ground until the map is known or another order arrives.
+function cmdExplore(u){u.explore=true;exploreNext(u)}
+function exploreNext(u){const v=G.vis[u.team];let best=null,bd=1e9;for(let k=0;k<48;k++){const rad=k<24?12:MAP;const x=Math.floor(u.x+R(-rad,rad)),y=Math.floor(u.y+R(-rad,rad));if(!inMap(x,y)||v[idx(x,y)]!==0||!isWalkable(x,y,u.team,u.naval))continue;const d=Math.hypot(x-u.x,y-u.y)+R(0,4);if(d<bd){bd=d;best={x,y}}}
+ if(!best){u.explore=false;msg('Nothing left to explore.',u.team);stop(u);return}cmdMove(u,best.x+0.5,best.y+0.5)}
 function cmdAttack(u,t,resume){releaseGather(u);if(UNITS[u.type].onlyBuildings&&t.kind!=='bld'){cmdMove(u,t.x,t.y);return}if(UNITS[u.type].heals){if(t.kind==='unit'&&!allied(t.team,u.team)&&!isAnimal(t)&&!UNITS[t.type].onlyBuildings)cmdConvert(u,t);else cmdFollow(u,t);return}u.state='attack';u.target=t;u.resume=resume||null;u.path=null;u.goal=null}
 function cmdConvert(u,t){u.state='convert';u.target=t;u.conv=0;u.convNeed=R(6,11)*(player(u.team).techs.faith?0.7:1)*(t.team>=0&&player(t.team).techs.faith?1.6:1);u.path=null;u.goal=null}
 function cmdFollow(u,t){u.state='follow';u.target=t;u.path=null;u.goal=null}
@@ -629,7 +633,7 @@ function tradeStep(u){const m=u.target;if(!m||m.dead){stop(u);return}
 function cmdRelic(u,r){if(u.type!=='monk'||r.holder)return;u.state='relic';u.target=r;u.path=null;u.goal=null}
 function releaseGather(u){if(u.target&&u.target.kind==='res'&&u.state==='gather')u.target.gatherers=Math.max(0,u.target.gatherers-1);if(u.target&&u.target.kind==='bld'&&u.target.type==='farm'&&u.target.worker===u)u.target.worker=null;if(u.state==='hunt'&&u.target)u.target.hunters=Math.max(0,(u.target.hunters||0)-1);u.phase=null}
 function issue(u,cmd,queue){if(u.inside)return;if(queue&&u.state!=='idle'){u.cmds.push(cmd);return}u.cmds.length=0;runCmd(u,cmd)}
-function runCmd(u,c){switch(c.k){case'move':cmdMove(u,c.x,c.y);break;case'amove':cmdAttackMove(u,c.x,c.y);break;case'patrol':cmdPatrol(u,c.x,c.y);break;case'gather':if(c.t.dead){stop(u);break}cmdGather(u,c.t);break;case'build':if(c.t.dead||c.t.built){stop(u);break}cmdBuild(u,c.t);break;case'repair':if(c.t.dead){stop(u);break}cmdRepair(u,c.t);break;case'attack':if(c.t.dead){stop(u);break}cmdAttack(u,c.t);break;case'follow':if(c.t.dead){stop(u);break}cmdFollow(u,c.t);break;case'garrison':if(c.t.dead){stop(u);break}cmdGarrison(u,c.t);break;case'relic':cmdRelic(u,c.t);break;case'trade':if(c.t.dead){stop(u);break}cmdTrade(u,c.t);break}}
+function runCmd(u,c){if(c.k!=='explore')u.explore=false;switch(c.k){case'explore':cmdExplore(u);break;case'move':cmdMove(u,c.x,c.y);break;case'amove':cmdAttackMove(u,c.x,c.y);break;case'patrol':cmdPatrol(u,c.x,c.y);break;case'gather':if(c.t.dead){stop(u);break}cmdGather(u,c.t);break;case'build':if(c.t.dead||c.t.built){stop(u);break}cmdBuild(u,c.t);break;case'repair':if(c.t.dead){stop(u);break}cmdRepair(u,c.t);break;case'attack':if(c.t.dead){stop(u);break}cmdAttack(u,c.t);break;case'follow':if(c.t.dead){stop(u);break}cmdFollow(u,c.t);break;case'garrison':if(c.t.dead){stop(u);break}cmdGarrison(u,c.t);break;case'relic':cmdRelic(u,c.t);break;case'trade':if(c.t.dead){stop(u);break}cmdTrade(u,c.t);break}}
 
 // ---- combat ----
 function findEnemy(u,range,unitsOnly,bldOnly){let best=null,bd=1e9;const d=UNITS[u.type];
@@ -734,7 +738,7 @@ function animalStep(u){const d=UNITS[u.type];
 function updateUnit(u){if(u.inside){if(u.hp<unitStat(u,'maxhp'))u.hp=Math.min(unitStat(u,'maxhp'),u.hp+1.5*DT);return}u.cool=Math.max(0,u.cool-DT);if(u.flash>0)u.flash-=DT;if(u.swing>0)u.swing-=DT;if(u.faith>0)u.faith-=DT;
  if(isAnimal(u)){animalStep(u);return}
  switch(u.state){
-  case'idle':if(u.cmds.length){runCmd(u,u.cmds.shift());break}if(isMil(u)&&(G.tick+u.scan)%10===0){const e=findEnemy(u,u.stance==='ground'?unitStat(u,'range'):UNITS[u.type].los,!UNITS[u.type].onlyBuildings);if(e&&!(UNITS[u.type].onlyBuildings&&e.kind!=='bld'))cmdAttack(u,e)}if(u.type==='monk')monkIdle(u);break;
+  case'idle':if(u.cmds.length){runCmd(u,u.cmds.shift());break}if(u.explore&&(G.tick+u.scan)%10===0){exploreNext(u);break}if(isMil(u)&&(G.tick+u.scan)%10===0){const e=findEnemy(u,u.stance==='ground'?unitStat(u,'range'):UNITS[u.type].los,!UNITS[u.type].onlyBuildings);if(e&&!(UNITS[u.type].onlyBuildings&&e.kind!=='bld'))cmdAttack(u,e)}if(u.type==='monk')monkIdle(u);break;
   case'move':if(step(u))stop(u);break;
   case'amove':if((G.tick+u.scan)%10===0){const e=findEnemy(u,UNITS[u.type].los,false);if(e){cmdAttack(u,e,{amove:u.amDest,patrol:u.patrol});break}}if(step(u)){if(u.patrol){const p=u.patrol;const nxt=p.to==='b'?p.a:p.b;p.to=p.to==='b'?'a':'b';cmdAttackMove(u,nxt.x,nxt.y);u.patrol=p}else stop(u)}break;
   case'attack':attackStep(u);break;
@@ -856,7 +860,7 @@ function hasBuilt(seat,type){return G.buildings.some(b=>b.team===seat&&b.type===
 function applyCmd(seat,c){const p=G.players[seat];if(!p||!c||p.dead)return false;if(CMDLOG)CMDLOG.push({tick:G.tick,seat,c});
  switch(c.v){
  case'orders':{let n=0;for(const o of c.list||[]){const u=entById(o.id);if(!own(seat,u)||u.kind!=='unit'||isAnimal(u))continue;const cc=unwireCmd(o.c);if(!cc)continue;issue(u,cc,!!c.q);n++}return n>0}
- case'stop':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit')stop(u)}return true}
+ case'stop':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit'){u.explore=false;stop(u)}}return true}
  case'stance':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit')u.stance=c.s==='ground'?'ground':'aggr'}return true}
  case'rally':{const t=c.t!=null?entById(c.t):null;const x=+c.x,y=+c.y;if(!isFinite(x)||!isFinite(y))return false;for(const id of c.ids||[]){const b=entById(id);if(own(seat,b)&&b.kind==='bld'&&(BUILDINGS[b.type].trains||BUILDINGS[b.type].garrison))b.rally={x,y,t:t&&t!==b&&!t.dead?t:null}}return true}
  case'eject':{const b=entById(c.id);if(!own(seat,b))return false;const list=b.kind==='unit'?b.cargo:b.garrison;if(!list||!list.length)return false;ejectAll(b,false);return true}
@@ -912,7 +916,7 @@ function chatSubmit(txt){txt=txt.trim();if(!txt)return;const n=parseInt(txt);
 function resign(){if(G&&!G.over)submit({v:'resign'})}
 
 // ================= AI =================
-const AI_DIFF=[{eco:0.6,army:18,vill:[12,16,20,22]},{eco:0.8,army:14,vill:[14,20,24,26]},{eco:1.0,army:12,vill:[18,26,32,36]},{eco:1.25,army:10,vill:[20,30,38,42]},{eco:1.5,army:9,vill:[22,34,42,48]}];
+const AI_DIFF=[{eco:0.6,army:18,vill:[12,16,20,24]},{eco:0.8,army:14,vill:[14,20,26,30]},{eco:1.0,army:12,vill:[20,30,44,54]},{eco:1.25,army:10,vill:[24,38,56,68]},{eco:1.5,army:9,vill:[26,44,66,80]}];
 function builderCount(b){let n=0;for(const u of G.units)if(u.state==='build'&&u.target===b)n++;return n}
 function aiThink(p){const t=p.team,S=p.aiState,D=AI_DIFF[G.diff];S.n=(S.n||0)+1;const my=G.units.filter(u=>u.team===t&&!u.inside);const vills=my.filter(u=>u.type==='villager');const army=my.filter(isMil);const blds=G.buildings.filter(b=>b.team===t);
  const th=blds.find(b=>b.type==='townhall'&&b.built)||blds.find(b=>b.type==='townhall');const home=th?center(th):(blds[0]?center(blds[0]):{x:MAP/2,y:MAP/2});
@@ -920,7 +924,7 @@ function aiThink(p){const t=p.team,S=p.aiState,D=AI_DIFF[G.diff];S.n=(S.n||0)+1;
  foeTH.sort((a,b)=>rectDist(home.x,home.y,rectOf(a))-rectDist(home.x,home.y,rectOf(b)));const enemyTH=foeTH[0];
  const count=type=>blds.filter(b=>b.type===type).length;const built=type=>blds.filter(b=>b.type===type&&b.built);const underway=type=>blds.some(b=>b.type===type&&!b.built);
 const allyP0=G.players.some(q=>q.team!==t&&!q.dead&&allied(q.team,t));
- const targetV=D.vill[p.age];
+ const targetV=Math.min(D.vill[p.age],Math.floor(POP_MAX*0.62));
  const want=p.age===0?{food:0.5,wood:0.4,gold:0.1,stone:0}:p.age===1?{food:0.45,wood:0.32,gold:0.18,stone:0.05}:{food:0.47,wood:0.25,gold:0.22,stone:0.06};
  if(p.age>=2&&count('keep')===0&&p.res.stone<600){want.stone+=0.08;want.gold-=0.08}
  if(p.res.wood>700){const cut=p.res.wood>2000?want.wood-0.05:0.15;want.wood=Math.max(0.05,want.wood-cut);want.food+=cut*0.7;want.gold+=cut*0.3}if(p.res.food>900){want.food=Math.max(0.15,want.food-0.15);want.gold+=0.1;want.wood+=0.05}if(p.res.gold>900){want.gold=Math.max(0.05,want.gold-0.15);want.food+=0.15}
@@ -932,7 +936,7 @@ const allyP0=G.players.some(q=>q.team!==t&&!q.dead&&allied(q.team,t));
    let free=0,tot=0;for(let yy=y-1;yy<y+d.h+1;yy++)for(let xx=x-1;xx<x+d.w+1;xx++){if(yy>=y&&yy<y+d.h&&xx>=x&&xx<x+d.w)continue;tot++;if(isWalkable(xx,yy,t,!!d.water)||(inMap(xx,yy)&&G.bAt[idx(xx,yy)]&&G.bAt[idx(xx,yy)].type==='farm'))free++}
    if(!d.water&&free<tot*0.5)continue;bd=dd;best={x,y}}return best};
  const buildWith=(type,pos,n=1,prefer)=>{if(!pos)return null;let free=vills.filter(v=>v.state==='idle'||((v.state==='gather'||v.state==='hunt')&&(!prefer||v.carryKind===prefer)));if(!free.length)free=vills.filter(v=>v.state==='gather'||v.state==='hunt');free.sort((a,b)=>Math.hypot(a.x-pos.x,a.y-pos.y)-Math.hypot(b.x-pos.x,b.y-pos.y));const bs=free.slice(0,n);if(!bs.length)return null;return tryPlace(type,pos.x,pos.y,t,bs,false)};
- const farmSpot=()=>{const mill=built('mill')[0];const c=mill?center(mill):home;return placeNear('farm',c.x,c.y,2,9)||placeNear('farm',home.x,home.y,2,10)};
+ const farmSpot=()=>{const drops=built('mill').concat(built('townhall'));for(const b of drops){const c=center(b);const pos=placeNear('farm',c.x,c.y,2,9);if(pos)return pos}return placeNear('farm',home.x,home.y,2,11)};
  if(!th&&!underway('townhall')&&vills.length){const v=vills[0];let best=null,bd=-1;for(let k=0;k<40;k++){const x=Math.round(v.x+R(-8,8)),y=Math.round(v.y+R(-8,8));if(!canPlace('townhall',x-1,y-1,t))continue;let sc=0;for(const r of G.resources){if(r.dead||r.fish)continue;const d=Math.hypot(r.tx-x,r.ty-y);if(d<9)sc+=r.res==='food'?2:r.res==='wood'?0.6:1}if(sc>bd){bd=sc;best={x:x-1,y:y-1}}}if(best)tryPlace('townhall',best.x,best.y,t,vills,false);return}
  // ---- threats & bell ----
  const threats=G.units.filter(u=>!allied(u.team,t)&&!isAnimal(u)&&!u.inside&&isMil(u)&&Math.hypot(u.x-home.x,u.y-home.y)<16);
@@ -963,24 +967,28 @@ if(S.n%5===0&&p.res.food<120&&p.res.wood>250&&count('farm')<Math.round(want.food
  for(const b of boats){if(b.state!=='idle')continue;const f=findResource(t,'food',b.x,b.y,30,{naval:true});if(f)cmdGather(b,f)}
  // ---- houses ----
  const housesUnderway=blds.filter(b=>b.type==='house'&&!b.built).length;
- if(p.popCap<POP_MAX&&p.popCap-p.pop<=(p.age>=1?6:4)&&housesUnderway<(p.age>=2?2:1)&&canAfford(p,bcost(p,'house'))){buildWith('house',placeNear('house',home.x,home.y,4.5,11),1,'wood')}
+ if(p.popCap<POP_MAX&&p.popCap-p.pop<=(p.age>=1?6:4)&&housesUnderway<(p.age>=2?3:p.age>=1?2:1)&&canAfford(p,bcost(p,'house'))){buildWith('house',placeNear('house',home.x,home.y,4.5,13),1,'wood')}
  // ---- camps ----
  if(S.n%4===0){for(const kind of['wood','gold','stone']){const r=findResource(t,kind,home.x,home.y,26,{noAnimals:true});if(!r||r.kind!=='res')continue;const drop=nearestDrop(t,kind,r.tx,r.ty);const dd=drop?rectDist(r.tx+0.5,r.ty+0.5,rectOf(drop)):99;const type=kind==='wood'?'lumber':'mine';
    if(dd>5&&!underway(type)&&canAfford(p,bcost(p,type))&&(cur[kind]>=2||p.res.wood>300)){buildWith(type,placeNear(type,r.tx+0.5,r.ty+0.5,1.5,4),1,kind)}}
   if(count('mill')===0&&!underway('mill')&&canAfford(p,bcost(p,'mill'))&&count('farm')>=4)buildWith('mill',placeNear('mill',home.x,home.y,4,9),1,'food');}
  // ---- military buildings ----
  const rich=p.res.wood>500;
- const foeWalled=G.buildings.some(b=>!allied(b.team,t)&&(b.type==='wall'||b.type==='tower'||b.type==='keep'));const plan=[];if(p.age>=2&&foeWalled&&count('siege')===0)plan.push('siege');if(vills.length>=7)plan.push('barracks');if(p.age>=1){plan.push('archery');plan.push('stable');plan.push('smith');if(vills.length>=12||allyP0||(p.res.gold>300&&(p.res.food<100||p.res.wood<100))||p.res.wood>1200||p.res.food>1200)plan.push('market');if(blds.filter(b=>b.type==='tower').length<2&&p.res.stone>=150)plan.push('tower')}if(p.age>=2){plan.push('siege');if(count('keep')===0&&p.res.stone>=550)plan.push('keep');if(count('townhall')===0)plan.push('townhall');plan.push('temple');if(rich){plan.push('barracks');plan.push('archery');plan.push('stable')}}if(p.age>=3&&rich){plan.push('siege')}if(p.age>=1&&p.res.wood>600){plan.push('barracks');plan.push('archery')}
+ const foeWalled=G.buildings.some(b=>!allied(b.team,t)&&(b.type==='wall'||b.type==='tower'||b.type==='keep'));const plan=[];if(p.age>=2&&foeWalled&&count('siege')===0)plan.push('siege');if(vills.length>=7)plan.push('barracks');if(p.age>=1){plan.push('archery');plan.push('stable');plan.push('smith');if(vills.length>=12||allyP0||(p.res.gold>300&&(p.res.food<100||p.res.wood<100))||p.res.wood>1200||p.res.food>1200)plan.push('market');if(blds.filter(b=>b.type==='tower').length<2&&p.res.stone>=150)plan.push('tower')}if(p.age>=2){plan.push('siege');if(count('keep')===0&&p.res.stone>=550)plan.push('keep');if(count('townhall')===0)plan.unshift('townhall');else if(vills.length>=20&&p.res.stone>=100&&count('townhall')<(p.age>=3?3:2))plan.unshift('townhall');plan.push('temple');if(rich){plan.push('barracks');plan.push('archery');plan.push('stable')}}if(p.age>=3&&rich){plan.push('siege')}if(p.age>=1&&p.res.wood>600){plan.push('barracks');plan.push('archery')}
  if(p.age>=3&&G.setup.victory==='standard'&&count('wonder')===0&&p.res.wood>1300&&p.res.food>1300&&p.res.gold>1200&&p.res.stone>1100)plan.unshift('wonder');
  const anyUnderway=blds.some(b=>!b.built&&b.type!=='farm'&&b.type!=='house'&&b.type!=='wall');
- if(!anyUnderway)for(const type of plan){const have=count(type);const max=type==='barracks'||type==='archery'||type==='stable'?(p.age>=2?(rich?3:2):(p.res.wood>600?2:1)):type==='tower'?2:type==='siege'?(p.age>=3?2:1):1;if(have>=max)continue;if(!canAfford(p,bcost(p,type)))continue;
+ if(!anyUnderway)for(const type of plan){const have=count(type);const max=type==='barracks'||type==='archery'||type==='stable'?(p.age>=2?(rich?3:2):(p.res.wood>600?2:1)):type==='tower'?2:type==='siege'?(p.age>=3?2:1):type==='townhall'?(p.age>=3?3:2):1;if(have>=max)continue;if(!canAfford(p,bcost(p,type)))continue;
+  if(type==='townhall'&&have>0){// expansion Town Hall: next to a wood or gold patch that no drop-off serves yet
+   const far=G.resources.filter(r=>!r.dead&&!r.fish&&!r.cliff&&(r.res==='wood'||r.res==='gold')&&Math.hypot(r.tx-home.x,r.ty-home.y)<24&&Math.hypot(r.tx-home.x,r.ty-home.y)>7).filter(r=>{const dr=nearestDrop(t,r.res,r.tx,r.ty);return !dr||rectDist(r.tx+0.5,r.ty+0.5,rectOf(dr))>7}).sort((a,b)=>Math.hypot(a.tx-home.x,a.ty-home.y)-Math.hypot(b.tx-home.x,b.ty-home.y));
+   const r=far[0];if(!r)continue;if(buildWith('townhall',placeNear('townhall',r.tx+0.5,r.ty+0.5,2.5,6),3,'wood'))break;continue}
   const toward=enemyTH?center(enemyTH):{x:MAP/2,y:MAP/2};const ang=Math.atan2(toward.y-home.y,toward.x-home.x);const cx=home.x+Math.cos(ang)*(type==='tower'?8:type==='wonder'?-4:6),cy=home.y+Math.sin(ang)*(type==='tower'?8:type==='wonder'?-4:6);
   if(buildWith(type,placeNear(type,cx,cy,0,type==='wonder'?14:10),type==='wonder'?6:2))break;}
  // ---- training ----
  const nextAge=p.age<3&&!p.ageing?AGE_COST[p.age+1]:null;const readyForAge=nextAge&&vills.length>=targetV*0.7&&(p.age===0?count('barracks')>=1:true);
  const reserve={};if(readyForAge&&army.length>=4)for(const k in nextAge)reserve[k]=nextAge[k];
+ if(p.age>=2&&vills.length>=20&&count('townhall')<(p.age>=3?3:2)&&!underway('townhall')){reserve.wood=(reserve.wood||0)+275;reserve.stone=(reserve.stone||0)+100}
  const spare=k=>p.res[k]-(reserve[k]||0);
- if(th&&th.built&&vills.length+th.queue.filter(q=>q.unit).length<targetV&&th.queue.length<2&&p.res.food>=50&&p.pop+1<=p.popCap)tryTrain(th,'villager');
+ {const ths=built('townhall');const queued=ths.reduce((a,b)=>a+b.queue.filter(q=>q.unit).length,0);if(vills.length+queued<targetV)for(const th2 of ths){if(th2.queue.length<2&&p.res.food>=50&&p.pop+1<=p.popCap)tryTrain(th2,'villager')}}
  if(th&&th.built&&readyForAge&&canAfford(p,nextAge))tryAge(th);
  const spareT=k=>p.res[k]-(reserve[k]||0)*0.4;
  if(S.n%4===0){const smith=built('smith')[0];if(smith&&smith.queue.length===0&&spareT('food')>150&&spareT('gold')>80){const order=army.filter(u=>UNITS[u.type].proj).length>army.length/2?['fletch','armor','blades','barding']:['blades','armor','fletch','barding'];for(const k of order){if(tryResearch(smith,k))break}}
@@ -7115,7 +7123,7 @@ function updateTop(){const p=player(ME);hudIcons();for(const k of RES_KINDS){$('
 function selKind(){const s=G.sel||[];if(!s.length)return null;if(s.some(e=>e.kind==='unit'&&e.team===ME&&!isAnimal(e))){return s.some(e=>isMil(e)||e.type==='monk')?'mil':s.every(e=>e.naval)?'mil':'vill'}if(s[0].kind==='bld'&&s[0].team===ME)return 'bld';return 'other'}
 function buildButtons(){const s=G.sel||[];const p=player(ME);const out=[];const kind=selKind();if(!kind)return out;
  if(kind==='vill'||(kind==='mil'&&s.some(e=>e.type==='villager'))){for(const t of BUILD_ORDER){const d=BUILDINGS[t];const locked=(p.age<d.age&&!(t==='townhall'&&!G.buildings.some(b=>b.team===ME&&b.type==='townhall')))||(d.needs&&!p.techs[d.needs]);out.push({key:d.key,label:d.name,icon:['bld',t],cost:bcost(p,t),enabled:!locked,tip:d.desc+(p.age<d.age?` (${AGES[d.age]})`:''),act:()=>{ui.build={type:t,tx:0,ty:0};ui.mode=null}})}}
- if(kind==='mil'||kind==='vill'){if(kind==='mil'){out.push({key:'A',label:'Attack-move',icon:['glyph','amove'],tip:'Move and fight anything on the way',act:()=>{ui.mode='amove';ui.build=null}});out.push({key:'Z',label:'Patrol',icon:['glyph','patrol'],tip:'Patrol between here and a point, fighting on the way',act:()=>{ui.mode='patrol';ui.build=null}});const ground=s.every(e=>e.kind!=='unit'||e.stance==='ground');out.push({key:'D',label:ground?'Aggressive':'Stand ground',icon:['glyph',ground?'aggr':'ground'],tip:ground?'Chase enemies that come into view':'Hold position; only fight what comes in range',act:()=>submit({v:'stance',ids:s.filter(u=>u.kind==='unit').map(u=>u.id),s:ground?'aggr':'ground'})})}
+ if(kind==='mil'||kind==='vill'){if(kind==='mil'){out.push({key:'A',label:'Attack-move',icon:['glyph','amove'],tip:'Move and fight anything on the way',act:()=>{ui.mode='amove';ui.build=null}});out.push({key:'Z',label:'Patrol',icon:['glyph','patrol'],tip:'Patrol between here and a point, fighting on the way',act:()=>{ui.mode='patrol';ui.build=null}});if(s.some(e=>e.kind==='unit'&&!e.naval))out.push({key:'X',label:'Explore',icon:['glyph','explore'],tip:'Wander into unexplored land until the map is known or you give another order. Good for the scout.',act:()=>submit({v:'orders',list:s.filter(u=>u.kind==='unit'&&!u.naval).map(u=>({id:u.id,c:{k:'explore'}})),q:false})});const ground=s.every(e=>e.kind!=='unit'||e.stance==='ground');out.push({key:'D',label:ground?'Aggressive':'Stand ground',icon:['glyph',ground?'aggr':'ground'],tip:ground?'Chase enemies that come into view':'Hold position; only fight what comes in range',act:()=>submit({v:'stance',ids:s.filter(u=>u.kind==='unit').map(u=>u.id),s:ground?'aggr':'ground'})})}
   if(s.some(e=>e.kind==='unit'&&e.cargo&&e.cargo.length))out.push({key:'U',label:'Unload',icon:['glyph','unload'],tip:'Put everyone ashore beside the ship',act:()=>{for(const u of s)if(u.kind==='unit'&&u.cargo&&u.cargo.length)submit({v:'eject',id:u.id})}});
   if(s.some(e=>e.type==='villager'))out.push({key:'Y',label:'Repair',icon:['glyph','repair'],tip:'Click a damaged building or siege engine to repair it (costs half its price over a full repair)',act:()=>{ui.mode='repair';ui.build=null}});
   out.push({key:'S',label:'Stop',icon:['glyph','stop'],tip:'Halt',act:()=>submit({v:'stop',ids:s.filter(u=>u.kind==='unit').map(u=>u.id)})})}
@@ -7140,7 +7148,7 @@ function renderInfo(){const s=G.sel||[];const el=$('info');if(!s.length){el.inne
  if(e.kind==='res'&&e.cliff){el.innerHTML='<h3>Cliff</h3><div class="row">Impassable rock. Find a gap.</div>';return}
  if(e.kind==='res'){el.innerHTML=`<h3>${e.carcass?UNITS[e.carcass].name+' carcass':e.res==='wood'?'Tree':e.res==='food'?'Berry bush':e.res==='gold'?'Gold mine':'Stone mine'}</h3><div class="row">${fmt(e.amount)} ${e.res} left${e.carcass?' (decaying)':''}</div>`;return}
  if(e.kind==='relic'){el.innerHTML='<h3>Relic</h3><div class="row">Send a Monk to pick it up and carry it to a Temple for a steady gold trickle.</div>';return}
- if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div><div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?' · Food '+d.food:' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range'):'')}</div><div class="row">${e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>`;return}
+ if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div><div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?' · Food '+d.food:' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range'):'')}</div><div class="row">${e.explore?'Exploring':e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>`;return}
  const d=BUILDINGS[e.type];const maxhp=bldHp(e);let q='';if(e.queue.length&&allied(e.team,ME))q='<div class="q">'+e.queue.map((x,i)=>{const n=x.unit?UNITS[x.unit].name:x.age?AGES[x.age]:TECHS[x.tech].name[x.lvl];return `<span>${n}${i===0?' '+Math.floor(100*x.t/(x.total||1))+'%':''}</span>`}).join('')+'</div>';
  el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*(e.built?e.hp/maxhp:e.progress)}%;background:${e.built?'#4caf50':'#aaa'}"></i></div><div class="row">${e.built?'HP '+Math.ceil(e.hp)+'/'+maxhp:'Building '+Math.floor(e.progress*100)+'%'+(e.builders?'':' — needs a villager')}${e.garrison&&e.garrison.length&&allied(e.team,ME)?' · '+e.garrison.length+'/'+d.garrison+' inside':''}${e.relics?' · '+e.relics+' relic'+(e.relics>1?'s':''):''}</div>${e.type==='market'&&e.team===ME?marketTable(player(ME)):''}${e.built&&(d.trains||d.garrison)&&e.team===ME?'<div class="row" style="font-size:11px">Right-click to set a rally point'+(d.garrison?' · right-click with units to garrison':'')+'</div>':''}<div class="row" style="font-size:11px">${d.desc}</div>${q}`}
 function setSel(list){G.sel=list;renderCmds();renderInfo();if(list.length&&list[0].team===ME)sfx('select')}
@@ -7405,6 +7413,7 @@ function glyph(x,key,S){const m=S/2;x.lineCap='round';x.lineJoin='round';x.lineW
  switch(key){
   case'amove':sword(red);arrow(6,8,14,16,white);break;
   case'patrol':arrow(8,12,24,12,white);arrow(24,20,8,20,white);break;
+  case'explore':x.strokeStyle=white;x.lineWidth=2;x.beginPath();x.arc(m,m,11,0,7);x.stroke();x.fillStyle=red;x.beginPath();x.moveTo(m,6);x.lineTo(m+3,m);x.lineTo(m,m+3);x.lineTo(m-3,m);x.closePath();x.fill();x.fillStyle=white;x.beginPath();x.moveTo(m,26);x.lineTo(m+3,m);x.lineTo(m-3,m);x.closePath();x.fill();x.lineWidth=3;break;
   case'ground':x.fillStyle='#5b8bd6';x.beginPath();x.moveTo(m,5);x.lineTo(26,9);x.lineTo(24,20);x.lineTo(m,28);x.lineTo(8,20);x.lineTo(6,9);x.closePath();x.fill();x.strokeStyle=white;x.lineWidth=2;x.stroke();break;
   case'aggr':sword(red);break;
   case'stop':x.fillStyle=red;x.beginPath();for(let i=0;i<8;i++){const a=Math.PI/8+i*Math.PI/4;x.lineTo(m+12*Math.cos(a),m+12*Math.sin(a))}x.closePath();x.fill();line(11,11,21,21,white);line(21,11,11,21,white);break;
@@ -7455,7 +7464,7 @@ function pickCiv(k){const sel=myCivSel();sel.value=k;sel.dispatchEvent(new Event
 function civDesc(k){k=k||myCiv();const c=CIVS[k];$('civdesc').innerHTML=c?`<b>${c.name}</b> — ${c.desc}`:'<b>Random</b> — one of the six cultures, chosen when the game starts.'}
 buildPlayerRows();try{$('pn-0').value=localStorage.getItem('ageup-name')||''}catch(e){}
 hudIcons();
-function startGame(setup){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();WATCHING=false;ui.menu=false;newGame(setup);terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};G.sel=[];const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall');if(th){const c=center(th);centerOn(c.x+1,c.y+1);setSel([th])}else{const v=G.units.find(u=>u.team===ME&&u.type==='villager');centerOn(v.x,v.y);setSel(G.units.filter(u=>u.team===ME&&u.type==='villager'));msg('Nomad start: you have no Town Hall. Pick a spot near wood and food and build one (T).')}updateTop();renderCmds();renderInfo();
+function startGame(setup){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();ui.mouse.in=false;ui.keys={};WATCHING=false;ui.menu=false;newGame(setup);terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};G.sel=[];const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall');if(th){const c=center(th);centerOn(c.x+1,c.y+1);setSel([th])}else{const v=G.units.find(u=>u.team===ME&&u.type==='villager');centerOn(v.x,v.y);setSel(G.units.filter(u=>u.team===ME&&u.type==='villager'));msg('Nomad start: you have no Town Hall. Pick a spot near wood and food and build one (T).')}updateTop();renderCmds();renderInfo();
  const foes=G.players.filter(p=>!allied(p.team,ME)).map(p=>TEAM[p.team].n+' ('+CIVS[p.civ].name+')').join(', ');msg(`${MAP_TYPES[G.mapType]} · you are ${CIVS[player(ME).civ].name}: ${CIVS[player(ME).civ].desc}`);msg(`Enemies: ${foes}. F1 for help.`);$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('setupwrap').classList.remove('hidden')}
 $('play').onclick=()=>{if(NET.tr&&!NET.active){if(NET.host)hostStart();return}if(G&&!G.over&&(G.paused||ui.menu)){ui.menu=false;if(!NET.active)G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('setupwrap').classList.remove('hidden');return}startGame(readSetup());sfx('select')};
 $('resign').onclick=()=>{resign()};
@@ -7477,6 +7486,14 @@ function renderTree(){const p=player(ME);const cv=civ(p);const tc=TEAM[ME];let h
   h+=grp('Buildings',bl)+grp('Units',un)+grp('Techs',te)}
  h+=`<div style="margin-top:8px;font-size:12px"><b style="color:var(--gold);font-weight:normal">${cv.name}:</b> ${cv.desc} <span style="color:var(--muted)">Gold outlines mark what you already have.</span></div>`;$('tree').innerHTML=h}
 refreshMenu();
+// A quiet, generated town behind the main menu: simulate a few minutes of a small map, paint one frame, keep it as a background image.
+function menuBackdrop(){if(ui.backdrop||G)return;try{const oz=cam.zoom,ox=cam.x,oy=cam.y;resize();const seed=1+(Math.floor(Math.random()*1e9)>>>0)%1e9;const maps=['plains','forest','lakes','coastal','highlands','walled'];
+ newGame({seed,players:2,mapType:maps[seed%maps.length],mapSize:'medium',reveal:'visible',diff:4});for(const p of G.players)p.ai=true;const n=TPS*240;for(let i=0;i<n;i++)update();
+ // frame the town in the top-left corner, where the menu card does not cover it
+ const th=G.buildings.find(b=>b.team===0&&b.type==='townhall')||G.buildings.find(b=>b.team===0);if(th){const c=center(th);const dx=(W*0.36)/HW,dy=(H*0.34)/HH;centerOn(c.x+(dx+dy)/2,c.y+(dy-dx)/2)}cam.zoom=1;G.sel=[];G.pings=[];terrainCv=null;fogCv=null;render();
+ ui.backdrop=cv.toDataURL('image/jpeg',0.82);$('overlay').style.backgroundImage=`linear-gradient(rgba(10,7,4,.72),rgba(10,7,4,.84)),url(${ui.backdrop})`;$('overlay').style.backgroundSize='cover';$('overlay').style.backgroundPosition='center';
+ G=null;terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=oz;cam.x=ox;cam.y=oy;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fillRect(0,0,W,H)}catch(e){G=null;console.warn('backdrop',e)}}
+setTimeout(menuBackdrop,80);
 $('watch').onclick=()=>{$('overlay').classList.add('hidden')};
 $('again').onclick=()=>{NET.leave();$('end').classList.add('hidden');$('start').classList.remove('hidden');$('start').classList.remove('ingame');$('game').classList.add('nogame');$('play').textContent='Play';G=null;refreshMenu()};
 resize();requestAnimationFrame(frame);
@@ -7492,7 +7509,7 @@ function fuzzCmd(seat,fr){const p=G.players[seat];if(!p||p.dead)return null;cons
 function fuzzRun(setup,secs,fseed,log){startGame(Object.assign({seed:1,diff:2,players:2},setup||{}));const fr=mulberry32(fseed||1);CMDLOG=log?null:[];const hs=[];let i=0;const T=Math.round(secs*TPS);
  for(let t=0;t<T;t++){if(log){while(i<log.length&&log[i].tick===G.tick){applyCmd(log[i].seat,log[i].c);i++}}else if(t%20===0){const c=fuzzCmd(0,fr);if(c)applyCmd(0,c)}update();if(t%100===0)hs.push(stateHash())}
  const L=CMDLOG||log;CMDLOG=null;return{hs,log:L,final:stateHash(),tick:G.tick}}
-window.dbg={start:(seed,d,extra)=>{startGame(Object.assign({seed,diff:d===undefined?2:(d+1)},extra||{}))},hash:()=>stateHash(),snapshot,restore:d=>{restore(d);afterRestore()},applyCmd,fuzzRun,fuzzCmd,submit,rng:mulberry32,net:()=>NET,me:()=>ME,
+window.dbg={start:(seed,d,extra)=>{startGame(Object.assign({seed,diff:d===undefined?2:Math.max(0,Math.min(AI_DIFF.length-1,d))},extra||{}))},hash:()=>stateHash(),snapshot,restore:d=>{restore(d);afterRestore()},applyCmd,fuzzRun,fuzzCmd,submit,rng:mulberry32,net:()=>NET,me:()=>ME,
  selftest:(seed,secs,fseed)=>{const a=fuzzRun({seed},secs,fseed),b=fuzzRun({seed},secs,fseed),c=fuzzRun({seed},secs,fseed,a.log);const eq=(x,y)=>x.length===y.length&&x.every((v,i)=>v===y[i]);const first=a.hs.findIndex((v,i)=>v!==b.hs[i]||v!==c.hs[i]);return{ok:eq(a.hs,b.hs)&&eq(a.hs,c.hs),rerun:eq(a.hs,b.hs),replay:eq(a.hs,c.hs),cmds:a.log.length,hashes:a.hs.length,firstBadTick:first<0?-1:first*100}},ff:sec=>{const n=Math.round(sec*TPS);for(let i=0;i<n&&!G.over;i++)update();updateTop();renderCmds();renderInfo()},ai:(team,on)=>{player(team).ai=on},G:()=>G,summary:()=>G.players.map(p=>({team:p.team,age:p.age,res:Object.fromEntries(RES_KINDS.map(k=>[k,fmt(p.res[k])])),pop:p.pop,cap:p.popCap,vill:G.units.filter(u=>u.team===p.team&&u.type==='villager').length,army:G.units.filter(u=>u.team===p.team&&isMil(u)).length,dead:p.dead,score:p.score,blds:G.buildings.filter(b=>b.team===p.team).map(b=>b.type+(b.built?'':'*')).join(','),stats:p.stats,techs:p.techs}))};
 </script>
 </body>
