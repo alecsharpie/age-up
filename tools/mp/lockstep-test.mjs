@@ -28,10 +28,10 @@ async function open(name) {
   await p.goto(url); await p.waitForFunction(() => !!window.dbg); return p;
 }
 const host = await open('host'), client = await open('client');
-await host.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('mp-name').value = 'Alice'; document.getElementById('s-seed').value = '42'; document.getElementById('mp-host').click(); });
-await client.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('mp-name').value = 'Bob'; document.getElementById('mp-join').click(); });
+await host.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('pn-0').value = 'Alice'; document.getElementById('s-seed').value = '42'; document.getElementById('mp-host').click(); });
+await client.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('pn-0').value = 'Bob'; document.getElementById('mp-join').click(); });
 await host.waitForFunction(() => dbg.net().peers.size === 1, null, { timeout: 5000 });
-await client.waitForFunction(() => dbg.net().lobby && dbg.net().lobby.seats && dbg.net().lobby.seats.length === 2, null, { timeout: 5000 });
+await client.waitForFunction(() => dbg.net().lobby && dbg.net().lobby.rows && dbg.net().lobby.rows.filter(r => r.type === 'you' || r.type === 'human').length === 2, null, { timeout: 5000 });
 await shot(host, 'lobby-host'); await shot(client, 'lobby-client');
 check(await client.evaluate(() => document.getElementById('play').disabled), 'client cannot press start');
 await host.evaluate(() => document.getElementById('play').click());
@@ -70,7 +70,7 @@ check(await client.evaluate(() => G.msgs.some(m => /Synced/.test(m.t))), 'client
 await client.close();
 await sleep(1500);
 const again = await open('rejoin');
-await again.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('mp-name').value = 'Bob'; document.getElementById('mp-join').click(); });
+await again.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('pn-0').value = 'Bob'; document.getElementById('mp-join').click(); });
 await again.waitForFunction(() => dbg.net().active && G && !dbg.net().waiting && G.tick > 0, null, { timeout: 25000 }).catch(() => {});
 const rj = await again.evaluate(() => ({ me: dbg.me(), tick: G ? G.tick : -1, waiting: dbg.net().waiting, status: dbg.net().lobby && dbg.net().lobby.status }));
 const ht = await host.evaluate(() => G.tick);
