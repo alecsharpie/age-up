@@ -1,7 +1,7 @@
 # The AAA bar for painted sprites
 
 What "AAA" means for this game's pixel art, as rules a painter can follow and `lab.mjs aaa` can check.
-Read with `PAINTING.md` (format, sizes, anchors) and `REFERENCE.md` (what each thing is in the genre).
+Read with `PAINTING.md` (format, sizes, anchors) and `REFERENCE.md` (what each thing is).
 The bar is the best commercial pixel-art RTS/strategy work: every unit readable at 1× in a crowd, every
 action telegraphed by its silhouette, nothing ever stiff or frozen.
 

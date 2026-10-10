@@ -28496,7 +28496,7 @@ function readSetup(){const v=id=>$(id).value;const seedTxt=v('s-seed').trim();co
   players:rows.length,civs:rows.map(r=>r.civ),civ:rows[0].civ,colors:rows.map(r=>r.color),sides:rows.map(r=>r.team),names:rows.map(r=>r.type==='you'||r.type==='human'?r.name:''),teams:teamsLabel(rows.map(r=>r.team))};
  return S}
 function teamsLabel(sides){const n=sides.length;if(sides.every(t=>t<=0))return 'free for all';const g={};sides.forEach((t,i)=>{if(t>0)(g[t]=g[t]||[]).push(i)});const parts=Object.values(g).map(a=>a.length);const solo=sides.filter(t=>t<=0).length;for(let i=0;i<solo;i++)parts.push(1);return parts.join('v')}
-// ---- player rows (classic RTS style lobby table) ----
+// ---- player rows (classic RTS lobby table) ----
 const PROWS=4;
 function civOptions(sel){return '<option value="random"'+(sel==='random'?' selected':'')+'>Random</option>'+Object.keys(CIVS).map(k=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+CIVS[k].name+'</option>').join('')}
 function buildPlayerRows(){const box=$('prows');let h='';for(let i=0;i<PROWS;i++){const def=i===0?'you':i===1?'ai':'closed';

@@ -28,7 +28,7 @@ node tools/sprite-lab/lab.mjs <command>        # run from the repo root
 8. `lab.mjs sheet all` — contact sheet of everything; check the new piece sits with the rest.
 
 Catalogue: `lab.mjs catalog` builds `out/catalog.html`, a self-contained browsable catalogue (live animated stage,
-team/state/construction controls, lint, classic RTS reference notes from `reference.json`, village, contact sheet, palette).
+team/state/construction controls, lint, genre reference notes from `reference.json`, village, contact sheet, palette).
 It is also served at `/catalog.html` by `serve`, and can be published as an Artifact as-is.
 
 Interactive: `lab.mjs serve` → http://127.0.0.1:8765/lab.html (drafts and `index.html` re-read on reload).
@@ -91,7 +91,7 @@ frame as its carcass, flashes painted units white when hit (`pixFlash`), and set
 | `extract.mjs` | pulls constants, helpers and draw functions out of `index.html`; the only writer back into it |
 | `splice.js` | pure string ops shared by node and browser: case segments, splicing, draft parsing |
 | `lab.js`, `lab.html`, `stubs.js` | the browser engine: fake entities, ground, sheets, scene, lint, palette |
-| `REFERENCE.md`, `reference.json` | what classic RTS assets truly look like + this game's style rules (json feeds the catalogue) |
+| `REFERENCE.md`, `reference.json` | what each asset truly is in the genre + this game's style rules (json feeds the catalogue) |
 | `catalog.template.html` | the browsable catalogue; `lab.mjs catalog` inlines the game code, drafts and engine into `out/catalog.html` |
 | `drafts/helpers.js` | shared helpers drafts may call (`pixBuild`, `pixDraw`); installed by `apply helpers` |
 | `AAA.md`, `aaa.mjs` | the AAA bar and its checker |

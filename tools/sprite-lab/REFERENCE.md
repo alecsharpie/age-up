@@ -1,8 +1,8 @@
 # Reference: what "true" and "delightful" mean here
 
-Two sources of truth. **The genre** (the Western European architecture set as the default look) tells us what each
+Two sources of truth. **The genre** (a Western European medieval look as the default) tells us what each
 thing *is*. **This game's style** tells us how to say it in 64×32 tiles with flat-shaded canvas shapes.
-Footprints that differ from the genre are design choices of this game, not errors, and are noted as such.
+Footprints that differ from the genre's usual sizes are design choices of this game, not errors, and are noted as such.
 
 ## House style (measured from the current code — keep to it)
 
@@ -33,7 +33,7 @@ Footprints that differ from the genre are design choices of this game, not error
 
 ## Buildings — what the real thing says
 
-| type | here | classic RTS (Western European) | silhouette essentials | delight |
+| type | here | genre (Western European) | silhouette essentials | delight |
 | --- | --- | --- | --- | --- |
 | townhall | 3×3 | Town Center is 4×4 | big hipped/thatch roof over an **open pillared ground floor**, side tower, flag | villagers visible inside; flag; smoke in Imperial |
 | house | 2×2 | 2×2 | Dark Age wattle hut with thatch; Feudal timber frame; Castle half-timber + tile; Imperial stone | chimney smoke at night/cold; door in team colour |
@@ -55,7 +55,7 @@ Footprints that differ from the genre are design choices of this game, not error
 | gate | 1×1 | 1×4 | arch with portcullis between two flanking towers | portcullis raises for friends |
 | keep | 4×4 | Castle 4×4 | tall keep, four corner towers, battlements, flags, gate | flags at corners, arrow slits |
 
-Damage: classic RTS shows small flames at <75% hp, more at <50%, heavy at <25%. Destroyed → rubble that fades.
+Damage: classic RTS games show small flames at <75% hp, more at <50%, heavy at <25%. Destroyed → rubble that fades.
 Construction: four visible stages — foundation, scaffolding + low walls, walls + roof frame, finished.
 
 ## Units — the one thing each must read as, at 20px

@@ -257,7 +257,7 @@ details.sheet canvas{display:block}
   function renderTruth(){
     const r=(REF[S.kind]||{})[S.type]; const el=$('#truth');
     if(!r){el.innerHTML='<p class="lbl">No reference notes yet.</p>';return}
-    el.innerHTML=(r.aoe?`<p><span class="lbl">classic RTS</span><br>${r.aoe}</p>`:'')+`<p><span class="lbl">Reads as</span><br>${r.truth}</p>`+(r.delight?`<p><span class="lbl">Delight</span><br>${r.delight}</p>`:'')+(r.team?`<p><span class="lbl">Team colour on</span><br>${r.team}</p>`:'');
+    el.innerHTML=(r.genre?`<p><span class="lbl">Genre</span><br>${r.genre}</p>`:'')+`<p><span class="lbl">Reads as</span><br>${r.truth}</p>`+(r.delight?`<p><span class="lbl">Delight</span><br>${r.delight}</p>`:'')+(r.team?`<p><span class="lbl">Team colour on</span><br>${r.team}</p>`:'');
   }
   function renderSpec(){
     const rows=[]; const T=$('#spec');
