@@ -28334,8 +28334,14 @@ function peerTransport(room,isHost,h){const conns=new Map();let peer=null,closed
  loadPeerJs().then(()=>{if(closed)return;peer=new Peer(isHost?'ageup-'+room:undefined,{debug:1,config:iceConfig()});
   const wire=c=>{c.on('open',()=>{conns.set(c.peer,c);h.peer(c.peer)});c.on('data',d=>h.msg(c.peer,d));c.on('close',()=>{conns.delete(c.peer);h.close(c.peer)});c.on('error',e=>h.error(e))};
   peer.on('open',id=>{tr.id=id;h.open(id);if(isHost)return;const c=peer.connect('ageup-'+room,{reliable:true});wire(c);
-   // the host was found but WebRTC could not open a path: PeerJS raises nothing, so time out with the ICE state
-   setTimeout(()=>{if(closed||c.open)return;const st=c.peerConnection&&c.peerConnection.iceConnectionState;console.warn('peer: no data channel after 20s, ice',st);h.error({type:'ice',message:'found the host but could not connect ('+(st||'no ICE')+'). The two networks block a direct link; try the same Wi-Fi or a phone hotspot, or set a TURN relay (see tools/mp/README.md)'})},20000)});
+   // the host was found but WebRTC could not open a path: PeerJS raises nothing, so time out and report what ICE tried
+   const ice=[],pc=c.peerConnection;if(pc)pc.addEventListener('iceconnectionstatechange',()=>ice.push(pc.iceConnectionState));
+   setTimeout(async()=>{if(closed||c.open)return;let why='ice '+(ice.join('>')||'never started');
+    try{const st=await pc.getStats(),C={},kind=x=>x.candidateType+(String(x.address||'').endsWith('.local')?'(mdns)':'');const L=new Set(),R=new Set();let ok=0,pairs=0;
+     st.forEach(x=>{C[x.id]=x});st.forEach(x=>{if(x.type==='local-candidate')L.add(kind(x));if(x.type==='remote-candidate')R.add(kind(x));if(x.type==='candidate-pair'){pairs++;if(x.state==='succeeded')ok++}});
+     why+='; mine '+([...L].join(',')||'none')+'; host '+([...R].join(',')||'none')+'; pairs '+ok+'/'+pairs+' ok; '+(navigator.userAgent.match(/(Chrome|Firefox|Safari)\/[\d]+/)||[''])[0]}catch(e){}
+    console.warn('peer: no data channel after 20s:',why);
+    h.error({type:'ice',message:'found the host but could not connect ['+why+']. Check that neither computer is on a VPN, or try a phone hotspot'})},20000)});
   peer.on('connection',c=>{if(isHost)wire(c);else c.close()});
   peer.on('error',e=>h.error(e));peer.on('disconnected',()=>{if(!closed)try{peer.reconnect()}catch(e){}})},e=>h.error(e));
  return tr}

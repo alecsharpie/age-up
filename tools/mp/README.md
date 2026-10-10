@@ -41,7 +41,7 @@ Debug hooks in the page: `dbg.hash()`, `dbg.snapshot()`, `dbg.restore(d)`, `dbg.
 - A projectile whose firing unit died before a resync is dropped on the restored side (rare; the next hash catches it).
 - Online play uses STUN only, so it needs a direct WebRTC path between the players. The TURN relays PeerJS used to
   ship with no longer resolve. When the networks block a direct link (symmetric NAT, client-isolated or corporate
-  Wi-Fi), the guest shows "found the host but could not connect" after 20 s. To fix it, put both players on the same
+  Wi-Fi), the guest shows "found the host but could not connect [details]" after 20 s (ICE states, candidate types on each side, browser). To fix it, put both players on the same
   network or a phone hotspot, or add a TURN relay (for example a free Metered or Cloudflare TURN account) by opening the
   game once on both machines with `?turn=turn:HOST:PORT|turns:HOST:443,USER,PASS`. It is remembered in
   localStorage `ageup-turn`.
