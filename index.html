@@ -28324,11 +28324,18 @@ function localTransport(room,h){const bc=new BroadcastChannel('ageup-mp-'+room);
  bc.onmessage=e=>{const m=e.data;if(!m||m.from===id)return;if(m.to&&m.to!==id)return;h.msg(m.from,m.body)};
  setTimeout(()=>h.open(id),0);return{id,send:(to,body)=>bc.postMessage({from:id,to,body}),close:()=>bc.close()}}
 let peerJsP=null;function loadPeerJs(){if(window.Peer)return Promise.resolve();if(peerJsP)return peerJsP;peerJsP=new Promise((ok,bad)=>{const el=document.createElement('script');el.src='https://unpkg.com/peerjs@1/dist/peerjs.min.js';el.onload=()=>ok();el.onerror=()=>{peerJsP=null;bad(new Error('could not load PeerJS (offline?)'))};document.head.appendChild(el)});return peerJsP}
+// ICE: STUN only by default (the TURN relays PeerJS ships with are gone). A relay for networks that block direct
+// connections can be set with ?turn=turn:host:port,user,pass (remembered in localStorage 'ageup-turn').
+function iceConfig(){let t=null;try{t=new URLSearchParams(location.search).get('turn');if(t)localStorage.setItem('ageup-turn',t);else t=localStorage.getItem('ageup-turn')}catch(e){}
+ const S=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},{urls:'stun:stun.cloudflare.com:3478'}];
+ if(t){const [url,username,credential]=t.split(',');S.push({urls:url.split('|'),username,credential})}return{iceServers:S}}
 function peerTransport(room,isHost,h){const conns=new Map();let peer=null,closed=false;
  const tr={id:null,send:(to,body)=>{if(to){const c=conns.get(to);if(c&&c.open)c.send(body)}else for(const c of conns.values())if(c.open)c.send(body)},close:()=>{closed=true;for(const c of conns.values())try{c.close()}catch(e){}if(peer)try{peer.destroy()}catch(e){}}};
- loadPeerJs().then(()=>{if(closed)return;peer=new Peer(isHost?'ageup-'+room:undefined,{debug:1});
+ loadPeerJs().then(()=>{if(closed)return;peer=new Peer(isHost?'ageup-'+room:undefined,{debug:1,config:iceConfig()});
   const wire=c=>{c.on('open',()=>{conns.set(c.peer,c);h.peer(c.peer)});c.on('data',d=>h.msg(c.peer,d));c.on('close',()=>{conns.delete(c.peer);h.close(c.peer)});c.on('error',e=>h.error(e))};
-  peer.on('open',id=>{tr.id=id;h.open(id);if(!isHost)wire(peer.connect('ageup-'+room,{reliable:true}))});
+  peer.on('open',id=>{tr.id=id;h.open(id);if(isHost)return;const c=peer.connect('ageup-'+room,{reliable:true});wire(c);
+   // the host was found but WebRTC could not open a path: PeerJS raises nothing, so time out with the ICE state
+   setTimeout(()=>{if(closed||c.open)return;const st=c.peerConnection&&c.peerConnection.iceConnectionState;console.warn('peer: no data channel after 20s, ice',st);h.error({type:'ice',message:'found the host but could not connect ('+(st||'no ICE')+'). The two networks block a direct link; try the same Wi-Fi or a phone hotspot, or set a TURN relay (see tools/mp/README.md)'})},20000)});
   peer.on('connection',c=>{if(isHost)wire(c);else c.close()});
   peer.on('error',e=>h.error(e));peer.on('disconnected',()=>{if(!closed)try{peer.reconnect()}catch(e){}})},e=>h.error(e));
  return tr}

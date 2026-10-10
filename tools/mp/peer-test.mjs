@@ -8,11 +8,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const browser = await chromium.launch({ headless: true, channel: 'chrome' });
 async function open(name) { const ctx = await browser.newContext(); const p = await ctx.newPage(); p.on('pageerror', e => console.log(`[${name}]`, e.message)); await p.goto(url); await p.waitForFunction(() => !!window.dbg); return p; }
 const host = await open('host'), client = await open('client');
-await host.evaluate(() => { document.getElementById('mp-tr').value = 'peer'; document.getElementById('mp-name').value = 'Alice'; document.getElementById('mp-host').click(); });
+await host.evaluate(() => { document.getElementById('mp-tr').value = 'peer'; document.getElementById('pn-0').value = 'Alice'; document.getElementById('mp-host').click(); });
 await host.waitForFunction(() => dbg.net().tr && dbg.net().tr.id, null, { timeout: 20000 });
 const code = await host.evaluate(() => dbg.net().room);
 console.log('room', code, 'status:', await host.evaluate(() => dbg.net().lobby.status));
-await client.evaluate(c => { document.getElementById('mp-tr').value = 'peer'; document.getElementById('mp-name').value = 'Bob'; document.getElementById('mp-code').value = c; document.getElementById('mp-join').click(); }, code);
+await client.evaluate(c => { document.getElementById('mp-tr').value = 'peer'; document.getElementById('pn-0').value = 'Bob'; document.getElementById('mp-code').value = c; document.getElementById('mp-join').click(); }, code);
 await host.waitForFunction(() => dbg.net().peers.size === 1, null, { timeout: 30000 });
 console.log('joined; client lobby:', await client.evaluate(() => dbg.net().lobby.status));
 await host.evaluate(() => document.getElementById('play').click());

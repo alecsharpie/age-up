@@ -39,5 +39,10 @@ Debug hooks in the page: `dbg.hash()`, `dbg.snapshot()`, `dbg.restore(d)`, `dbg.
 - Cross-browser play (Chrome vs Safari) is untested: `Math.hypot`, `sin`, `cos`, `atan2` may differ between engines.
   Same browser on both sides is safe.
 - A projectile whose firing unit died before a resync is dropped on the restored side (rare; the next hash catches it).
-- PeerJS uses only STUN; players behind symmetric NAT need a TURN server.
+- Online play uses STUN only, so it needs a direct WebRTC path between the players. The TURN relays PeerJS used to
+  ship with no longer resolve. When the networks block a direct link (symmetric NAT, client-isolated or corporate
+  Wi-Fi), the guest shows "found the host but could not connect" after 20 s. To fix it, put both players on the same
+  network or a phone hotspot, or add a TURN relay (for example a free Metered or Cloudflare TURN account) by opening the
+  game once on both machines with `?turn=turn:HOST:PORT|turns:HOST:443,USER,PASS`. It is remembered in
+  localStorage `ageup-turn`.
 - No spectators, no mid-game save/load in multiplayer.
