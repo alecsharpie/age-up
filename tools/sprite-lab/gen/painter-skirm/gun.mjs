@@ -12,16 +12,17 @@ MmMMMnnN
 ..SsS...
 `;
 const HEAD_BLINK = HEAD.replace('.hssoss.', '.hsssss.');
+// team doublet (lit left, team-dark right and hem) so the owner reads at a distance; the linen sleeve crosses it
 const CHEST = `
-.CTTq.
-cLTTDq
-cLTTDq
-CLTTDq
+.LTTD.
+LLTTDD
+LTTTDD
+LTTTDD
 `;
 const LOWER = `
 XWuWWX
-cLTTDq
-.CTTq.
+LTTTDD
+.DDDD.
 `;
 function body(o) {
   const g = grid(16, 24); const dy = o.dy || 0, by = o.by || 0, lean = o.lean || 0;

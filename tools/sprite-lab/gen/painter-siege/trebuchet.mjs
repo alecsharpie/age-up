@@ -32,11 +32,11 @@ Wwwwwdd
 const at = (a, L, p = PV) => [p[0] + L * Math.cos(deg(a)), p[1] - L * Math.sin(deg(a))];
 function frameBase(g, o = {}) {
   const dx = o.dx || 0, dy = o.dy || 0;
-  g.rect(2 + dx, 31 + dy, 26, 1, 'W'); g.rect(2 + dx, 32 + dy, 26, 1, 'w'); g.rect(2 + dx, 33 + dy, 26, 1, 'T'); g.rect(2 + dx, 34 + dy, 26, 1, 'D');
-  g.rect(2 + dx, 33 + dy, 1, 2, 'L'); [7, 15, 22].forEach(x => g.set(x + dx, 33 + dy, 'n'));
+  g.rect(2 + dx, 31 + dy, 26, 1, 'W'); g.rect(2 + dx, 32 + dy, 26, 2, 'T'); g.rect(2 + dx, 34 + dy, 26, 1, 'D');   // deep team-painted side board
+  g.rect(2 + dx, 32 + dy, 1, 3, 'L'); g.rect(3 + dx, 32 + dy, 24, 1, 'L'); [7, 15, 22].forEach(x => g.set(x + dx, 33 + dy, 'n'));
   g.rect(27 + dx, 22 + dy, 1, 9, 'd'); g.set(27 + dx, 21 + dy, 'm'); g.stamp(23 + dx, 22 + dy, PEN[o.pen || 0]);   // pennant at the front
   g.beam(6 + dx, 30 + dy, PV[0] + dx, PV[1] + dy, 2.2, WOOD); g.beam(24 + dx, 30 + dy, PV[0] + dx, PV[1] + dy, 2.2, WOOD);
-  g.rect(10 + dx, 25 + dy, 11, 1, 'w'); g.rect(10 + dx, 26 + dy, 11, 1, 'd');        // cross brace
+  g.rect(10 + dx, 25 + dy, 11, 1, 'T'); g.rect(10 + dx, 26 + dy, 11, 1, 'D');        // cross brace, team-painted
 }
 function beam(g, a, o = {}) {
   const dx = o.dx || 0, dy = o.dy || 0, P = [PV[0] + dx, PV[1] + dy];
