@@ -38,7 +38,9 @@ function ink(g) {
   }
   for (const [x, y, c] of add) pixSet(g, x, y, c);
 }
-function v(seed, build, m) { const g = pixGrid(W, H); disc(g, AX, AY - 2, 19, 'z', 7); const R = rng(seed); build(g, R); moss(g, R, m); chips(g, R, 4); ink(g); return g; }
+/** occlusion: where a facet meets the ground or the rock below it, the bottom 1–2 px darken to a cool deep tone (ragged, not a ruled line) */
+function occl(g) { for (let y = H - 2; y > 0; y--) for (let x = 0; x < W; x++) { const c = g[y][x], b = g[y + 1][x]; if ((c === 'd' || c === 'm') && (b === 'k' || b === '.' || b === 'D') && ((x * 7 + y * 3) % 5 < 3 || c === 'd')) g[y][x] = c === 'd' ? 'D' : 'd'; } }
+function v(seed, build, m) { const g = pixGrid(W, H); const R = rng(seed); build(g, R); occl(g); moss(g, R, m); chips(g, R, 4); ink(g); return g; }
 const v0 = v(9, (g, R) => { rock(g, AX - 9, AY - 8, 15, 9, R); rock(g, AX + 9, AY - 8, 14, 8, R); rock(g, AX, AY - 2, 18, 12, R); rock(g, AX - 15, AY, 11, 6, R); rock(g, AX + 13, AY, 11, 6, R); }, 3);
 const v1 = v(31, (g, R) => { slab(g, AX + 2, AY - 10, 26, 5); slab(g, AX - 4, AY - 5, 28, 5); slab(g, AX, AY, 30, 5); rock(g, AX + 15, AY - 1, 10, 7, R); rock(g, AX - 17, AY, 9, 5, R); }, 2);
 const v2 = v(77, (g, R) => { rock(g, AX + 12, AY - 6, 12, 7, R); rock(g, AX - 6, AY - 1, 20, 18, R); rock(g, AX + 5, AY - 1, 14, 14, R); rock(g, AX - 17, AY, 10, 6, R); rock(g, AX + 15, AY + 1, 9, 5, R); }, 4);
@@ -46,9 +48,8 @@ const v2 = v(77, (g, R) => { rock(g, AX + 12, AY - 6, 12, 7, R); rock(g, AX - 6,
 export default {
   id: 'stone', kind: 'resource', anchor: [AX, AY],
   palette: {
-    o: '#1e262c', k: '#3a444a', c: '#4e585e', d: '#66717a', m: '#8a959a', l: '#adb7ba', w: '#d4dcdc',   // blue-grey rock: ink, seam, crack, shade, body, lit facet, sunlit ridge
+    o: '#1e262c', k: '#3a444a', c: '#4e585e', d: '#66717a', m: '#8a959a', l: '#adb7ba', w: '#d4dcdc', D: '#525c64',   // blue-grey rock: ink, seam, crack, shade, body, lit facet, sunlit ridge, occluded underside
     M: '#5a7a3a', G: '#7a9a4a',                                                                          // moss
-    z: 'rgba(0,0,0,0.16)',
   },
   frames: { idle: [pixText(v0), pixText(v1), pixText(v2)] },
 };
