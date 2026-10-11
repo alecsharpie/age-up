@@ -20,8 +20,8 @@ const B = top.base;
 const RAIL = 8, PLATE = 14; // Feudal: the eave hangs to about h 16, so the top plate sits just under it
 const wallUV = (a, b, x, y) => [x - a[0], Math.floor(wallH(a, b, x + 0.5, y + 0.5))];
 // lit wall (L -> Bm): the window panel; shaded wall (Bm -> Rr): the door panel
-const LW = { a: B.L, b: B.Bm, studs: [0, 11, 22, 37, 49, 62], win: { u0: 24, u1: 36, h0: 6, h1: PLATE } };
-const RW = { a: B.Bm, b: B.Rr, studs: [0, 13, 27, 39, 51, 62], door: { u0: 15, u1: 25, h0: PL, h1: PLATE } };
+const LW = { a: B.L, b: B.Bm, studs: [0, 11, 22, 37, 49, 62], win: { u0: 23, u1: 37, h0: 6, h1: PLATE } };
+const RW = { a: B.Bm, b: B.Rr, studs: [0, 13, 27, 39, 51, 62], door: { u0: 15, u1: 25, h0: PL, h1: PLATE }, win: { u0: 38, u1: 51, h0: 6, h1: PLATE } };
 // Feudal: the half-timbered wall exactly as it was tuned
 const wallCellFeudal = (wl, lit, x, y) => {
   const [u, h] = wallUV(wl.a, wl.b, x, y);
@@ -31,8 +31,8 @@ const wallCellFeudal = (wl, lit, x, y) => {
     // casement window: open team shutters flat against the wall either side, dark frame, firelit panes, centre mullion
     const su = u - win.u0, n = win.u1 - win.u0;
     if (h === win.h0) return su <= 1 || su >= n - 1 ? (su === 0 || su === n ? T2 : 'Q') : (su === 2 ? 'S' : (su === n - 2 ? 'q' : 'S')); // stone sill
-    if (su <= 2 || su >= n - 2) { const e = su <= 2 ? su : n - su; return h === win.h1 || h === win.h0 + 1 ? 'D' : (e === 0 ? 'D' : (e === 2 ? 'L' : 'T')); }
-    if (su === 3 || su === n - 3 || h === win.h0 + 1 || h === win.h1) return 'v';
+    if (su <= 3 || su >= n - 3) { const e = su <= 3 ? su : n - su; return h === win.h1 || h === win.h0 + 1 ? 'D' : (e === 0 ? 'D' : (e === 3 ? 'L' : 'T')); }
+    if (su === 4 || su === n - 4 || h === win.h0 + 1 || h === win.h1) return 'v';
     if (su === Math.round(n / 2)) return 'v';
     return h === win.h1 - 1 ? 'w' : ((su === 5 && h === win.h0 + 2) ? 'G' : 'g');
   }
@@ -148,14 +148,25 @@ paint(g, '4', (x, y) => AK.roofXY(x, y, 0.5, 0));
 paint(g, '2', (x, y) => AK.roofXY(x, y, 0.5, 3, { flip: true }));
 paint(g, '5', (x, y) => AK.roofXY(x, y, -0.5, 1));
 // eaves: a thick trimmed edge, darker on the shaded side (thatch: a ragged hanging fringe)
-line(g, RF.L, RF.Bm, R[3], 0); line(g, RF.L, RF.Bm, R[6], 1); line(g, RF.Bm, RF.Rr, R[5], 0); line(g, RF.Bm, RF.Rr, R[6], 1);
-if (AGE === 0) for (let x = Math.ceil(RF.L[0]); x <= RF.Rr[0]; x++) if (hash(x, 77) < 0.35) {
-  const e = x <= RF.Bm[0] ? RF.L[1] + (x - RF.L[0]) * 0.5 : RF.Bm[1] - (x - RF.Bm[0]) * 0.5; pixSet(g, x, Math.round(e) + 2, R[6]);
-}
+// (natural lines: Dark and Feudal eaves sag 1 px between the corners; Castle/Imperial stay true)
+const SAG = AGE <= 1 ? 1 : 0;
+sagLine(g, RF.L, RF.Bm, R[3], SAG, 0); sagLine(g, RF.L, RF.Bm, R[6], SAG, 1); sagLine(g, RF.Bm, RF.Rr, R[5], SAG, 0); sagLine(g, RF.Bm, RF.Rr, R[6], SAG, 1);
+const eaveY = x => (x <= RF.Bm[0] ? RF.L[1] + (x - RF.L[0]) * 0.5 : RF.Bm[1] - (x - RF.Bm[0]) * 0.5)
+  + Math.round(SAG * Math.sin(Math.PI * (x <= RF.Bm[0] ? (x - RF.L[0]) / (RF.Bm[0] - RF.L[0]) : (x - RF.Bm[0]) / (RF.Rr[0] - RF.Bm[0]))));
+// Dark: the thatch fringe hangs in ragged clumps of straws, 1–3 px, darker at the tips
+if (AGE === 0) for (let x = Math.ceil(RF.L[0]) + 1; x < RF.Rr[0]; x++) { const cl = hash(x >> 1, 76); if (cl < 0.35) continue;
+  const n = 1 + Math.floor(hash(x, 77) * (cl > 0.8 ? 3 : 2)), e = Math.round(eaveY(x)) + 2;
+  for (let d = 0; d < n; d++) pixSet(g, x, e + d, d === n - 1 ? R[6] : R[5]); }
+// Feudal: a few lifted shingles along the eave; Castle: an uneven drip line where tile ends hang a pixel low
+if (AGE === 1 || AGE === 2) for (let x = Math.ceil(RF.L[0]) + 3; x < RF.Rr[0] - 3; x++) { const e = Math.round(eaveY(x));
+  if (AGE === 1 && hash(x >> 2, 81) < 0.12 && (x & 3) < 2) { pixSet(g, x, e - 1, R[0]); pixSet(g, x, e, R[2]); pixSet(g, x, e + 1, 'k'); }
+  if (AGE === 2 && hash(x >> 1, 82) < 0.3 && (x & 1)) { pixSet(g, x, e + 1, R[4]); pixSet(g, x, e + 2, 'k'); } }
 if (AGE >= 2) AK.trim(g, [RF.L[0] + 1, RF.L[1]], RF.Bm, -1) && AK.trim(g, RF.Bm, [RF.Rr[0] - 1, RF.Rr[1]], -1);
 // hips: a light rib on the lit side, a dark crease on the shaded side
-line(g, RF.L, ap, R[1]); line(g, RF.L, ap, R[4], 1); line(g, RF.Bm, ap, R[5]); line(g, [RF.Bm[0] - 1, RF.Bm[1]], [ap[0] - 1, ap[1]], R[2]); line(g, RF.Rr, ap, R[5]);
-line(g, RF.T, ap, R[3]);
+// hips sag a pixel on the older roofs (straw and shingle settle between the corner and the apex)
+const HS = AGE <= 1 ? 1 : 0;
+sagLine(g, RF.L, ap, R[1], HS); sagLine(g, RF.L, ap, R[4], HS, 1); sagLine(g, RF.Bm, ap, R[5], 0); sagLine(g, [RF.Bm[0] - 1, RF.Bm[1]], [ap[0] - 1, ap[1]], R[2], 0); sagLine(g, RF.Rr, ap, R[5], HS);
+sagLine(g, RF.T, ap, R[3], HS);
 // Castle / Imperial: crested hips (ridge tiles; gilt cresting) break the skyline, and a gabled dormer stands on the lit slope
 if (AGE >= 2) { AK.crest(g, lerp(RF.L, ap, 0.12), ap); AK.crest(g, lerp(RF.Rr, ap, 0.12), ap); }
 if (AGE >= 2) {
@@ -217,9 +228,53 @@ kebbbek
 `.replace(/1/g, R[0]).replace(/f/g, R[2]).replace(/A/g, R[1]).replace(/c/g, R[4]).replace(/e/g, R[6]).replace(/b/g, R[3]));
 AK.finial(g, Math.round(ap[0]), Math.round(ap[1]) - (AGE === 0 ? 2 : 3));
 // a team banner hung on the lit wall between the window and the front corner (Castle, Imperial)
-if (AGE >= 2) { const u = 46, bxx = B.L[0] + u, byy = Math.round(B.L[1] + u * 0.5 - Z + 3); AK.banner(g, bxx, byy, 0.5, 5, AGE === 3 ? 11 : 10); }
+// Castle/Imperial: a long team banner on an iron (gilt) rod on the lit wall, a second one on the door wall between the door and
+// the small window, so both front faces say whose house it is
+if (AGE >= 2) {
+  { const u = 8, bxx = B.L[0] + u, byy = Math.round(B.L[1] + (u + 4.5) * 0.5 - Z + 3); teamBanner(g, bxx, byy, 0.5, AGE === 3 ? 11 : 10, AGE === 3 ? 17 : 15); }
+  { const u = 30, bxx = B.Bm[0] + u, byy = Math.round(B.Bm[1] - (u + 3.5) * 0.5 - Z + 3); teamBanner(g, bxx, byy, -0.5, AGE === 3 ? 9 : 8, AGE === 3 ? 16 : 14); }
+}
+// Dark: a team-dyed hide thrown over the low lit eave to dry: it lies on the thatch, bulges over the eave and hangs down the
+// wall, legs and neck at its ragged corners; lit fold along the eave, team-dark lower edge, ink round it.
+if (AGE === 0) {
+  const x0 = Math.round(RF.L[0]) + 14, x1 = x0 + 14, cells = new Set();
+  for (let x = x0; x <= x1; x++) { const t = (x - x0) / (x1 - x0), e = Math.round(eaveY(x)), edge = Math.min(t, 1 - t);
+    // lies 2–3 px up the thatch, hangs 5–8 px down the wall; the corners (legs) droop lower and the edges round off
+    const up = edge < 0.08 ? 1 : edge < 0.2 ? 2 : 3, dn = Math.round((edge < 0.1 ? 8 : 6) + Math.sin(t * 9) * 0.8 - (edge > 0.1 && edge < 0.2 ? 1 : 0));
+    for (let y = e - up; y <= e + dn; y++) { cells.add(x + ',' + y);
+      const r = y - e, fold = (x - x0) % 5 === 3;
+      pixSet(g, x, y, r <= 0 ? (r === -up ? 'D' : 'L') : r === 1 ? 'L' : r >= dn - 1 ? 'D' : (fold || x === x1 - 1) ? 'D' : 'T'); } }
+  const isH = (x, y) => cells.has(x + ',' + y);
+  for (const k of cells) { const [x, y] = k.split(',').map(Number); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!isH(x + dx, y + dy)) pixSet(g, x + dx, y + dy, 'k'); }
+  // the low doorway: the thatch is cut back over it in an arched eyebrow, so the hide hung in the doorway shows full height
+  const dA = B.Bm, dB = B.Rr, d = DOOR;
+  for (let u = d.u0 - 2; u <= d.u1 + 2; u++) { const x = Math.round(dA[0]) + u, base = dA[1] - (x + 0.5 - dA[0]) * 0.5, su = u - d.u0, n = d.u1 - d.u0;
+    const arc = Math.round(Math.sin(Math.PI * (su + 2) / (n + 4)) * 2.2);
+    for (let h = 0; h <= d.h1 + arc + 1; h++) { const y = Math.floor(base - h - 0.5);
+      if (u >= d.u0 && u <= d.u1 && h <= d.h1) { const c = wallCellAge(RW, false, x, y); if (c) g[y][x] = c; continue; }
+      if (h === d.h1 + arc + 1) { if (y > eaveY(x)) continue; g[y][x] = 'k'; continue; }      // the hood's cut edge
+      if (h > d.h1) g[y][x] = h === d.h1 + 1 ? R[6] : R[5];                                   // underside of the lifted straw
+      else if (g[y][x] !== '.' && y < eaveY(x) + 2) g[y][x] = su < 0 ? R[4] : R[5];            // straw dropping either side
+    } }
+}
 
-const base = outline(g, 'k', { [R[0]]: R[1], [R[2]]: R[1], l: 'm', S: 'q', [S[0]]: S[1], [PZ[0]]: PZ[1] });
+// Dark: a rag pennant on a crooked pole stuck in the lit thatch; Feudal: a team pennant on a staff rising from the finial
+let FLY = null;
+if (AGE === 0) { const p = lerp(ap, RF.L, 0.3); FLY = pole(g, Math.round(p[0]), Math.round(p[1]) + 1, 15, TW[0], null, 8); }
+if (AGE === 1) { FLY = pole(g, Math.round(ap[0]) - 1, Math.round(ap[1]) - 5, 11, TW[0], TW[2]); }
+// stone ages: weathering low on the walls (moss at the foot, damp splash, a few rain streaks); corner stones break the
+// silhouette by a pixel
+if (AGE >= 2) {
+  const dk = { [S[0]]: S[1], [S[1]]: S[2], [S[2]]: S[3], [S[3]]: S[4] };
+  weather(g, B.L, B.Bm, [S[0], S[1], S[2]], dk, { rows: AGE === 3 ? 3 : 5, seed: 3, H: Z - 2, streaks: AGE === 3 ? 0.05 : 0.1 });
+  weather(g, B.Bm, B.Rr, [S[2], S[3], S[4]], dk, { rows: AGE === 3 ? 3 : 5, seed: 9, H: Z - 2, streaks: AGE === 3 ? 0.05 : 0.1 });
+  for (let h = 3; h < Z - 3; h++) { if (hash(h >> 2, 61) < 0.5 && (h & 3) !== 3) pixSet(g, B.L[0] - 1, B.L[1] - h, S[1]); if (hash(h >> 2, 62) < 0.5 && (h & 3) !== 3) pixSet(g, B.Rr[0] + 1, B.Rr[1] - h, S[3]); }
+}
+const base0 = outline(g, 'k', { [R[0]]: R[1], [R[2]]: R[1], l: 'm', S: 'q', [S[0]]: S[1], [PZ[0]]: PZ[1] });
+// grass along the foot of both walls, over the ink base line (doorway kept clear); fewer on the grander houses
+const base = base0;
+{ const dx0 = B.Bm[0] + (DOOR ? DOOR.u0 : 15) - 2, dx1 = B.Bm[0] + (DOOR ? DOOR.u1 : 25) + 2;
+  tufts(base, B.L, B.Bm, { n: [6, 5, 3, 2][AGE], seed: 1, skip: x => AGE === 0 && x >= RF.L[0] + 12 && x <= RF.L[0] + 30 }); tufts(base, B.Bm, B.Rr, { n: [6, 5, 3, 2][AGE], seed: 2, skip: x => x >= dx0 && x <= dx1 }); }
 
 // ---- idle: 6 frames — chimney smoke curls up and drifts right, the window glow flickers
 const puff = (f, x, y, r) => { // a soft round puff: light top-left, grey bottom-right
@@ -230,6 +285,7 @@ const glow = []; base.forEach((r, y) => r.forEach((c, x) => { if (c === 'g' || c
 const frames = [];
 for (let i = 0; i < 6; i++) {
   const f = copy(base);
+  if (FLY) pennant(f, FLY[0] + 1, FLY[1] + 1, AGE === 0 ? 7 : 11, AGE === 0 ? 4 : 5, i, AGE === 0);
   stacks.forEach(([sx, sy], n) => {
     for (let k = 0; k < (n ? 2 : 4); k++) { // puffs born at the chimney, rise 4 px per frame
       const t = ((i + k * 1.5 + n * 2) % 6) / 6, rise = 2 + t * (n ? 14 : 22);
@@ -254,6 +310,7 @@ export default {
     w: '#3a2414', g: '#e89a3a', G: '#ffd36a',                             // window recess / firelight
     N: '#c09a62', n: '#8a6a3a', y: '#5a3a18',                             // log ends / staves
     z: '#e4e0da', x: '#c4beb8', X: '#948e88',                             // smoke
+    ...NPAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
   },
   frames: { idle: frames },

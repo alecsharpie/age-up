@@ -66,7 +66,8 @@ const post = (p, lit, h = Z) => {
   const x = Math.round(p[0]), y = Math.round(p[1]);
   if (AGE === 0) {
     const [a, b, c] = lit ? ['t', 'u', 'v'] : ['u', 'v', 'V'];
-    for (let yy = y - h + 1; yy < y; yy++) { const kn = hash(x, yy) < 0.08; pixSet(g, x - 1, yy, kn ? b : a); pixSet(g, x, yy, kn ? c : b); pixSet(g, x + 1, yy, c); pixSet(g, x - 2, yy, 'k'); pixSet(g, x + 2, yy, 'k'); }
+    const lean = hash(x, 5) < 0.45 ? (hash(x, 6) < 0.5 ? -1 : 1) : 0;   // rough logs: some stand a pixel off plumb in their top half
+    for (let yy = y - h + 1; yy < y; yy++) { const kn = hash(x, yy) < 0.08, xx = x + (yy < y - h * 0.55 ? lean : 0); pixSet(g, xx - 1, yy, kn ? b : a); pixSet(g, xx, yy, kn ? c : b); pixSet(g, xx + 1, yy, c); pixSet(g, xx - 2, yy, 'k'); pixSet(g, xx + 2, yy, 'k'); }
     pixSet(g, x - 1, y - 1, 'V'); pixSet(g, x, y - 1, 'V'); pixSet(g, x + 1, y - 1, 'V');           // damp foot in the earth
     pixStamp(g, x - 2, y - h, `k...k\nkt.vk`.replace(/t/g, a).replace(/v/g, c));                   // forked top cradles the beam
     return;
@@ -170,25 +171,17 @@ for (const b of [0, 0.5, 1, 1.5, 2]) post(gp(0, b), true);
 post(gp(0.5, 2), false);
 const TWL = gp(1, 2);                                            // where the tower's left corner meets the pavilion
 beam(up(gp(0, 0), Z), up(gp(0, 2), Z), true); beam(up(gp(0, 2), Z), up(TWL, Z), false);
-// team banners hanging from the beams in the two bays flanking the front corner (cloth slants with its beam).
-// Dark: a stretched hide on a rough pole, ragged hem, a pale painted sun; Feudal: a square hem; Imperial: gilt rod and borders.
-const banner = (A, Bp, u0) => face(A, Bp, u0, u0 + 6, Z - 13, Z - 3, (su, sh) => {
-  if (sh === 10) return su === 0 || su === 6 ? 'k' : AGE === 3 ? Au[1] : 'v';    // rod
-  if (AGE === 0) {
-    if (sh <= 1 && hash(u0 + su, 7) < 0.5) return sh === 0 ? null : 'k';           // ragged hem
-    if (su === 0 || su === 6) return 'k';
-    if (Math.hypot(su - 3, (sh - 6) * 1.2) < 1.6) return 'L';
-    return su === 1 || su === 5 || hash(su + u0, sh) < 0.12 ? 'D' : 'T';
-  }
-  if (AGE === 1 && sh <= 1) return sh === 0 ? 'k' : 'D';                          // square hem
-  if (sh <= 1 && su >= 2 && su <= 4) return sh === 0 ? (su === 3 ? null : 'k') : (su === 3 ? 'k' : 'D'); // swallowtail
-  if (su === 0 || su === 6) return 'k';
-  if (su === 1 || su === 5) return AGE === 3 ? Au[su === 1 ? 0 : 2] : 'D';
-  if (AGE === 3 && sh === 2) return Au[1];                                         // gilt fringe
-  if ((su === 3 && sh >= 4 && sh <= 8) || (sh === 6 && su >= 2 && su <= 4)) return AGE === 3 && su === 3 && sh === 6 ? Au[0] : 'L';
-  return 'T';
-});
-banner(gp(0, 0), gp(0, 2), 53); banner(gp(0, 2), gp(2, 2), 6);
+// team hangings in the open bays of both front sides: each hangs from a rail run between two posts just under the eave
+// (so it shows below the roof and the rail rests on the posts), long enough to read at 1×. The age sets the rail (log /
+// timber / iron / gilt), the hem and the charge (Dark a pale sun on a hide, Feudal a chevron, Castle a cross, Imperial gilt).
+const RAILZ = Z - (AGE === 0 ? 11 : 8), BH = AGE === 0 ? 13 : 15;
+const hang = (A, Bp, u0) => {   // u0: the bay's left post along the face (bays are 16 px)
+  face(A, Bp, u0 + 2, u0 + 14, RAILZ, RAILZ, () => AGE === 3 ? Au[1] : AGE === 2 ? AK.Fe[1] : TW[2]);
+  face(A, Bp, u0 + 2, u0 + 14, RAILZ + 1, RAILZ + 1, () => 'k');
+  const sl = (Bp[1] - A[1]) / (Bp[0] - A[0]), w = 9, c = facePt(A, Bp, u0 + 4 + (w - 1) / 2, RAILZ - 1);
+  teamBanner(g, Math.round(A[0]) + u0 + 4, c[1], sl, w, BH, { charge: ['sun', 'chevron', 'cross', 'disc'][AGE] });
+};
+hang(gp(0, 0), gp(0, 2), 16); hang(gp(0, 0), gp(0, 2), 48); hang(gp(0, 2), gp(2, 2), 0); hang(gp(0, 2), gp(2, 2), 16);
 
 // ---- the big roof: hipped red tile over the pavilion, overhanging along the iso axes so its eaves stay 2:1 and parallel to
 // the courses; every face uses the same tile (4-px courses, 5-px tiles, lit lip, seams), each face starting from its own eave.
@@ -214,12 +207,12 @@ const roofFaces = (Rf) => {
 };
 /** eave edge and the age's eave dressing (Dark: a ragged thatch fringe; Imperial: gilt trim) */
 const roofEaves = (Rf) => {
-  const E = C ? 'e' : RK[6];
-  line(g, Rf.L, Rf.Bm, E, 0); line(g, Rf.Bm, Rf.Rr, E, 0);
-  if (AGE === 0) for (let x = Math.ceil(Rf.L[0]); x <= Rf.Rr[0]; x++) if (hash(x, 77) < 0.4) {
-    const ey = x <= Rf.Bm[0] ? Rf.L[1] + (x - Rf.L[0]) * 0.5 : Rf.Bm[1] - (x - Rf.Bm[0]) * 0.5;
-    pixSet(g, x, Math.round(ey) + 1, RK[hash(x, 78) < 0.5 ? 4 : 5]); if (hash(x, 79) < 0.4) pixSet(g, x, Math.round(ey) + 2, RK[6]);
-  }
+  const E = C ? 'e' : RK[6], sag = AGE <= 1 ? 1 : 0;   // the long Dark/Feudal eaves sag a pixel between the corners
+  sagLine(g, Rf.L, Rf.Bm, E, sag, 0); sagLine(g, Rf.Bm, Rf.Rr, E, sag, 0);
+  if (AGE === 0) for (let x = Math.ceil(Rf.L[0]) + 1; x < Rf.Rr[0]; x++) { const cl = hash(x >> 1, 76); if (cl < 0.3) continue;   // ragged straw clumps
+    const t = x <= Rf.Bm[0] ? (x - Rf.L[0]) / (Rf.Bm[0] - Rf.L[0]) : (x - Rf.Bm[0]) / (Rf.Rr[0] - Rf.Bm[0]);
+    const ey = (x <= Rf.Bm[0] ? Rf.L[1] + (x - Rf.L[0]) * 0.5 : Rf.Bm[1] - (x - Rf.Bm[0]) * 0.5) + Math.round(sag * Math.sin(Math.PI * t)), n = 1 + Math.floor(hash(x, 77) * (cl > 0.8 ? 3 : 2));
+    for (let d = 0; d < n; d++) pixSet(g, x, Math.round(ey) + 1 + d, d === n - 1 ? RK[6] : RK[hash(x, 78) < 0.5 ? 4 : 5]); }
   if (AGE === 3) AK.trim(g, [Rf.L[0] + 1, Rf.L[1]], Rf.Bm, -1) && AK.trim(g, Rf.Bm, [Rf.Rr[0] - 1, Rf.Rr[1]], -1);
 };
 roofFaces(R);
@@ -338,6 +331,8 @@ if (AGE === 0) {
     if (su === 6 && sh === 7) return Au[1];
     return su === 2 ? 'L' : su % 2 ? 'D' : 'T';
   });
+  // a long team banner down the lit face's upper storeys, hung from the jetty beam beside the windows
+  { const c = facePt(TB.L, TB.Bm, 22 + 3.5, PLT + 2 * STY - 2); teamBanner(g, Math.round(TB.L[0]) + 22, c[1], 0.5, 8, 22, { charge: 'chevron' }); }
 } else {
   paint(g, '!', (x, y) => course(x, y, 0.5, { h: 4, w: 7, joint: 'q', seam: 'q', lip: 's', tones: ['S', 'S', 's', 'q'] }));
   paint(g, '@', (x, y) => course(x, y, -0.5, { h: 4, w: 7, joint: 'j', seam: 'j', tones: ['q', 'Q', 'q', 'S'] }));
@@ -378,6 +373,11 @@ if (AGE === 0) {
     if ((sh >= 7 && sh <= 15 && (su === 3 || su === 4)) || (sh >= 11 && sh <= 12 && su >= 2 && su <= 5)) return 'L';
     return 'T';
   });
+  // and a second on the shaded face, between the corner quoins and the lancets
+  { const c = facePt(TB.Bm, TB.Rr, 8 + 3.5, 50); teamBanner(g, Math.round(TB.Bm[0]) + 8, c[1], -0.5, 8, 21); }
+  // weathering low on the tower: moss at the foot, damp splash, a few rain streaks under the windows
+  { const dk = { s: 'S', S: 'q', q: 'Q', Q: 'j' }; weather(g, TB.L, TB.Bm, 'sSq', dk, { rows: AGE === 3 ? 3 : 5, seed: 4, H: 30, streaks: AGE === 3 ? 0.04 : 0.08 });
+    weather(g, TB.Bm, TB.Rr, 'Sq', dk, { rows: AGE === 3 ? 3 : 5, seed: 8, H: 30, streaks: AGE === 3 ? 0.04 : 0.08 }); }
 }
 // tower cap: the same tile as the main roof, courses from each eave (Dark: a steep shaggy thatch over the gallery; Imperial:
 // a tall slate spire with gilt trim, corner pinnacles and an orb)
@@ -464,6 +464,8 @@ kvvvvk....
 `); }
 
 const base = outline(g, 'k', C ? { S: 'q', g: 'b', h: 'b', s: 'S', p: 'P' } : { S: 'q', s: 'S', p: 'P', ...AK.sel });
+// grass over the foot of the plinth, so the footprint is not a ruler-straight diamond (fewer round the grander halls)
+tufts(base, pl.base.L, pl.base.Bm, { n: [7, 6, 4, 3][AGE], seed: 5 }); tufts(base, pl.base.Bm, pl.base.Rr, { n: [7, 6, 4, 3][AGE], seed: 6 });
 
 // ---- idle: 6 frames — the hearth fire flickers and its glow pulses on the floor flags; smoke rises from the louvre
 const H0 = [HEARTH[0], HEARTH[1] - 3];
@@ -522,8 +524,10 @@ export default {
     w: '#efe6d2', W: '#d9c7a0', x: '#a8946e',                           // sacks, counter top, rope
     G: '#ffe28a', n: '#e1b12c', N: '#a87a12',                           // gold
     z: '#e4e0da', Z: '#c4beb8', X: '#948e88',                           // smoke, water glint
+    ...NPAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
     ...STONE, ...GROUND,
   },
+  ...(C ? { roofChars: 'ghbcade' } : {}),
   frames: { idle: frames },
 };

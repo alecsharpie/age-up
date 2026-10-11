@@ -72,6 +72,93 @@ const discOn = (g, cx, cy, R, slope, fn) => {
     const c = fn(u, v); if (c) pixSet(g, cx + x, cy + y, c); }
 };
 
+// ---- team cloth and natural edges (holistic pass): grass, moss, soot chars every civic palette merges via ...NPAL
+const NPAL = { 'ǧ': '#3e6a2a', 'ǥ': '#56883a', 'ǵ': '#78a94c', 'ɱ': '#6e7a3c', 'ɲ': '#56602e', 'ʂ': '#3c342c' };
+/** a line from a to b whose middle sags `sag` px (negative lifts it): ridges, eaves and rails that are not ruler-straight */
+const sagLine = (g, a, b, ch, sag = 1, dy = 0) => {
+  const n = Math.max(1, Math.round(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))));
+  for (let i = 0; i <= n; i++) { const t = i / n; pixSet(g, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + dy + Math.round(sag * Math.sin(Math.PI * t)), ch); }
+};
+/** grass tufts along a wall's base line a→b (screen points): 2–4 blades rising 1–3 px over the foot of the wall and its ink line,
+ *  so no footprint edge is a hard ruler line. o.n tufts per 64 px, o.seed, o.skip(x) keeps doorways clear. */
+const tufts = (g, a, b, o = {}) => {
+  const len = Math.abs(b[0] - a[0]), n = Math.round(len / 64 * (o.n ?? 4)), seed = o.seed || 0;
+  for (let k = 0; k < n; k++) {
+    const t = (k + 0.2 + hash(k + seed, 41) * 0.6) / n, x0 = Math.round(a[0] + (b[0] - a[0]) * t);
+    if (o.skip && o.skip(x0)) continue;
+    const blades = 2 + Math.floor(hash(k + seed, 43) * 3);
+    for (let j = 0; j < blades; j++) {
+      const x = x0 + j - (blades >> 1), y = Math.round(a[1] + (b[1] - a[1]) * ((x - a[0]) / (b[0] - a[0]))), hgt = 1 + Math.floor(hash(x, 44 + seed) * 3);
+      for (let d = 0; d < hgt + 1; d++) pixSet(g, x, y - d, d === hgt ? 'ǵ' : d === 0 ? 'ǧ' : 'ǥ');
+    }
+  }
+};
+/** moss/lichen and rain streaks low on a stone face: for cells of `chs` within `rows` px of the base line a→b (and streaks from
+ *  the sill/eave down), darken via map `dk` or set moss. Clustered by hash on 3×2 cells so it never reads as noise. */
+const weather = (g, a, b, chs, dk, o = {}) => {
+  const rows = o.rows ?? 5, seed = o.seed || 0;
+  for (let x = Math.ceil(a[0]); x < b[0]; x++) {
+    const base = a[1] + (b[1] - a[1]) * ((x + 0.5 - a[0]) / (b[0] - a[0]));
+    for (let h = 0; h < (o.H || 40); h++) {
+      const y = Math.floor(base - h - 0.5); if (y < 0 || y >= g.length) continue; const c = g[y][x]; if (!chs.includes(c)) continue;
+      const cl = hash((x >> 2) + seed, (h >> 1) + 7);
+      if (h < rows && cl < 0.22 - h * 0.03) { g[y][x] = hash(x, h + seed) < 0.5 ? 'ɱ' : 'ɲ'; continue; }      // moss at the foot
+      if (h < rows + 2 && cl > 0.82 && dk[c]) { g[y][x] = dk[c]; continue; }                             // damp splash
+      if (o.streaks && hash(x + seed, 13) < o.streaks && h < (o.H || 40) - 2 && dk[c] && hash(x + seed, Math.floor(h / 5) + 3) < 0.55) g[y][x] = dk[c];   // rain streak
+    }
+  }
+};
+/** a rag pennant / small team pennant tied to a pole top at (x,y), streaming right (the way the smoke drifts); frame i ripples it.
+ *  len cells long, hgt cells deep at the hoist, ragged tail; D on the lower edge, ink outline. */
+const pennant = (f, x, y, len, hgt, i, rag = true) => {
+  for (let c = 0; c < len; c++) {
+    const t = c / len, wav = Math.round(Math.sin(t * 5 - i * 1.6) * 1.1 * t), depth = Math.max(1, Math.round(hgt * (1 - t * (rag ? 0.45 : 0.8))));
+    const y0 = y + wav + (rag ? 0 : Math.round(t * hgt * 0.4));
+    if (rag && c === len - 1 && (i % 2)) continue;
+    pixSet(f, x + 1 + c, y0 - 1, 'k');
+    for (let r = 0; r < depth; r++) pixSet(f, x + 1 + c, y0 + r, r === depth - 1 ? 'D' : (r === 0 && c < len - 2) ? 'L' : 'T');
+    pixSet(f, x + 1 + c, y0 + depth, 'k');
+    if (rag && c > len * 0.5 && hash(c, i) < 0.3) pixSet(f, x + 1 + c, y0 + depth - 1, 'k');                 // a torn notch
+  }
+  pixSet(f, x + 1 + len, y + Math.round(Math.sin(5 - i * 1.6) * 1.1), 'k');
+};
+/** a pole from (x,y) foot up h cells, 1 px lean every `lean` rows (0: plumb), lit/dark timber chars a/b; returns its top */
+const pole = (g, x, y, h, a, b, lean = 0) => {
+  let px = x; const wd = b ? 2 : 1; for (let k = 0; k < h; k++) { if (lean && k && k % lean === 0) px += Math.sign(lean); pixSet(g, px - 1, y - k, 'k'); pixSet(g, px, y - k, a); if (b) pixSet(g, px + 1, y - k, b); pixSet(g, px + wd, y - k, 'k'); }
+  for (let d = 0; d < wd; d++) pixSet(g, px + d, y - h, 'k'); return [px + wd - 2, y - h];
+};
+/** A team banner laid flat on a wall of eave slope `slope` (+0.5 lit, -0.5 shade): top-left (x,y), w×h cells. Rod by age (Dark/
+ *  Feudal timber, Castle iron, Imperial gilt), ink sides so it parts from a same-hue wall or roof, lit left hem L, shaded right
+ *  hem D, a pale charge (o.charge: 'cross' | 'chevron' | 'disc' | 'none'), hem by age: Dark ragged, Feudal square, Castle
+ *  swallowtail, Imperial gilt fringe and gilt side borders. Returns the cells it covers (for counting). */
+const teamBanner = (g, x, y, slope, w, h, o = {}) => {
+  const A = AK.age, cx = (w - 1) / 2, charge = o.charge || (A >= 3 ? 'disc' : A === 2 ? 'cross' : 'none');
+  const at = (c, r) => [x + c, y + r + Math.round(slope * (c - cx) + 1e-9)];
+  const rod = A === 3 ? AK.Au[1] : A === 2 ? AK.Fe[1] : AK.W[2];
+  for (let c = -1; c <= w; c++) { const [px, py] = at(c, -1); pixSet(g, px, py, c === -1 || c === w ? 'k' : rod); if (A === 3 && (c === -1 || c === w)) pixSet(g, px, py, AK.Au[0]); }
+  for (let c = 0; c < w; c++) {
+    let hh = h; const mid = Math.abs(c - cx);
+    if (A === 2) hh = h - (mid < w / 4 ? 2 : 0);                                   // swallowtail notch
+    if (A === 1) hh = h;
+    if (A === 0) hh = h - Math.floor(hash(x + c, 9) * 3);                          // ragged
+    if (A === 3) hh = h - (mid < 0.6 ? 0 : Math.round(mid * 0.5));                  // pointed hem with a fringe
+    for (let r = 0; r < hh; r++) {
+      let ch = 'T';
+      if (c === 0) ch = 'k'; else if (c === w - 1) ch = 'k';
+      else if (c === 1) ch = A === 3 ? AK.Au[0] : 'L'; else if (c === w - 2) ch = A === 3 ? AK.Au[2] : 'D';
+      if (r === hh - 1) ch = A === 3 ? AK.Au[1] : 'k'; else if (r === hh - 2 && c > 0 && c < w - 1) ch = A === 3 ? AK.Au[1] : 'D';
+      if (r === 0 && c > 0 && c < w - 1 && ch === 'T') ch = 'D';                   // shade under the rod
+      const inner = c >= 2 && c <= w - 3 && r >= 2 && r < hh - 2, rr = r - Math.floor(h * 0.42);
+      if (inner && ch === 'T') {
+        if (charge === 'cross' && ((Math.abs(c - cx) < 0.6 && r >= 2 && r < hh - 3) || (rr === 0))) ch = 'L';
+        if (charge === 'chevron' && Math.abs(rr - (2 - Math.abs(c - cx))) < 0.6) ch = 'L';
+        if (charge === 'sun' && Math.hypot(c - cx, rr * 1.1) < Math.max(1.2, (w - 4) / 2.4)) ch = 'L';
+        if (charge === 'disc' && Math.hypot(c - cx, rr * 1.1) < Math.max(1.2, (w - 4) / 3.2)) ch = Math.hypot(c - cx, rr * 1.1) < 0.9 ? AK.Au[0] : AK.Au[1];
+      }
+      const [px, py] = at(c, r); pixSet(g, px, py, ch);
+    }
+  }
+};
 
 // Age variants (AGE, AK = pixAgeKit(AGE) come from gen/ages/wrap.mjs); the temple stands from the Castle Age.
 //   Castle   the chapel as tuned: limestone nave, red tiles, bell tower with a tiled spire and a gold cross (the original art).
@@ -164,9 +251,13 @@ kSSSSSSSk
 if (!C) { // Imperial: gilt cresting along the nave ridge, gilt eave trim, gilt-fringed banners flanking the west door
   AK.crest(g, [r1[0] + 2, r1[1]], [r2[0] - 2, r2[1]]);
   AK.trim(g, [eL[0] + 1, eL[1] - 1], [eB[0] - 1, eB[1] - 1], 0);
-  const dm = lerp(base.Rr, base.Bm, 0.5);
-  for (const du of [-13, 9]) AK.banner(g, Math.round(dm[0]) + du, Math.round(dm[1] - du * 0.5) - 19, -0.5, 4, 11);
 }
+// team banners flanking the west door on iron (Imperial: gilt) rods
+{ const dm = lerp(base.Rr, base.Bm, 0.5);
+  for (const du of [-15, 9]) teamBanner(g, Math.round(dm[0]) + du, Math.round(dm[1] - (du + 2.5) * 0.5) - 21, -0.5, 6, C ? 14 : 15); }
+// weathering low on the nave: moss at the foot, damp splash, rain streaks (formal: no change to the lines themselves)
+weather(g, base.L, base.Bm, 'lmM', { l: 'm', m: 'M', M: 'q' }, { rows: C ? 6 : 4, seed: 2, H: Z - 3, streaks: C ? 0.06 : 0.04 });
+weather(g, base.Rr[0] > base.Bm[0] ? base.Bm : base.Rr, base.Rr, 'rsQ', { r: 's', s: 'Q' }, { rows: C ? 6 : 4, seed: 7, H: Z - 3, streaks: C ? 0.06 : 0.04 });
 // ---- bell tower at the front-left corner, ashlar with string courses, open belfry with a swinging bell, spire, gold cross
 const TX = 0.1, TY = 2.0, TS = 0.9, TZ = C ? 50 : 64, SP = C ? 40 : 50;
 const tb = bmOf(TX, TY, TS, TS); tb[1] -= 3;
@@ -202,18 +293,9 @@ knnGnnk
 kqnnnqk
 .kkkkk.
 `, 0.5);
-{ const pB = lerp(tbase.Bm, tbase.Rr, 0.35); stampOn(g, Math.round(pB[0]) - 3, Math.round(pB[1]) - 31, `
-kkkkkkk
-kDTTTDk
-kTTLTTk
-kTLLLTk
-kTTLTTk
-kTTTTTk
-kTTTTTk
-kDTTTDk
-kTDTDTk
-.k.k.k.
-`, -0.5); }
+{ const pB = lerp(tbase.Bm, tbase.Rr, 0.42), w = 9; teamBanner(g, Math.round(pB[0]) - 4, Math.round(pB[1]) - 32, -0.5, C ? w : w + 1, C ? 22 : 30, { charge: 'cross' }); }
+// and a long one down the lit face, hung under the second string course beside the gilt plaque
+{ const pA = lerp(tbase.L, tbase.Bm, 0.76); teamBanner(g, Math.round(pA[0]) - 4, Math.round(pA[1]) - 32, 0.5, 8, 27, { charge: C ? 'cross' : 'disc' }); }
 { const roofZ = j => 3 + 24 + 20 * (NY + NH - j) / (NH / 2);   // nave front slope / wall in front of the tower's right face
   const hid = (x, y) => { if (x + 0.5 <= tbase.Bm[0]) return false; const i = TX + TS, j = i - (x + 0.5 - bx) / 32; return j < NY + NH && by - 96 + (i + j) * 16 - (y + 0.5) < roofZ(j); };
   const cells = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underTower[y][x]) cells.push([x, y]);
@@ -264,6 +346,7 @@ kμμνk
 }
 
 const baseG = outline(g, 'k', { l: 'm', y: 'Y', S: 'q', B: 'A' });
+tufts(baseG, yard.base.L, yard.base.Bm, { n: C ? 3 : 2, seed: 3 }); tufts(baseG, yard.base.Bm, yard.base.Rr, { n: C ? 3 : 2, seed: 4 });
 
 // ---- idle: 4 frames — the bells swing (left, centre, right, centre), candlelight flickers in the lancets
 const BELLS = [`
@@ -305,11 +388,13 @@ return {
     w: '#6a3a1a', W: '#e89a3a', O: '#ffd36a',                            // lancet recess, candlelight
     n: '#3f6fb8', R: '#b8342a', G: '#ffe28a', g: '#c0953a',              // stained glass, gold, bell
     i: '#1f1610',                                                        // belfry dark
+    ...NPAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
     // Imperial: the same courses in the age kit's pale limestone and blue-grey slate
     ...(C ? {} : { l: AK.pal['σ'], m: AK.pal['ς'], M: AK.pal['τ'], r: AK.pal['ς'], s: AK.pal['τ'], Q: AK.pal['υ'],
       B: AK.pal['α'], A: AK.pal['γ'], b: AK.pal['δ'], c: AK.pal['ε'], e: AK.pal['η'], y: '#e6dcc4', Y: '#d6caae', x: '#c8bb9c', z: '#a89878' }),
   },
+  roofChars: 'ABbce',
   frames: { idle: frames },
 };
 };

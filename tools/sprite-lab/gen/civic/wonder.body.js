@@ -178,6 +178,10 @@ line(g, sB.L, sB.Bm, 'k'); line(g, sB.Bm, sB.Rr, 'k'); line(g, sB.Bm, apex, 'k')
 // crockets: little gold-lit knobs up the front hip
 for (let k = 1; k < 8; k++) { const p = lerp(sB.Bm, apex, k / 8.5); pixSet(g, p[0] + 1, p[1], 'n'); pixSet(g, p[0] + 2, p[1], 'k'); }
 for (const P of [tow.L, tow.Bm, tow.Rr]) pinnacle(P[0] + (P === tow.L ? 1 : P === tow.Rr ? -2 : 0), P[1], 4);
+// team banners down both visible tower faces, under the belfry lancets; painted before the nave roof is restored in front
+// of the tower's foot, so the roof hides their lower ends
+{ const a = lerp(tow.base.L, tow.base.Bm, 0.5); teamBanner(g, Math.round(a[0]) - 5, Math.round(a[1]) - 26, 0.5, 10, 26, { charge: 'cross' }); }
+{ const a = lerp(tow.base.Bm, tow.base.Rr, 0.5); teamBanner(g, Math.round(a[0]) - 5, Math.round(a[1]) - 26, -0.5, 10, 26, { charge: 'cross' }); }
 { const naveZ = j => j >= 2.5 ? PL + 36 + 26 * (3.45 - j) / 0.95 : PL + 38 + 24 * (j - 1.55) / 0.95;   // nave roof surface height
   const hid = (x, y) => { const cx = x + 0.5 - bx, cy = y + 0.5; let i, j; if (cx <= tow.base.Bm[0] - bx) { j = 3.0; i = 3.0 + cx / 32; } else { i = 3.45; j = 3.45 - cx / 32; }
     return by - 160 + (i + j) * 16 - cy < naveZ(j); };
@@ -199,10 +203,17 @@ kDTTTDk
 ..kDk..
 ...k...
 `;
-{ const a = lerp(tow.base.L, tow.base.Bm, 0.5); stampOn(g, Math.round(a[0]) - 3, Math.round(a[1]) - 13, BAN, 0.5); }
-{ const B = trF.base; for (const f of [0.22, 0.78]) { const a = lerp(B.L, B.Bm, f); stampOn(g, Math.round(a[0]) - 3, Math.round(a[1]) - 31, BAN, 0.5); } }
+// (teamBanner, civic kit: gilt rod, gilt borders and fringe, gilt charge — the Imperial banner every civic building shares)
+{ const B = trF.base; for (const f of [0.22, 0.78]) { const a = lerp(B.L, B.Bm, f); teamBanner(g, Math.round(a[0]) - 5, Math.round(a[1]) - 33, 0.5, 10, 29); } }
+// the west front: long banners either side of the portal
+{ const B = nave.base; for (const f of [0.29, 0.71]) { const a = lerp(B.Bm, B.Rr, f); teamBanner(g, Math.round(a[0]) - 5, Math.round(a[1]) - 21, -0.5, 10, 20); } }
 
+// weathering low on the walls (moss, damp, a few rain streaks); grass over the foot of the plinth
+weather(g, nave.base.L, nave.base.Bm, 'lmM', { l: 'm', m: 'M', M: 'q' }, { rows: 4, seed: 2, H: 34, streaks: 0.04 });
+weather(g, aisle.base.L, aisle.base.Bm, 'lmM', { l: 'm', m: 'M', M: 'q' }, { rows: 4, seed: 5, H: 18, streaks: 0.04 });
+weather(g, nave.base.Bm, nave.base.Rr, 'rsQ', { r: 's', s: 'Q' }, { rows: 4, seed: 7, H: 34, streaks: 0.04 });
 const baseG = outline(g, 'k', { l: 'm', y: 'Y', U: 'u', f: 'u' });
+{ const P = [[bx - 160, by - 80], [bx, by], [bx + 160, by - 80]]; tufts(baseG, P[0], P[1], { n: 2, seed: 3 }); tufts(baseG, P[1], P[2], { n: 2, seed: 4 }); }
 
 // ---- idle: 4 frames — a glint runs up the gold spire tip and flashes; candlelight flickers in the windows
 const ax = Math.round(apex[0]), ay = Math.round(apex[1]);
@@ -232,6 +243,7 @@ for (let i = 0; i < 4; i++) {
 export default {
   id: 'wonder', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
+    ...AK.pal, ...NPAL,
     k: '#24180f',                                                         // ink
     l: '#f2ead6', m: '#e2d6ba', M: '#cbbd9c',                             // limestone lit: light / mid / shadow
     r: '#c7b994', s: '#ad9e7a', Q: '#8c7d60', q: '#b3a688', j: '#6f6450', // limestone shade, joints
@@ -241,5 +253,6 @@ export default {
     o: '#e89a3a', O: '#ffd36a',                                           // candlelight
     T: 'team', D: 'teamdark', L: 'teamlight',
   },
+  roofChars: 'UuvVKf',
   frames: { idle: frames },
 };

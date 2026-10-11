@@ -89,9 +89,13 @@ kSSSSSSSk
 if (!C) { // Imperial: gilt cresting along the nave ridge, gilt eave trim, gilt-fringed banners flanking the west door
   AK.crest(g, [r1[0] + 2, r1[1]], [r2[0] - 2, r2[1]]);
   AK.trim(g, [eL[0] + 1, eL[1] - 1], [eB[0] - 1, eB[1] - 1], 0);
-  const dm = lerp(base.Rr, base.Bm, 0.5);
-  for (const du of [-13, 9]) AK.banner(g, Math.round(dm[0]) + du, Math.round(dm[1] - du * 0.5) - 19, -0.5, 4, 11);
 }
+// team banners flanking the west door on iron (Imperial: gilt) rods
+{ const dm = lerp(base.Rr, base.Bm, 0.5);
+  for (const du of [-15, 9]) teamBanner(g, Math.round(dm[0]) + du, Math.round(dm[1] - (du + 2.5) * 0.5) - 21, -0.5, 6, C ? 14 : 15); }
+// weathering low on the nave: moss at the foot, damp splash, rain streaks (formal: no change to the lines themselves)
+weather(g, base.L, base.Bm, 'lmM', { l: 'm', m: 'M', M: 'q' }, { rows: C ? 6 : 4, seed: 2, H: Z - 3, streaks: C ? 0.06 : 0.04 });
+weather(g, base.Rr[0] > base.Bm[0] ? base.Bm : base.Rr, base.Rr, 'rsQ', { r: 's', s: 'Q' }, { rows: C ? 6 : 4, seed: 7, H: Z - 3, streaks: C ? 0.06 : 0.04 });
 // ---- bell tower at the front-left corner, ashlar with string courses, open belfry with a swinging bell, spire, gold cross
 const TX = 0.1, TY = 2.0, TS = 0.9, TZ = C ? 50 : 64, SP = C ? 40 : 50;
 const tb = bmOf(TX, TY, TS, TS); tb[1] -= 3;
@@ -127,18 +131,9 @@ knnGnnk
 kqnnnqk
 .kkkkk.
 `, 0.5);
-{ const pB = lerp(tbase.Bm, tbase.Rr, 0.35); stampOn(g, Math.round(pB[0]) - 3, Math.round(pB[1]) - 31, `
-kkkkkkk
-kDTTTDk
-kTTLTTk
-kTLLLTk
-kTTLTTk
-kTTTTTk
-kTTTTTk
-kDTTTDk
-kTDTDTk
-.k.k.k.
-`, -0.5); }
+{ const pB = lerp(tbase.Bm, tbase.Rr, 0.42), w = 9; teamBanner(g, Math.round(pB[0]) - 4, Math.round(pB[1]) - 32, -0.5, C ? w : w + 1, C ? 22 : 30, { charge: 'cross' }); }
+// and a long one down the lit face, hung under the second string course beside the gilt plaque
+{ const pA = lerp(tbase.L, tbase.Bm, 0.76); teamBanner(g, Math.round(pA[0]) - 4, Math.round(pA[1]) - 32, 0.5, 8, 27, { charge: C ? 'cross' : 'disc' }); }
 { const roofZ = j => 3 + 24 + 20 * (NY + NH - j) / (NH / 2);   // nave front slope / wall in front of the tower's right face
   const hid = (x, y) => { if (x + 0.5 <= tbase.Bm[0]) return false; const i = TX + TS, j = i - (x + 0.5 - bx) / 32; return j < NY + NH && by - 96 + (i + j) * 16 - (y + 0.5) < roofZ(j); };
   const cells = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underTower[y][x]) cells.push([x, y]);
@@ -189,6 +184,7 @@ kμμνk
 }
 
 const baseG = outline(g, 'k', { l: 'm', y: 'Y', S: 'q', B: 'A' });
+tufts(baseG, yard.base.L, yard.base.Bm, { n: C ? 3 : 2, seed: 3 }); tufts(baseG, yard.base.Bm, yard.base.Rr, { n: C ? 3 : 2, seed: 4 });
 
 // ---- idle: 4 frames — the bells swing (left, centre, right, centre), candlelight flickers in the lancets
 const BELLS = [`
@@ -230,10 +226,12 @@ export default {
     w: '#6a3a1a', W: '#e89a3a', O: '#ffd36a',                            // lancet recess, candlelight
     n: '#3f6fb8', R: '#b8342a', G: '#ffe28a', g: '#c0953a',              // stained glass, gold, bell
     i: '#1f1610',                                                        // belfry dark
+    ...NPAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
     // Imperial: the same courses in the age kit's pale limestone and blue-grey slate
     ...(C ? {} : { l: AK.pal['σ'], m: AK.pal['ς'], M: AK.pal['τ'], r: AK.pal['ς'], s: AK.pal['τ'], Q: AK.pal['υ'],
       B: AK.pal['α'], A: AK.pal['γ'], b: AK.pal['δ'], c: AK.pal['ε'], e: AK.pal['η'], y: '#e6dcc4', Y: '#d6caae', x: '#c8bb9c', z: '#a89878' }),
   },
+  roofChars: 'ABbce',
   frames: { idle: frames },
 };
