@@ -47,7 +47,7 @@ function lineVariants(src, l) {
   return [l];
 }
 const OBJECTS = ['const UNITS=', 'const BUILDINGS='];
-const FUNCS = ['mulberry32', 'poly', 'shade', 'corners', 'box', 'pyramid', 'flag', 'battlements', 'resSprite', 'drawBuilding', 'human', 'drawUnit', 'drawResource'];
+const FUNCS = ['mulberry32', 'poly', 'shade', 'corners', 'box', 'pyramid', 'flagCanvas', 'flag', 'battlements', 'resSprite', 'drawBuilding', 'human', 'drawUnit', 'drawResource'];
 
 /** Generated classic script: constants + helpers + the three draw functions. Validated before it is served. */
 export function gameJs(html = readIndex()) {
@@ -58,7 +58,7 @@ export function gameJs(html = readIndex()) {
   for (const o of OBJECTS) parts.push(grabObject(src, o).text);
   for (const f of FUNCS) parts.push(grabFunction(src, f).text);
   // things the draw code may lean on that newer versions of the game added (elevation etc.) — included when present
-  for (const l of ['const EPX=', 'const PIX_ROOF =']) if (src.includes('\n' + l)) parts.push(grabLine(src, l).text);
+  for (const l of ['const EPX=', 'const PIX_ROOF =', 'const FLAG_CV=']) if (src.includes('\n' + l)) parts.push(grabLine(src, l).text);
   for (const f of ['hCorner', 'heightAt']) if (new RegExp('\\nfunction ' + f + '\\(').test(src)) parts.push(grabFunction(src, f).text);
   // pixel-sprite support: present in the game once `apply helpers` / `apply pixel` have run; otherwise the lab supplies stubs + drafts/helpers.js
   parts.push(src.includes('\nconst PIXELS={};') ? 'const PIXELS={};' : 'const PIXELS={}; // (not yet in the game)');
