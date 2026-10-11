@@ -1,7 +1,7 @@
 // ==head
 // @pixel farm
 // Farm (2×2, flat, no team colour by design): ploughed ridges and furrows inside a post-and-rail fence with a gap at the
-// near corner, wheat on every ridge, stooks of cut sheaves by the gate.
+// near corner, wheat on every ridge over warm light soil, stooks of cut sheaves by the gate.
 // Sets: idle ×4 = ripe wheat swaying in a wave that travels across the rows; young ×1 = green shoots while being built.
 // Drawn by drafts/building.farm.js (fades in with alpha while building; flat, so no clip).
 // ==end
@@ -16,8 +16,8 @@ function soil(gr) {
     const a = s * 2, c = t * 2, h = hash(x >> 1, y, 6);
     if (a < 0.08 || a > 1.92 || c < 0.08 || c > 1.92) return h < 0.4 ? 'f' : 'e';      // headland under the fence
     const sp = (RC1 - RC0) / (ROWS - 1), k = (c - RC0 + sp / 2) / sp, fr = k - Math.floor(k);
-    if (fr < 0.2) return 'F';                               // furrow bottom (shade)
-    if (fr < 0.36) return 'f';
+    if (fr < 0.14) return 'F';                               // furrow bottom (shade)
+    if (fr < 0.3) return 'f';
     if (fr > 0.78) return h < 0.5 ? 'E' : 'e';              // lit ridge shoulder (faces the upper-left light)
     return h < 0.15 ? 'f' : 'e';
   });
@@ -95,7 +95,7 @@ kwwvvk
 export default {
   id: 'farm', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
-    e: '#8b6a3a', E: '#a3803f', f: '#755830', F: '#5e4526', X: '#4a3520',          // soil: mid, lit ridge, shade, furrow, rim
+    e: '#a68251', E: '#bf9a5c', f: '#8c6b40', F: '#735535', X: '#4a3520',          // soil: mid, lit ridge, shade, furrow, rim
     c: '#5f9a34', C: '#8fc24a',                                                  // young shoots
     g: '#a89a3a', z: '#a87a12', y: '#e1b12c', Y: '#ffe28a', Z: '#6e4d0a',        // stalk, ear ramp (shared gold)
     w: '#a07a4a', v: '#5a3a18', O: '#c9a86a', k: '#24180f', m: '#e6eaee', M: '#9aa0a6', n: '#5f656c',                      // rails/posts, cap, ink

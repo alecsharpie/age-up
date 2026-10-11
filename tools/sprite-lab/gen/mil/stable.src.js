@@ -2,7 +2,7 @@
 // Stable (3×3): a long stall block along the back-right edge under a hipped roof of wooden shingles laid in courses,
 // team-colour fascia boards on the eaves; six open bays on its lit long face with team-colour half-doors, three horses
 // (bay, grey, black) looking out over them and hay racks in the others. In front, a fenced paddock with a muddy floor,
-// a water trough and a bay horse; hay bales stacked at the end, a hay pile and a pitchfork. Generated (code before
+// a water trough and a bay horse; two hay bales by a hay-rack bay, a hay pile and a pitchfork. Generated (code before
 // export); anchor = footprint bottom corner. idle: 4 frames — a stall horse bobs its head, the paddock horse swishes
 // its tail and flicks an ear, another stall horse turns its head.
 const W = 3, H = 3;
@@ -32,17 +32,19 @@ const sb = st.base;
 const RISE = 15;
 const mL = lerp(st.T, st.L, 0.5), mR = lerp(st.Rr, st.Bm, 0.5);
 const r1 = P(lerp(mL, mR, 0.12), 0, -RISE), r2 = P(lerp(mL, mR, 0.88), 0, -RISE);
-const HORSES = { bay: 'CcnNM', grey: 'AaBGg', black: 'FfNkM' };
+const HORSES = { bay: 'CcnNM', grey: 'AaBGg', black: 'gFfNM' };
+// a horse looking out over a half-door, facing out of the bay (muzzle low-left, poll up, neck running down behind the door)
 const HEAD = `
-....44....
-...4224...
-..112224..
-.112e2224.
-1122222234
-1122.22334
-552..22334
-55...23334
-.....23334
+....4...
+...424..
+..12224.
+.1e22234
+11222234
+55.12234
+55..2334
+....2334
+....2334
+....2334
 `;
 const paintHorse = (t, x, y, text, cols) => pixStamp(t, x, y, text.replace(/[1-5e]/g, ch => ch === 'e' ? 'k' : cols['12345'.indexOf(ch) === -1 ? 0 : '12345'.indexOf(ch)]));
 inked(g, t => {
@@ -79,26 +81,15 @@ hHhhHhhHhh.
   for (const [a, b, c1, c2] of [[st.L, st.Bm, 'T', 'D'], [st.Bm, st.Rr, 'D', 'D']]) { pixLine(t, a[0], a[1], b[0], b[1], c1); pixLine(t, a[0], a[1] + 1, b[0], b[1] + 1, c2); }
 });
 
-// ---- hay bales stacked at the left end, a hay pile and a pitchfork at the front corner
-inked(g, t => {
-  // the top bale rests on the two below it
-  stampL(t, 46, 55, `
-...hhhhhhh...
-..hHhhhhhHhE.
-.hhhhhhhhhhEe
-.EeEEEEEEEEEe
-.hHhhhHhhhhEe
-.EEEEEEEEEEEe
-`);
-  stampL(t, 40, 60, `
-..hhhhhhh..hhhhhhh..
-.hHhhhhhHE.hHhhhhHE.
-hhhhhhhhhEehhhhhhhEe
-EeEEEEEEEEeEEEEEEEEe
-hHhhhHhhhEehHhhhhhEe
-EEEEEEEEEEeEEEEEEEEe
-`);
-});
+// ---- two hay bales side by side on the ground in front of the first hay-rack bay (iso boxes on the ground plane, twine
+// bands, cut ends in shade), then a hay pile and a pitchfork at the front corner
+function bale(t, tx, ty, z) {
+  const b0 = iso(tx, ty), q = pixIsoBox(t, b0[0], b0[1] - z, 0.32, 0.16, 4, 1, {});
+  wall(t, q.L, q.Bm, 4, (a, v) => (a === 3 || a === 7) ? 'e' : v === 3 ? 'E' : (a + v * 3) % 5 === 0 ? 'H' : 'h');      // long side, lit
+  wall(t, q.Bm, q.Rr, 4, (a, v) => v === 3 ? 'e' : (a + v) % 3 === 0 ? 'e' : 'E');                                      // cut end, shade
+  plane(t, [q.L, q.T, q.Rr, q.Bm], q.L, q.T, (a, d) => (a === 3 || a === 7) ? 'E' : d % 2 ? 'h' : 'V');                 // top
+}
+inked(g, t => { bale(t, 0.92, 1.33, 0); bale(t, 0.9, 1.51, 0); });
 inked(g, t => {
   stampL(t, 150, 104, `
 .....hhh......
@@ -132,23 +123,35 @@ const BODY = [`
 ..12224.............
 .112e224............
 1122.2224....1......
-55...12224111111.4..
+55...12224111111....
 5.....12222222222244
 ......122222222223344
 ......122222222333344
 .......2223333333334.
-.......3.3.....3..3..
-.......3.3.....3..3..
-.......k.k.....k..k..
+.......24.3....4.33..
+.......24.3....4..3..
+.......24.3....4..3..
+.......4..3....4..3..
+.......4..3....4..3..
+.......k..k....k..k..
 `];
+const faceA = x => x - Math.floor(st.L[0]), faceTop = x => st.L[1] + (x + 0.5 - st.L[0]) / (st.Bm[0] - st.L[0]) * (st.Bm[1] - st.L[1]);
+// may a stall horse's pixel show here? only inside a bay opening: between the posts, under the lintel, above the half-door
+const inBay = (x, y) => { const a = faceA(x), k = ((a % 16) + 16) % 16, v = Math.floor(y + 0.5 - faceTop(x)); return a >= 0 && a < 96 && k >= 2 && v >= 3 && v <= 10; };
+function stallHeads(q, f) {
+  const before = copy(q);
+  inked(q, t => {
+    const heads = [['bay', 0, [0, 1, 1, 0][f]], ['grey', 2, 0], ['black', 4, [0, 0, 1, 1][f]]];
+    for (const [kind, bay, dy] of heads) {
+      const x0 = Math.round(st.L[0] + bay * 16 + 5), y0 = Math.round(faceTop(x0)) + 5 + dy;
+      let txt = HEAD; if (kind === 'grey' && (f === 2 || f === 3)) txt = txt.split('\n').map(r => r.split('').reverse().join('')).join('\n');   // turns its head
+      paintHorse(t, x0, y0, txt, HORSES[kind].split(''));
+    }
+  });
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (q[y][x] !== before[y][x] && !inBay(x, y)) q[y][x] = before[y][x];
+}
 function horses(t, f) {
   const cols = s => s.split('');
-  const heads = [['bay', 0, [0, 1, 1, 0][f]], ['grey', 2, 0], ['black', 4, [0, 0, 1, 1][f]]];
-  for (const [kind, bay, dy] of heads) {
-    const p = lerp(st.L, st.Bm, (bay * 16 + 4) / 96);
-    let txt = HEAD; if (kind === 'grey' && (f === 2 || f === 3)) txt = txt.split('\n').map(r => r.split('').reverse().join('')).join('\n');   // turns its head
-    paintHorse(t, p[0], p[1] + 4 + dy, txt, cols(HORSES[kind]));
-  }
   // the paddock horse: tail swish and an ear flick
   let b = BODY[0];
   const tail = [[[17, 5], [18, 6], [19, 6], [19, 7], [20, 8]], [[17, 5], [18, 6], [18, 7], [19, 8], [19, 9]], [[17, 5], [18, 6], [18, 7], [18, 8], [18, 9]], [[17, 5], [18, 6], [19, 7], [19, 8], [20, 9]]][f];
@@ -157,11 +160,12 @@ function horses(t, f) {
   for (let y = 4; y < rows.length; y++) for (let x = 16; x < rows[y].length; x++) if (rows[y][x] === '4') rows[y][x] = '.';
   for (const [x, y] of tail) { while (rows[y].length <= x) rows[y].push('.'); rows[y][x] = '4'; }
   if (f === 1) { rows[0][4] = '.'; rows[1][3] = '4'; }
-  paintHorse(t, iso(0.75, 2.3)[0] - 10, iso(0.75, 2.3)[1] - 12, '\n' + rows.map(r => r.join('')).join('\n') + '\n', cols(HORSES.bay));
+  paintHorse(t, iso(0.75, 2.3)[0] - 10, iso(0.75, 2.3)[1] - 15, '\n' + rows.map(r => r.join('')).join('\n') + '\n', cols(HORSES.bay));
 }
 const frames = [];
 for (let f = 0; f < 4; f++) {
   const q = copy(g);
+  stallHeads(q, f);
   inked(q, t => horses(t, f));
   // the paddock's front fence goes over the horse
   fence(q, iso(0, 3), iso(PAD.tx, 3), 6); fence(q, iso(PAD.tx, PAD.ty), iso(PAD.tx, PAD.ty + 0.55), 2); fence(q, iso(PAD.tx, 2.55), iso(PAD.tx, 3), 2);

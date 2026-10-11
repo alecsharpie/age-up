@@ -102,10 +102,30 @@ eEhe
 `);
 }
 
+// a log lying on the ground along the ty axis (screen direction (2,-1)): a cylinder of diameter D swept from its near end
+// c (the end that faces the viewer, lower-left) for len px of screen x. The cross-section is the ellipse spanned by the
+// other ground axis (screen (2,1)) and the vertical, so the end grain is an ellipse leaning down-right, not a circle.
+// fn(part, s, b) picks a colour: part 'bark' (s = 0..1 along the log from the near end, b = -1 underside .. 1 top) or 'end'.
+function cyl(t, c, D, len, fn) {
+  const pg = [D * 0.45, D * 0.225], vt = [0, -D / 2];                       // half cross-section axes (ground, vertical)
+  const det = pg[0] * vt[1] - pg[1] * vt[0];
+  const at = (x, y, o) => { const dx = x + 0.5 - o[0], dy = y + 0.5 - o[1]; const al = (dx * vt[1] - dy * vt[0]) / det, be = (pg[0] * dy - pg[1] * dx) / det; return [al, be]; };
+  const n = Math.ceil(len * 2);
+  for (let i = n; i >= 0; i--) {                                             // far end first, so nearer sections cover it
+    const sx = len * i / n, o = [c[0] + sx, c[1] - sx / 2], part = i === 0 ? 'end' : 'bark';
+    for (let y = Math.floor(o[1] - D); y <= o[1] + D; y++) for (let x = Math.floor(o[0] - D); x <= o[0] + D; x++) {
+      const [al, be] = at(x, y, o), r = Math.hypot(al, be); if (r > 1) continue;
+      put(t, x, y, part === 'end' ? fn('end', 0, be, r) : fn('bark', sx / len, be, r));
+    }
+  }
+}
+const barkCol = (s, b) => b > 0.45 ? 'W' : b < -0.35 ? 't' : 'w';
+const endCol = r => r > 0.8 ? 't' : r < 0.32 ? 'E' : 'e';           // bark rim, sapwood, pith
+
 // ---- the workshop
 const sh = pixIsoBox(g, 44, 119, 1.3, 3, 22, 1, {});
 const sb = sh.base;
-const mT = lerp(sh.T, sh.Rr, 0.5), mB = lerp(sh.L, sh.Bm, 0.5), RISE = 12;
+const mT = lerp(sh.T, sh.Rr, 0.5), mB = lerp(sh.L, sh.Bm, 0.5), RISE = 20;
 const r1 = P(mB, 0, -RISE), r2 = P(mT, 0, -RISE);
 const GLOW = lerp(sh.Bm, sh.Rr, 0.78);   // brazier spot in the bay, clear of the mangonel in front of it
 inked(g, t => {
@@ -117,13 +137,34 @@ inked(g, t => {
   // posts across the opening
   for (let k = 0; k <= 6; k++) { const p = lerp(sb.Bm, sb.Rr, k / 6); const x = Math.round(p[0]), y = Math.round(p[1]); pixRect(t, x - 1, y - 23, 1, 23, 'W'); pixRect(t, x, y - 23, 1, 23, 't'); }
   pixLine(t, sh.Bm[0], sh.Bm[1] + 1, sh.Rr[0], sh.Rr[1] + 1, 'W'); pixLine(t, sh.Bm[0], sh.Bm[1] + 2, sh.Rr[0], sh.Rr[1] + 2, 't');  // lintel beam
-  // lit end wall: vertical boards, big double door with iron straps
+  // lit end wall, timber-framed: corner posts, a wall plate at the eave, a sill on the plinth, board-and-batten cladding
+  // (boards vary in tone, weather darker near the ground), a braced double barn door (darker planks) under a header
+  const EA = x => x - Math.floor(sh.L[0]), EW = Math.round(sh.Bm[0] - sh.L[0]);
+  const board = (a, v) => { const k = (((a + 2) % 4) + 4) % 4; return k === 3 ? 't' : k === 0 ? 'W' : 'w'; };
+  const DL = 9, DR = 29, DM = 19, DT = 6;                                      // door jambs, centre seam, head
   wall(t, sh.L, sh.Bm, 22, (a, v) => {
-    if (a >= 12 && a <= 30 && v >= 5) { if (v === 5 || a === 12 || a === 30) return 'u'; if (a === 21) return 'u'; if (v === 9 || v === 17) return 'G'; return (a % 3 === 0) ? 't' : 'w'; }
-    return v >= 20 ? 'u' : boards({ t: ['W', 'w', 't'], bw: 4 })(a, v);
+    if (a <= 1) return a === 0 ? 'W' : 'w';                                   // lit corner post
+    if (a >= EW - 2) return a === EW - 1 ? 'u' : 't';                         // shaded corner post
+    if (v <= 1) return v === 0 ? 'W' : 't';                                   // wall plate
+    if (v >= 20) return v === 20 ? 'w' : 'u';                                 // sill
+    if (a >= DL - 1 && a <= DR + 1 && v === DT - 1) return 'W';                // header over the door
+    if (a >= DL - 1 && a <= DR + 1 && v === DT) return 'u';
+    if (a >= DL && a <= DR && v > DT) {
+      if (a === DL || a === DR || a === DM) return 'u';                       // jambs and the meeting stiles
+      const left = a < DM, lo = left ? DL + 1 : DM + 1, hi = left ? DM - 1 : DR - 1, w = hi - lo;
+      if (v === 8 || v === 18) return 'W'; if (v === 9 || v === 19) return 't';   // ledges
+      const s = (18 - v) / 10, br = left ? lo + Math.round(s * w) : hi - Math.round(s * w);   // Z-brace from the hinge foot
+      if (v > 9 && v < 18 && a === br) return 'W'; if (v > 9 && v < 18 && a === br + (left ? 1 : -1)) return 't';
+      return (a - lo) % 3 === 2 ? 'u' : 't';
+    }
+    return board(a, v);
   });
-  // gable over the end wall, then the two roof planes in shingle courses
-  for (const [x, y] of cells([sh.L, sh.Bm, r1])) t[y][x] = (x % 4 === 3) ? 't' : 'W';
+  // gable over the end wall: the same boards up to the barge boards, a louvred vent under the ridge
+  for (const [x, y] of cells([sh.L, sh.Bm, r1])) {
+    const a = EA(x), d = Math.floor(sh.L[1] + (x + 0.5 - sh.L[0]) / (sh.Bm[0] - sh.L[0]) * (sh.Bm[1] - sh.L[1]) - y - 0.5), c = Math.abs(a - EW / 2 + 0.5);
+    t[y][x] = (d >= 5 && d <= 9 && c <= 3.5) ? (d === 5 || d === 9 || c > 3 ? 'u' : d % 2 ? 'I' : 't') : board(a, 0);
+  }
+  pixLine(t, sh.L[0], sh.L[1], sh.Bm[0], sh.Bm[1], 'W');
   // the back slope faces away: its eave L→T sits above the ridge on screen, so its courses lap upward (flip)
   plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 41 }), true);
   plane(t, [r1, r2, P(sh.Rr, 1, 1), P(sh.Bm, 0, 1)], P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), (a, d) => tiles({ t: d > 14 ? ['Q', 'q', 'P'] : ['q', 'P', 'p', 'R'], ch: 3, tw: 5, s: 42 })(a, d));
@@ -170,39 +211,58 @@ GwwwwG
 });
 inked(g, t => { const p = iso(1.95, 1.75); wheel(t, p[0] + 2, p[1] - 3, 5, 1.0); });
 
-// ---- log pile under a team tarp, and a sawhorse with a log and a saw in wood chips
+// ---- log pile: logs lying along the ty axis, side by side along tx (4, then 3 in the grooves, then 2), end grain to the
+// viewer; a team-colour tarp is thrown over the far half of the pile, with a dark hem across it
+const LOGD = 5, LOGL = 22, SP = [LOGD * 0.9, LOGD * 0.45];
 inked(g, t => {
-  const p = iso(2.75, 2.5); const x = Math.round(p[0]) - 16, y = Math.round(p[1]) - 2;
-  for (let k = 0; k < 4; k++) log(t, x + k * 4, y + k * 0, 20);
-  for (let k = 0; k < 3; k++) log(t, x + 2 + k * 4, y - 4, 20);
-  for (let k = 0; k < 2; k++) log(t, x + 4 + k * 4, y - 8, 20);
-  // tarp draped over the back half of the pile, folds in light and dark
-  const tp = [[x + 12, y - 13], [x + 28, y - 21], [x + 37, y - 16], [x + 35, y - 9], [x + 24, y - 3], [x + 15, y - 6]];
-  for (const [cx, cy] of cells(tp)) t[cy][cx] = (cx - x > 31 || cy - y > -6) ? 'D' : 'T';
-  for (const k of [19, 26]) { pixLine(t, x + k, y - 17 + (k - 19) / 3, x + k + 2, y - 5 - (k - 19) / 7, 'L'); pixLine(t, x + k + 1, y - 17 + (k - 19) / 3, x + k + 3, y - 5 - (k - 19) / 7, 'D'); }
-  pixLine(t, x + 12, y - 13, x + 28, y - 21, 'L'); pixLine(t, x + 15, y - 6, x + 24, y - 3, 'D');
+  const base = P(iso(2.02, 2.86), 0, -LOGD / 2);
+  // the cloth is shaded as one draped surface (light over the crown, team on the slopes, dark down the near flank), not per log
+  const tarp = (s, b, row, edge) => s < 0.5 ? null : s < 0.56 ? 'D' : row === 2 && b > 0 ? 'L' : edge && b < 0.3 ? 'D' : 'T';
+  for (const [n, row] of [[4, 0], [3, 1], [2, 2]]) for (let k = 0; k < n; k++) {
+    const c = P(base, SP[0] * (k + row / 2), SP[1] * (k + row / 2) - row * LOGD * 0.82);
+    cyl(t, c, LOGD, LOGL, (part, s, b, r) => part === 'end' ? endCol(r) : tarp(s, b, row, k === n - 1) || barkCol(s, b));
+  }
 });
+// a sawhorse in wood chips: two X-trestles across the ty axis carrying a log, a saw left in its cut
 inked(g, t => {
-  const p = iso(2.7, 1.3); const x = Math.round(p[0]), y = Math.round(p[1]);
-  for (const dx of [-5, 5]) { pixLine(t, x + dx - 2, y, x + dx, y - 6, 't'); pixLine(t, x + dx + 2, y, x + dx, y - 6, 'w'); }
-  log(t, x - 9, y - 6, 20, true);
-  pixLine(t, x + 1, y - 12, x + 6, y - 9, 'S'); pixLine(t, x + 1, y - 13, x + 6, y - 10, 'G'); pixSet(t, x, y - 13, 'W'); pixSet(t, x, y - 12, 't');
+  const c = P(iso(2.62, 1.5), 0, -8);                                           // near end of the log, resting in the trestles
+  for (const s of [3, 15]) { const q = [c[0] + s, c[1] - s / 2 + 8]; pixLine(t, q[0] - 3, q[1] - 1, q[0] + 2, q[1] - 8, 't'); pixLine(t, q[0] + 3, q[1] + 1, q[0] - 2, q[1] - 8, 'w'); }
+  cyl(t, c, 4, 20, (part, s, b, r) => part === 'end' ? endCol(r) : barkCol(s, b));
+  const m = [c[0] + 11, c[1] - 6]; pixLine(t, m[0], m[1] - 1, m[0] + 3, m[1] - 6, 'S'); pixLine(t, m[0] + 1, m[1] - 1, m[0] + 4, m[1] - 6, 'G'); pixRect(t, m[0] + 3, m[1] - 9, 2, 3, 'W');
 });
 
 // ---- animated: crane (hook sway) and the brazier
-const CR = iso(2.45, 0.35);
-function crane(t, f) {
-  const [x, y] = [Math.round(CR[0]), Math.round(CR[1])], ap = [x, y - 44], sw = [0, 1, 0, -1][f];
-  // back leg, then the two front legs of the sheer-legs, a cross-tie and the windlass
-  pixLine(t, x + 9, y - 6, ap[0], ap[1], 't');
-  for (const [dx, c1, c2] of [[-11, 'W', 't'], [11, 'w', 't']]) { pixLine(t, x + dx, y, ap[0], ap[1], c1); pixLine(t, x + dx + 1, y, ap[0] + 1, ap[1], c2); }
-  pixLine(t, x - 6, y - 20, x + 7, y - 20, 'W'); pixLine(t, x - 6, y - 19, x + 7, y - 19, 't');
-  pixRect(t, x - 3, y - 9, 8, 4, 'w'); pixLine(t, x - 3, y - 9, x + 4, y - 9, 'W'); pixLine(t, x - 3, y - 6, x + 4, y - 6, 't'); pixSet(t, x - 4, y - 8, 'G'); pixSet(t, x + 5, y - 8, 'G'); pixLine(t, x, y - 9, ap[0] - 9, ap[1] + 1, 'B');
-  // jib towards the yard, rope + hook + a beam on two slings
-  const tip = [ap[0] - 12, ap[1] + 2]; pixLine(t, ap[0] + 2, ap[1] - 1, tip[0], tip[1], 'W'); pixLine(t, ap[0] + 2, ap[1], tip[0], tip[1] + 1, 't');
-  const hk = [tip[0] + sw, tip[1] + 17]; pixLine(t, tip[0], tip[1] + 2, hk[0], hk[1], 'B'); pixSet(t, hk[0], hk[1] + 1, 'G'); pixSet(t, hk[0] + 1, hk[1] + 2, 'G');
-  const lx = hk[0] + sw, ly = hk[1] + 6; pixLine(t, hk[0], hk[1] + 2, lx - 5, ly - 1, 'B'); pixLine(t, hk[0], hk[1] + 2, lx + 5, ly - 1, 'B');
-  for (let i = -8; i <= 8; i++) { put(t, lx + i, ly - 1 + Math.floor((i + 8) / 4) - 2, 'W'); put(t, lx + i, ly + Math.floor((i + 8) / 4) - 2, 'w'); put(t, lx + i, ly + 1 + Math.floor((i + 8) / 4) - 2, 't'); }
+// sheer-legs crane on iso axes: two front legs splayed along tx (feet on the ground line ty 0.62), a back leg raking to the
+// back edge, all meeting at a lashed apex over the load. A windlass drum spans the front legs low down; its rope runs up to
+// the pulley at the apex and drops to a hook carrying a beam slung along the tx axis.
+const CR = iso(2.4, 0.4), CAP = P(CR, 0, -46);
+const legAt = (foot, k) => lerp(foot, CAP, k);
+// back leg and the slung load (behind the front legs)
+function craneBack(t, f) {
+  const FB = iso(2.4, 0.04), sw = [0, 1, 0, -1][f];
+  pixLine(t, FB[0], FB[1], CAP[0], CAP[1], 't'); pixLine(t, FB[0] + 1, FB[1], CAP[0] + 1, CAP[1], 'u');
+  const hk = [Math.round(CAP[0]) + sw, Math.round(CAP[1]) + 15];
+  pixLine(t, CAP[0], CAP[1] + 2, hk[0], hk[1], 'B'); pixSet(t, hk[0], hk[1] + 1, 'G'); pixSet(t, hk[0] - 1, hk[1] + 2, 'G'); pixSet(t, hk[0], hk[1] + 3, 'G');
+  const bc = [hk[0] + sw, hk[1] + 9];                                          // beam centre, slung along the tx axis
+  pixLine(t, hk[0], hk[1] + 3, bc[0] - 6, bc[1] - 5, 'B'); pixLine(t, hk[0], hk[1] + 3, bc[0] + 6, bc[1], 'B');
+  for (let i = -9; i <= 9; i++) { const x = bc[0] + i, y = Math.round(bc[1] + i / 2); put(t, x, y - 2, 'W'); put(t, x, y - 1, 'w'); put(t, x, y, 't'); }
+  stampL(t, bc[0] - 11, bc[1] - 8, `
+.ee
+eEe
+.et
+`);
+}
+// the two front legs, splayed along tx, with the windlass drum low between them and its rope up to the apex pulley
+function craneFront(t) {
+  const F1 = iso(1.98, 0.7), F2 = iso(2.82, 0.7);
+  pixLine(t, F1[0], F1[1], CAP[0], CAP[1], 'W'); pixLine(t, F1[0] + 1, F1[1], CAP[0] + 1, CAP[1], 't');
+  pixLine(t, F2[0], F2[1], CAP[0], CAP[1], 'w'); pixLine(t, F2[0] + 1, F2[1], CAP[0] + 1, CAP[1], 't');
+  const d1 = legAt(F1, 0.18), d2 = legAt(F2, 0.18);
+  pixLine(t, d1[0] + 1, d1[1] - 1, d2[0], d2[1] - 1, 'W'); pixLine(t, d1[0] + 1, d1[1], d2[0], d2[1], 'w'); pixLine(t, d1[0] + 1, d1[1] + 1, d2[0], d2[1] + 1, 't');
+  const dm = lerp(d1, d2, 0.5); for (let i = -2; i <= 2; i++) put(t, Math.round(dm[0]) + i, Math.round(dm[1] + i / 2), 'B');
+  pixSet(t, d1[0], d1[1], 'G'); pixSet(t, d1[0] - 1, d1[1] + 1, 'G'); pixSet(t, d1[0] - 2, d1[1] + 2, 'W');   // crank
+  pixLine(t, dm[0], dm[1] - 1, CAP[0] - 1, CAP[1] + 3, 'B');
+  pixRect(t, CAP[0] - 1, CAP[1], 3, 2, 'B'); pixSet(t, CAP[0], CAP[1] + 2, 'G');       // lashing and pulley
 }
 function brazier(t, f) {
   const x = Math.round(GLOW[0]), y = Math.round(GLOW[1]) + 15;   // legs end on the bay floor (v 20)
@@ -214,7 +274,8 @@ for (let f = 0; f < 4; f++) {
   const q = copy(g);
   // the brazier stands inside the bay: paint it on a layer and keep only the cells where the shed is still on top
   { const b = pixGrid(GW, GH); brazier(b, f); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (b[y][x] !== '.' && g[y][x] === gShed[y][x]) q[y][x] = b[y][x]; }
-  inked(q, t => crane(t, f));
+  inked(q, t => craneBack(t, f));
+  inked(q, t => craneFront(t), 'k', 'K', 'B');
   outline(q, 'k', 'K');
   frames.push(pixText(q));
 }

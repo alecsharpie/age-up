@@ -116,13 +116,22 @@ details.sheet canvas{display:block}
 .pen{width:20px;height:20px;border-radius:50%;border:2px solid transparent}
 .pen[aria-pressed="true"]{border-color:#fff}
 .rvm{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:0 5px;border-radius:2px;color:#15100c;vertical-align:1px}
-.rvm.love{background:var(--gold)}.rvm.good{background:var(--ok)}.rvm.work{background:var(--warn)}.rvm.redo{background:var(--bad)}.rvm.seen{background:var(--edge)}
+.rvm.love{background:var(--gold)}.rvm.good{background:var(--ok)}.rvm.work{background:var(--warn)}.rvm.redo{background:var(--bad)}.rvm.seen{background:var(--edge)}.rvm.upd{background:transparent;color:var(--ok);border:1px solid var(--ok)}
 .marks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
 .marks li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center}
 .marks .num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 12px var(--mono);color:#15100c}
 .marks input{width:100%;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);border-radius:3px;font:14px var(--body);padding:3px 8px}
 .marks .x{color:var(--dim);padding:0 6px}.marks .x:hover{color:var(--bad)}
 .fb ol{margin:6px 0 0;padding-left:20px}
+.reply{border:1px solid var(--edge2);border-left:3px solid var(--ok);border-radius:3px;padding:8px 10px;display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 12px;font-size:13px;color:var(--muted)}
+.reply .rth img{width:120px;height:auto;image-rendering:pixelated;border:1px solid var(--edge);border-radius:2px;cursor:zoom-in}
+.reply .rth img.big{width:min(100%,520px);cursor:zoom-out}
+.reply .rth:has(img.big){grid-column:1/-1}
+.reply h4{margin:0 0 2px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+.reply ol,.reply ul{margin:2px 0 6px;padding-left:18px}
+.reply p{margin:2px 0 6px}
+.reply .did{color:var(--fg)}
+@media (max-width:560px){.reply{grid-template-columns:1fr}}
 .fb-sum{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;color:var(--muted);margin-bottom:12px}
 .fb-list{display:flex;flex-direction:column;gap:8px}
 .fb{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;background:var(--panel);border:1px solid var(--edge2);border-radius:3px;padding:10px;text-align:left;width:100%}
@@ -181,11 +190,12 @@ details.sheet canvas{display:block}
       <button class="tog" id="play" aria-pressed="true">animating</button>
     </div>
     <div class="review" id="review" aria-label="Your feedback on this sprite">
+      <div class="reply" id="rv-reply" hidden></div>
       <div class="rv-row">
         <button class="btn" id="rv-prev" title="Previous sprite"><kbd>←</kbd>prev</button>
         <button class="btn" id="rv-next" title="Next sprite"><kbd>→</kbd>next</button>
         <span class="hint" id="rv-pos">—</span>
-        <label class="hint">flip through <select id="rv-filter"><option value="all">everything</option><option value="todo">not reviewed yet</option><option value="work">needs work + redo</option><option value="done">reviewed</option></select></label>
+        <label class="hint">flip through <select id="rv-filter"><option value="all">everything</option><option value="todo">not reviewed yet</option><option value="work">needs work + redo</option><option value="done">reviewed</option><option value="replied">changed last round</option></select></label>
         <span class="hint grow" id="rv-status"></span>
       </div>
       <div class="rv-row" role="group" aria-label="Verdict">
@@ -472,7 +482,7 @@ details.sheet canvas{display:block}
     const RANK={redo:0,work:1,love:3,good:2};
     const BASE_TAGS=['silhouette','proportions','too small','too big','colours','team colour','light & shading','too noisy','too plain','animation','reads at 1×','style mismatch','wrong for its role'];
     const PENS=['#ff4d4d','#ffd84d','#4dd2ff','#ffffff'];
-    const R={data:{},db:null,assets:null,me:null,mode:'local',pen:false,penCol:PENS[0],stroke:null,timers:{},snapTimers:{},viewApplied:null};
+    const R={data:{},replies:{},db:null,assets:null,me:null,mode:'local',pen:false,penCol:PENS[0],stroke:null,timers:{},snapTimers:{},viewApplied:null};
     const key=()=>S.kind+'.'+S.type;
     const cur=()=>R.data[key()]||null;
     const LS='ageup-sprite-reviews';
@@ -480,7 +490,7 @@ details.sheet canvas{display:block}
     const lsWrite=()=>{try{localStorage.setItem(LS,JSON.stringify(R.data))}catch(e){}};
     const order=()=>$$('.item').map(it=>({kind:it.dataset.kind,type:it.dataset.type,el:it}));
     const reviewed=r=>!!(r&&(r.verdict||r.note||(r.tags&&r.tags.length)||(r.marks&&r.marks.length)));
-    function passes(k){ const r=R.data[k], f=$('#rv-filter').value; return f==='all'||(f==='todo'&&!reviewed(r))||(f==='done'&&reviewed(r))||(f==='work'&&r&&(r.verdict==='work'||r.verdict==='redo')); }
+    function passes(k){ const r=R.data[k], f=$('#rv-filter').value; return f==='all'||(f==='todo'&&!reviewed(r))||(f==='done'&&reviewed(r))||(f==='work'&&r&&(r.verdict==='work'||r.verdict==='redo'))||(f==='replied'&&!!R.replies[k]); }
     function filterSidebar(){ const q=$('#search').value.toLowerCase(); for(const it of $$('.item')){ const k=it.dataset.kind+'.'+it.dataset.type; it.hidden=(!!q&&!it.dataset.search.includes(q))||(!passes(k)&&k!==key()); } updatePos(); }
     function step(dir){
       const q=$('#search').value.toLowerCase(); const list=order(); const n=list.length; let i=list.findIndex(o=>o.kind===S.kind&&o.type===S.type);
@@ -559,10 +569,26 @@ details.sheet canvas{display:block}
         ml.appendChild(li); });
       if(fi>=0&&$$('#rv-marks input')[fi])$$('#rv-marks input')[fi].focus({preventScroll:true});
       $('#rv-undo').disabled=!r.marks.length; $('#rv-clear').disabled=!r.marks.length;
+      renderReply();
       drawInk(); inkVisibility();
     }
+    // Claude's answer to the previous round's feedback (replies/<kind.type>, written by Claude): what you said, what changed
+    function renderReply(){
+      const box=$('#rv-reply'), x=R.replies[key()]; box.hidden=!x; if(!x)return; box.innerHTML='';
+      const th=document.createElement('div'); th.className='rth';
+      if(x.snapUrl){ const img=new Image(); img.alt='What you marked last round'; img.title='Your marks last round (click to enlarge)'; img.src=x.snapUrl; img.onclick=()=>img.classList.toggle('big'); img.onerror=()=>img.remove(); th.appendChild(img); }
+      const body=document.createElement('div');
+      const h=(t)=>{ const e=document.createElement('h4'); e.textContent=t; body.appendChild(e); };
+      h('Round '+(x.round||1)+': you said');
+      if(x.note){ const p=document.createElement('p'); p.textContent=x.note; body.appendChild(p); }
+      if(x.marks&&x.marks.length){ const ol=document.createElement('ol'); for(const t of x.marks){ const li=document.createElement('li'); li.textContent=t||'(no comment)'; ol.appendChild(li); } body.appendChild(ol); }
+      h('What changed');
+      const ul=document.createElement('ul'); ul.className='did'; for(const t of (x.changes||[])){ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); } body.appendChild(ul);
+      if(x.open){ h('Still open'); const p=document.createElement('p'); p.textContent=x.open; body.appendChild(p); }
+      box.append(th,body);
+    }
     function paintMarker(k){ const [kind,type]=k.split('.'); const it=$(`.item[data-kind="${kind}"][data-type="${type}"]`); if(!it)return; const m=it.querySelector('.rvm'); const r=R.data[k];
-      if(!reviewed(r)){m.hidden=true;return} m.hidden=false; m.className='rvm '+(r.verdict||'seen'); m.textContent=r.verdict?{love:'love',good:'good',work:'work',redo:'redo'}[r.verdict]:'noted'+(r.marks&&r.marks.length?' ✎':''); if(r.verdict&&r.marks&&r.marks.length)m.textContent+=' ✎'; }
+      if(!reviewed(r)){ if(R.replies[k]){m.hidden=false;m.className='rvm upd';m.textContent='updated';m.title='Changed after your last round of feedback'}else m.hidden=true; return; } m.title=''; m.hidden=false; m.className='rvm '+(r.verdict||'seen'); m.textContent=r.verdict?{love:'love',good:'good',work:'work',redo:'redo'}[r.verdict]:'noted'+(r.marks&&r.marks.length?' ✎':''); if(r.verdict&&r.marks&&r.marks.length)m.textContent+=' ✎'; }
     function onSelect(){
       if(R.pen)setPen(false);
       const r=cur(); const k=key();
@@ -614,6 +640,7 @@ details.sheet canvas{display:block}
         if(!changed.size)return; lsWrite(); if(changed.has(key()))renderPanel(); updatePos(); if(S.tab==='feedback')renderFeedback();
         const r=cur(); if(r&&r.marks&&r.marks.length&&R.viewApplied===key()&&S.playing){ R.viewApplied=null; select(S.kind,S.type); }
       },e=>setStatus('could not load saved feedback ('+e.code+')'));
+      db.collection('replies').onSnapshot(snap=>{ R.replies={}; for(const d of snap.docs){ const v=d.data(); if(v)R.replies[d.id]=JSON.parse(JSON.stringify(v)); } for(const it of $$('.item'))paintMarker(it.dataset.kind+'.'+it.dataset.type); renderReply(); },()=>{});
     }
     function init(){
       R.data=lsRead(); for(const k in R.data)paintMarker(k);

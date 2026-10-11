@@ -1,8 +1,9 @@
 // @pixel keep
 // Castle 4×4: a battered plinth and ashlar curtain wall (quoins, cross slits, crenellations that shade the wall-walk), four corner
 // towers with corbel tables, a tall central donjon ringed by machicolations, a voussoir gate with portcullis and the lord's
-// shield above it, and long team banners on the donjon. Flags stay code-drawn (donjon centre and the two side towers).
-// Frames: idle 4 — the banners ripple, the gate torches flicker and light the jambs.
+// shield above it, centred on the lit face, and a matched pair of long team banners on each donjon face. Merlons sit on a
+// symmetric rhythm on every parapet; four painted team flags fly from the donjon's corners (no code-drawn flags).
+// Frames: idle 4 — the banners ripple, the flags stream, the gate torches flicker and light the jambs.
 // ---- fortification kit (local to this draft): ashlar faces, flagstones, shingles, parapets, ink outline, banners, flames ----
 function hash3(a,b,c){let h=(Math.imul(a|0,374761393)+Math.imul(b|0,668265263)+Math.imul(c|0,1442695041))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
 const cloneG=g=>g.map(r=>r.slice());
@@ -143,6 +144,17 @@ function torch(g,x,y,k){pixSet(g,x,y,'y');pixSet(g,x,y-1,'y');pixSet(g,x-1,y-2,'
 /** Arrow slit with depth: shadowed left jamb, dark slot, lit right jamb, lintel and sill. h = slot height. */
 function slit(g,x,y,h,cross){pixSet(g,x,y-1,'k');pixSet(g,x+1,y-1,'k');for(let r=0;r<h;r++){pixSet(g,x,y+r,'e');pixSet(g,x+1,y+r,r===0?'k':'h')}pixSet(g,x,y+h,'h');pixSet(g,x+1,y+h,'h');if(cross){pixSet(g,x-1,y+1,'e');pixSet(g,x+1,y+1,'e');pixSet(g,x+2,y+1,'h')}}
 const lerpP=(p,q,t)=>[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];
+/** Painted team flag on a pole whose foot is at (x,y): h-px timber pole with a gold finial and a w×fh cloth flying to the
+ *  right (o.dir=-1: left) that ripples with phase ph (0..3); folds shade light/mid/dark, team-dark hems, a swallow-tail fly.
+ *  Opt-in helper (nothing calls it by default). */
+function flagpole(g,x,y,h,ph,o={}){
+  const w=o.w||10,fh=o.fh||6,dir=o.dir||1;
+  for(let r=0;r<h;r++)pixSet(g,x,y-r,'y');pixSet(g,x,y-h,'o');
+  const y0=y-h+2,a=c=>c*0.9-ph*Math.PI/2,dy=c=>Math.round(Math.sin(a(c))*Math.min(1,c/4)),fold=c=>Math.cos(a(c));
+  for(let c=1;c<=w;c++){const d=dy(c),s=fold(c),len=fh-(c===w?1:0);
+    for(let r=0;r<len;r++){const tone=s>0.45?'L':s<-0.45?'D':'T';
+      pixSet(g,x+c*dir,y0+r+d,r===len-1?'D':r===0&&tone==='T'?'L':tone)}}
+}
 const FORT_PAL={
   k:'#24180f',K:'#43382e',e:'#140d08',
   h:'#c4bba9',a:'#a69e8f',A:'#988f81',f:'#b0a798',m:'#6a6257',q:'#cfc6b3',p:'#7d7569',     // lit stone
@@ -168,18 +180,18 @@ const top=pixIsoBox(g,bx,by-1,W,H,Z-1,1,{left:'1',right:'2',top:'3'});
 faces(top,{ch:6,bl:12,seed:5},{ch:6,bl:12,seed:6});
 flagstones(g,'3',top,{n:4});
 pixLine(g,top.base.Bm[0],top.base.Bm[1]-1,top.Bm[0],top.Bm[1]+1,'K');
-const front=crenels(g,top,W,H,{th:0.05,n:[8,8],ml:0.0625,f0:0.125,lo:3,hi:7,tex:TEX(top)});
+const front=crenels(g,top,W,H,{th:0.05,n:[8,8],ml:0.0625,f0:0.25,lo:3,hi:7,tex:TEX(top)});
 // ---- corner towers and donjon, back to front
 const tower=(i,j)=>{const B=blockBm(i,j,1,1);const t=pixIsoBox(g,B[0],B[1]-Z,1,1,TZ,1,{left:'1',right:'2',top:'3'});
   faces(t,{ch:6,bl:10,seed:7+i},{ch:6,bl:10,seed:9+j});flagstones(g,'3',t,{n:3});pixLine(g,t.base.Bm[0],t.base.Bm[1]-1,t.Bm[0],t.Bm[1]+1,'K');
   machi(g,t.L,t.Bm,1,true);machi(g,t.Bm,t.Rr,1,false);
-  const f=crenels(g,t,1,1,{th:0.1,n:[2,2],ml:0.25,f0:0.125,lo:3,hi:7,tex:{...TEX(t),bl:10}});f();
+  const f=crenels(g,t,1,1,{th:0.1,n:[2,2],ml:0.25,f0:0.25,lo:3,hi:7,tex:{...TEX(t),bl:10}});f();
   slit(g,Math.round(t.base.L[0])+15,Math.round(t.base.L[1])+7-TZ+8,5,true);slit(g,Math.round(t.base.Bm[0])+14,Math.round(t.base.Bm[1])-7-TZ+8,5,true);return t};
 tower(0,0);
 const dB=blockBm(1,1,2,2);const don=pixIsoBox(g,dB[0],dB[1]-Z,2,2,DZ,1,{left:'1',right:'2',top:'3'});
 faces(don,{ch:6,bl:12,seed:11},{ch:6,bl:12,seed:12});flagstones(g,'3',don,{n:4});pixLine(g,don.base.Bm[0],don.base.Bm[1]-1,don.Bm[0],don.Bm[1]+1,'K');
 machi(g,don.L,don.Bm,1,true);machi(g,don.Bm,don.Rr,1,false);
-crenels(g,don,2,2,{th:0.06,n:[4,4],ml:0.125,f0:0.125,lo:3,hi:7,tex:TEX(don)})();
+crenels(g,don,2,2,{th:0.06,n:[4,4],ml:0.125,f0:0.25,lo:3,hi:7,tex:TEX(don)})();
 for(const f of [0.2,0.8]){const p=lerpP(don.base.L,don.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-DZ+12,5,true);const q=lerpP(don.base.Bm,don.base.Rr,f);slit(g,Math.round(q[0]),Math.round(q[1])-DZ+12,5,true)}
 for(const f of [0.35,0.65]){const p=lerpP(don.base.L,don.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-12,4,false);const q=lerpP(don.base.Bm,don.base.Rr,f);slit(g,Math.round(q[0]),Math.round(q[1])-12,4,false)}
 front();
@@ -188,10 +200,13 @@ const preFrontTowers=cloneG(g);for(const r of g)r.fill('.');
 tower(0,3);tower(3,0);tower(3,3);
 const frontTowers=g.map(r=>r.map(c=>c!=='.'));
 for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(!frontTowers[y][x])g[y][x]=preFrontTowers[y][x];
-// ---- curtain openings: cross slits at two heights, the gate near the front corner of the lit face
-for(const f of [0.1,0.3,0.5]){const p=lerpP(top.base.L,top.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-Z+10,5,true);slit(g,Math.round(p[0])+4,Math.round(p[1])-Z+24,4,false)}
-for(const f of [0.2,0.42,0.64,0.86]){const p=lerpP(top.base.Bm,top.base.Rr,f);slit(g,Math.round(p[0]),Math.round(p[1])-Z+10,5,true);slit(g,Math.round(p[0])-5,Math.round(p[1])-Z+24,4,false)}
-const GX=Math.round(lerpP(top.base.L,top.base.Bm,0.74)[0]),GY=Math.round(lerpP(top.base.L,top.base.Bm,0.74)[1])-2;
+// ---- curtain openings: cross slits at two heights in mirrored pairs about each face's centre, the gate centred on the lit face
+// (a 2-px slit at x mirrors about the face's mid-x m to 2m-x-2)
+const mirrorSlit=(A,B,f,dx,dy,h,cross)=>{const sl=(B[1]-A[1])/(B[0]-A[0]),m=(A[0]+B[0])/2,yAt=x=>Math.round(A[1]+(x+1-A[0])*sl)+dy;
+  const x=Math.round(lerpP(A,B,f)[0])+dx,x2=Math.round(2*m-x-2);slit(g,x,yAt(x),h,cross);slit(g,x2,yAt(x2),h,cross)};
+for(const f of [0.12,0.29]){mirrorSlit(top.base.L,top.base.Bm,f,0,-Z+10,5,true);mirrorSlit(top.base.L,top.base.Bm,f,4,-Z+24,4,false)}
+for(const f of [0.14,0.36]){mirrorSlit(top.base.Bm,top.base.Rr,f,0,-Z+10,5,true);mirrorSlit(top.base.Bm,top.base.Rr,f,4,-Z+24,4,false)}
+const GF=0.5-8/(W*32),GX=Math.round(lerpP(top.base.L,top.base.Bm,GF)[0]),GY=Math.round(lerpP(top.base.L,top.base.Bm,GF)[1])-2;
 const PORT=(c,r,w,h)=>r===0&&c%2===0?'I':(c%3===1?(r%2?'i':'I'):r%3===1?'i':r>h-4?null:null);
 opening(g,GX,GY,16,22,0.5,{sur:'q',surround:true,jamb:'h',fill:PORT});
 for(let c=-3;c<=18;c++){const yy=GY+Math.floor((c+0.5)*0.5)-23-(c>=0&&c<=15?1:0)-(c>=2&&c<=13?1:0)-(c>=5&&c<=10?1:0);pixSet(g,GX+c,yy,c%2?'h':'m');pixSet(g,GX+c,yy-1,c%3?'q':'m')}
@@ -208,10 +223,15 @@ kTTToTTD
 `)}
 inkOutline(g);
 // ---- idle: banners on the donjon ripple, gate torches flicker
+const BW=10,BL=24,BAN=[[0.3,0],[0.7,2]];
+const FLAGS=[[don.T,0,-2,0],[don.L,2,-3,1],[don.Rr,-2,-3,3],[don.Bm,0,-4,2]];
 const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
-  for(const [fr,ph] of [[0.28,0],[0.62,1]]){const p=lerpP(don.base.L,don.base.Bm,fr);banner(f,Math.round(p[0])-6,Math.round(p[1])-DZ+5,12,26,k+ph,{sl:0.5})}
-  {const p=lerpP(don.base.Bm,don.base.Rr,0.45);banner(f,Math.round(p[0])-6,Math.round(p[1])-DZ+5,12,26,k+2,{sl:-0.5})}
+  // a matched pair of banners on each donjon face, mirrored about the lit/shade corner
+  for(const [fr,ph] of BAN){const p=lerpP(don.base.L,don.base.Bm,fr);banner(f,Math.round(p[0])-BW/2,Math.round(p[1])-DZ+5,BW,BL,k+ph,{sl:0.5});
+    const q=lerpP(don.base.Bm,don.base.Rr,1-fr);banner(f,Math.round(q[0])-BW/2,Math.round(q[1])-DZ+5,BW,BL,k+ph+1,{sl:-0.5})}
+  // four flags, one on each corner of the donjon's parapet, all streaming the same way in the wind
+  for(const [c,dx,dy,ph] of FLAGS)flagpole(f,Math.round(c[0])+dx,Math.round(c[1])+dy,15,k+ph,{w:10,fh:6});
   for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(frontTowers[y][x])f[y][x]=g[y][x];   // the front towers hide the banners' tails
   for(const [dx,ph] of [[-5,0],[20,1]]){const x=GX+dx,y=GY+Math.floor((dx+0.5)*0.5)-12;glow(f,x,y-3,(k+ph)%2?3:4);torch(f,x,y,(k+ph*2)%4)}
   frames.push(pixText(f));}

@@ -83,23 +83,44 @@ wall(g, L, Bm, Z, face(ashL, plL, 'o', 'm', 'o'));
 wall(g, Bm, Rr, Z, face(ashR, plR, 'O', 'n', 'O'));
 pixLine(g, Bm[0], Bm[1], Bm[0], Bm[1] + Z - 1, 'n');            // the front arris, in shade
 
-// ---- yard: packed earth in soft patches, a coping walkway along the front walls, contact shade at the back
-const fy = x => x <= Bm[0] ? L[1] + (x + 0.5 - L[0]) / 2 : Bm[1] - (x + 0.5 - Bm[0]) / 2;
-const byk = x => x <= T[0] ? L[1] - (x + 0.5 - L[0]) / 2 : T[1] + (x + 0.5 - T[0]) / 2;
-const DUM = [104, 96];                                            // training dummy foot
+// ---- yard: sunk at ground level inside the curtain walls. Looking down through the open top, a cell either lands on the
+// wall-walk (coping), on the inner face of one of the two back walls (stone courses running down to the yard), or on the
+// packed-earth floor 20 px lower; the front walls hide the floor's front strip. The back-left inner face turns away from
+// the light (shade ashlar), the back-right one catches it; the floor darkens in the shadow of the left walls and gets a
+// contact line at every wall foot.
+const TW = 0.14, IN = 3 - TW, S0 = Z / 32;                        // wall thickness (tiles); a ray drops Z/32 tiles back
+const gp = (u, v, z = 0) => [bx + 32 * (v - u), by - 16 * (u + v) - z];   // footprint (u along the left edge, v along the right) → screen
+const uvAt = (x, y, z) => { const dx = x + 0.5 - bx, dy = y + 0.5 - (by - z); return [(-dx / 32 - dy / 16) / 2, (dx / 32 - dy / 16) / 2]; };
+const DUM = [122, 104];                                           // training dummy foot (ground)
+const inU = stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 9, s: 21, ao: 10 });   // back-left wall, inner face (shade)
+const inV = stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 9, s: 22, ao: 10 });   // back-right wall, inner face (lit)
+const AU = gp(IN, TW, Z), AV = gp(IN, IN, Z);
 for (const [x, y] of cells([T, Rr, Bm, L])) {
-  const df = fy(x) - (y + 0.5), db = y + 0.5 - byk(x);
+  const [u, v] = uvAt(x, y, Z);
   let ch;
-  if (df < 4) ch = (((x + (df < 2 ? 0 : 3)) % 6) === 0) ? 'O' : df < 1 ? 'O' : 'o';
-  else if (df < 5) ch = 'J';
-  else if (db < 1.5) ch = 'J';
-  else { const n = vnoise(x, y, 7, 3); ch = n < 0.33 ? 'Y' : n > 0.72 ? 'j' : 'y';
-    const ex = (x - DUM[0]) / 17, ey = (y - DUM[1] + 1) / 8.5, e = ex * ex + ey * ey; if (e < 1) ch = e > 0.82 ? 'Y' : 'j'; }
+  if (u > IN || v > IN || u < TW || v < TW) {                     // the wall-walk, flagged coping with joints across it
+    const along = (u < TW || u > IN) ? v : u;
+    ch = (Math.floor(along * 32) % 7 === 0) ? 'O' : 'o';
+  } else {
+    const u0 = u + S0, v0 = v + S0;
+    if (u0 <= IN && v0 <= IN) {
+      const n = vnoise(x, y, 7, 3); ch = n < 0.33 ? 'Y' : n > 0.72 ? 'j' : 'y';
+      const ex = (x - DUM[0]) / 17, ey = (y - DUM[1] + 1) / 8.5, e = ex * ex + ey * ey; if (e < 1) ch = e > 0.82 ? 'Y' : 'j';
+      const shade = IN - u0 < 0.32 || v0 < TW + S0 + 0.22;         // shadow of the back-left and front-left walls
+      if (shade) ch = ch === 'j' ? 'y' : n < 0.4 ? 'J' : 'Y';
+      if (IN - u0 < 0.06 || IN - v0 < 0.06 || v0 < TW + S0 + 0.04 || u0 < TW + S0 + 0.04) ch = 'J';   // wall feet
+    } else {
+      const zU = Z - 32 * (IN - u), zV = Z - 32 * (IN - v);
+      if (zU >= zV) { const r = Math.floor(Z - zU); ch = r === 0 ? 'O' : r === 1 ? 'n' : r >= Z - 1 ? 'f' : inU(x - Math.floor(AU[0]), r - 2); }
+      else { const r = Math.floor(Z - zV); ch = r === 0 ? 'o' : r === 1 ? 'm' : r >= Z - 1 ? 'c' : inV(x - Math.floor(AV[0]), r - 2); }
+    }
+  }
   g[y][x] = ch;
 }
-// a few cobbles and ruts from the gate to the hall door (clusters, not noise)
-for (let i = 0; i < 26; i++) { const t = (i + 0.5) / 26; const p = lerp([140, 108], [92, 90], t); const x = Math.round(p[0]) + (i % 3) - 1, y = Math.round(p[1]) + (i % 2); if (g[y][x] === 'y' || g[y][x] === 'Y' || g[y][x] === 'j') { g[y][x] = 'Y'; g[y][x + 1] = 'J'; } }
-for (const [x, y] of [[60, 104], [128, 76], [150, 92], [80, 116], [118, 118], [70, 84]]) { g[y][x] = 'c'; g[y][x + 1] = 'b'; g[y + 1][x] = 'f'; g[y + 1][x + 1] = 'f'; }
+// the inner corner where the two back walls meet, in shade
+{ const c = gp(IN, IN, Z); pixLine(g, Math.round(c[0]) - 1, Math.round(c[1]) + 1, Math.round(c[0]) - 1, Math.round(c[1]) + Z - 1, 'f'); }
+// a worn track of cobbles and ruts from the gate to the hall door (clusters, not noise)
+for (let i = 0; i < 22; i++) { const t = (i + 0.5) / 22; const p = lerp([118, 121], [90, 106], t); const x = Math.round(p[0]) + (i % 3) - 1, y = Math.round(p[1]) + (i % 2); if ('yYj'.includes(g[y][x]) && 'yYj'.includes(g[y][x + 1])) { g[y][x] = 'Y'; g[y][x + 1] = 'J'; } }
 
 // ---- back parapets (their inner faces look at us): low wall + merlons, coping on top
 const merlon = (a, per, w) => ((a % per) + per) % per < w;
@@ -128,37 +149,12 @@ function turret(t, c, slitL, slitR) {
 const tBack = [T[0], T[1] + 2 * TV], tLeft = [L[0] + TH, L[1] + TV], tRight = [Rr[0] - TH, Rr[1] + TV], tFront = Bm;
 inked(g, t => turret(t, tBack, true, true));
 
-// ---- the sleeping hall along the back-left wall: plank walls, team door + shutters, red tile gable roof
-{
-  const hb = [66.4, 94.8];
-  inked(g, t => {
-    const q = pixIsoBox(t, hb[0], hb[1], 0.8, 2.0, 11, 1, {});
-    const m1 = lerp(q.L, q.Bm, 0.5), m2 = lerp(q.T, q.Rr, 0.5), r1 = P(m1, 0, -10), r2 = P(m2, 0, -10);
-    wall(t, q.L, q.Bm, 11, (a, v) => v < 2 ? 't' : planks({ t: ['W', 'w', 't'], ph: 3, s: 9, nail: 'u' })(a, v));
-    wall(t, q.Bm, q.Rr, 11, (a, v) => v < 2 ? 'u' : planks({ t: ['w', 't', 'u'], ph: 3, s: 10 })(a, v));
-    for (const k of [0, 0.25, 0.5, 0.75]) { const p = lerp(q.Bm, q.Rr, k); pixLine(t, Math.round(p[0]), Math.round(p[1]) + 2, Math.round(p[0]), Math.round(p[1]) + 10, 'u'); }
-    // door (team planks) and two shuttered windows on the long face
-    wall(t, q.Bm, q.Rr, 11, (a, v) => {
-      if (a >= 29 && a <= 35 && v >= 2 && v <= 10) return v === 2 ? 'u' : a === 29 ? 'z' : a === 35 ? 'D' : (a - 30) % 2 ? 'T' : (v === 5 || v === 8 ? 'G' : 'L');
-      for (const w0 of [10, 48]) if (a >= w0 && a <= w0 + 7 && v >= 3 && v <= 7) return v === 7 ? 'W' : (a === w0 || a === w0 + 7) ? 'T' : (a === w0 + 1 || a === w0 + 6) ? 'D' : v === 3 ? 'u' : 'z';
-      return null;
-    });
-    // gable end over the lit wall (vertical boards), then the two roof planes
-    pixPoly(t, [q.L, q.Bm, r1], 'W'); for (const [x, y] of cells([q.L, q.Bm, r1])) t[y][x] = (x % 3 === 0) ? 'w' : 'W';
-    plane(t, [q.L, q.T, r2, r1], q.L, q.T, tiles({ t: ['r', 'R', 'x'], ch: 3, tw: 4, s: 11 }));
-    plane(t, [r1, r2, P(q.Rr, 1, 1), P(q.Bm, 0, 1)], P(q.Bm, 0, 1), P(q.Rr, 1, 1), tiles({ t: ['R', 'x', 'X', 'r'], ch: 3, tw: 4, s: 12 }));
-    pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] - 1, r2[0], r2[1] - 1, 'r');
-    pixLine(t, q.L[0], q.L[1], r1[0], r1[1], 'k'); pixLine(t, q.Bm[0], q.Bm[1] + 1, r1[0], r1[1], 'k');
-    pixLine(t, q.Bm[0], q.Bm[1] + 1, q.Rr[0] + 1, q.Rr[1] + 1, 'X');
-  });
-}
-
-// ---- weapon rack along the back-right parapet: spears with steel heads, team shields hung on the rail.
-// The spear shafts and heads carry their own edge (no ink halo), so the parapet stays visible between them behind the rack.
+// ---- weapon rack on the yard floor against the back-right wall (behind the hall, so painted first): spears with steel heads, team shields hung on the rail.
+// The spear shafts and heads carry their own edge (no ink halo), so the wall stays visible between them behind the rack.
 inked(g, t => {
-  const p0 = [128, 61], p1 = [158, 76];
+  const p0 = gp(2.45, 2.68), p1 = gp(1.45, 2.68);
   for (let i = 0; i < 7; i++) { const p = lerp(p0, p1, (i + 0.5) / 7); const x = Math.round(p[0]), y = Math.round(p[1]); pixLine(t, x, y, x + 1, y - 13, 'w'); pixSet(t, x + 1, y - 14, 'S'); pixSet(t, x + 1, y - 15, 's'); pixSet(t, x + 2, y - 14, 'G'); }
-  for (const k of [0, 1]) { const p = k ? p1 : p0; pixLine(t, p[0], p[1], p[0], p[1] - 9, 't'); }
+  for (const k of [0, 1]) { const p = k ? p1 : p0; pixLine(t, Math.round(p[0]), Math.round(p[1]), Math.round(p[0]), Math.round(p[1]) - 9, 't'); }
   pixLine(t, p0[0], p0[1] - 8, p1[0], p1[1] - 8, 't'); pixLine(t, p0[0], p0[1] - 3, p1[0], p1[1] - 3, 'u');
   for (const k of [0.3, 0.72]) { const p = lerp(p0, p1, k); stampL(t, p[0] - 3, p[1] - 9, `
 .DDD.
@@ -168,25 +164,31 @@ DTTTD
 .DDD.
 `); }
 }, 'k', 'K', 'wsSG');
-// barrels and a chest by the hall door
-inked(g, t => {
-  stampL(t, 52, 94, `
-.uwwu..
-uWwwwu.
-GGGGGG.
-uWwwwu.
-uWwwwu.
-GGGGGG.
-.uwwu..
-`);
-  stampL(t, 58, 98, `
-.uwwu.
-uWwwwu
-GGGGGG
-uWwwwu
-.uwwu.
-`);
-});
+// ---- the sleeping hall on the yard floor along the back-left wall: plank walls, team door + shutters, red tile gable
+// roof. It stands on the ground (u 1.78..2.58, v 0.79..2.25), so it rises inside the walls and stops short of the back turret.
+{
+  const HZ = 14, hb = gp(1.78, 0.79);
+  inked(g, t => {
+    const q = pixIsoBox(t, hb[0], hb[1], 0.8, 1.46, HZ, 1, {});
+    const m1 = lerp(q.L, q.Bm, 0.5), m2 = lerp(q.T, q.Rr, 0.5), r1 = P(m1, 0, -10), r2 = P(m2, 0, -10);
+    wall(t, q.L, q.Bm, HZ, (a, v) => v < 2 ? 't' : v === HZ - 1 ? 'u' : planks({ t: ['W', 'w', 't'], ph: 3, s: 9, nail: 'u' })(a, v));
+    wall(t, q.Bm, q.Rr, HZ, (a, v) => v < 2 ? 'u' : v === HZ - 1 ? 'z' : planks({ t: ['w', 't', 'u'], ph: 3, s: 10 })(a, v));
+    for (const k of [0, 1 / 3, 2 / 3]) { const p = lerp(q.Bm, q.Rr, k); pixLine(t, Math.round(p[0]), Math.round(p[1]) + 2, Math.round(p[0]), Math.round(p[1]) + HZ - 1, 'u'); }
+    // door (team planks) and two shuttered windows on the long face
+    wall(t, q.Bm, q.Rr, HZ, (a, v) => {
+      if (a >= 20 && a <= 26 && v >= 4 && v <= HZ - 1) return v === 4 ? 'u' : a === 20 ? 'z' : a === 26 ? 'D' : (a - 21) % 2 ? 'T' : (v === 7 || v === 11 ? 'G' : 'L');
+      for (const w0 of [5, 34]) if (a >= w0 && a <= w0 + 7 && v >= 4 && v <= 8) return v === 8 ? 'W' : (a === w0 || a === w0 + 7) ? 'T' : (a === w0 + 1 || a === w0 + 6) ? 'D' : v === 4 ? 'u' : 'z';
+      return null;
+    });
+    // gable end over the lit wall (vertical boards), then the two roof planes
+    for (const [x, y] of cells([q.L, q.Bm, r1])) t[y][x] = (x % 3 === 0) ? 'w' : 'W';
+    plane(t, [q.L, q.T, r2, r1], q.L, q.T, tiles({ t: ['r', 'R', 'x'], ch: 3, tw: 4, s: 11 }));
+    plane(t, [r1, r2, P(q.Rr, 1, 1), P(q.Bm, 0, 1)], P(q.Bm, 0, 1), P(q.Rr, 1, 1), tiles({ t: ['R', 'x', 'X', 'r'], ch: 3, tw: 4, s: 12 }));
+    pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] - 1, r2[0], r2[1] - 1, 'r');
+    pixLine(t, q.L[0], q.L[1], r1[0], r1[1], 'k'); pixLine(t, q.Bm[0], q.Bm[1] + 1, r1[0], r1[1], 'k');
+    pixLine(t, q.Bm[0], q.Bm[1] + 1, q.Rr[0] + 1, q.Rr[1] + 1, 'X');
+  });
+}
 
 // ---- the side turrets (with pennant faces) and the front merlons
 inked(g, t => turret(t, tLeft, false, true));

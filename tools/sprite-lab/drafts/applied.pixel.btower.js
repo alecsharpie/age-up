@@ -1,7 +1,9 @@
 // @pixel btower
-// Bombard Tower 2×2: squat heavy ashlar block on a battered plinth, quoins, a corbelled parapet with merlons, a timber gun deck
-// with an iron-banded bombard aimed over the battlements, a cannon port with its barrel on the shaded face, team banners on both faces.
-// Frames: idle 4 — gun smoke curls from the port's muzzle, the slow-match brazier on the deck flickers, the banners ripple.
+// Bombard Tower 2×2: a tall square gun tower. A battered ashlar talus, a slim shaft with a string course, a pair of gun ports on
+// each visible face (iron barrels run out along the face's normal), a corbelled gallery whose battlements leave a centred
+// embrasure on each front face, a stone gun deck with a bombard on a timber bed run out through each embrasure (mirrored), and
+// a slate-capped stair turret in the middle whose apex carries the code-drawn flag. One long team banner hangs centred on each face.
+// Frames: idle 4 — the deck guns smoke, the banners ripple.
 // ---- fortification kit (local to this draft): ashlar faces, flagstones, shingles, parapets, ink outline, banners, flames ----
 function hash3(a,b,c){let h=(Math.imul(a|0,374761393)+Math.imul(b|0,668265263)+Math.imul(c|0,1442695041))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
 const cloneG=g=>g.map(r=>r.slice());
@@ -142,6 +144,17 @@ function torch(g,x,y,k){pixSet(g,x,y,'y');pixSet(g,x,y-1,'y');pixSet(g,x-1,y-2,'
 /** Arrow slit with depth: shadowed left jamb, dark slot, lit right jamb, lintel and sill. h = slot height. */
 function slit(g,x,y,h,cross){pixSet(g,x,y-1,'k');pixSet(g,x+1,y-1,'k');for(let r=0;r<h;r++){pixSet(g,x,y+r,'e');pixSet(g,x+1,y+r,r===0?'k':'h')}pixSet(g,x,y+h,'h');pixSet(g,x+1,y+h,'h');if(cross){pixSet(g,x-1,y+1,'e');pixSet(g,x+1,y+1,'e');pixSet(g,x+2,y+1,'h')}}
 const lerpP=(p,q,t)=>[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];
+/** Painted team flag on a pole whose foot is at (x,y): h-px timber pole with a gold finial and a w×fh cloth flying to the
+ *  right (o.dir=-1: left) that ripples with phase ph (0..3); folds shade light/mid/dark, team-dark hems, a swallow-tail fly.
+ *  Opt-in helper (nothing calls it by default). */
+function flagpole(g,x,y,h,ph,o={}){
+  const w=o.w||10,fh=o.fh||6,dir=o.dir||1;
+  for(let r=0;r<h;r++)pixSet(g,x,y-r,'y');pixSet(g,x,y-h,'o');
+  const y0=y-h+2,a=c=>c*0.9-ph*Math.PI/2,dy=c=>Math.round(Math.sin(a(c))*Math.min(1,c/4)),fold=c=>Math.cos(a(c));
+  for(let c=1;c<=w;c++){const d=dy(c),s=fold(c),len=fh-(c===w?1:0);
+    for(let r=0;r<len;r++){const tone=s>0.45?'L':s<-0.45?'D':'T';
+      pixSet(g,x+c*dir,y0+r+d,r===len-1?'D':r===0&&tone==='T'?'L':tone)}}
+}
 const FORT_PAL={
   k:'#24180f',K:'#43382e',e:'#140d08',
   h:'#c4bba9',a:'#a69e8f',A:'#988f81',f:'#b0a798',m:'#6a6257',q:'#cfc6b3',p:'#7d7569',     // lit stone
@@ -154,87 +167,77 @@ const FORT_PAL={
   T:'team',D:'teamdark',L:'teamlight',
 };
 // ---- end kit ----
-const W=2,H=2,Z=34;
-const GW=(W+H)*32+4, GH=(W+H)*16+Z+6+10;
+const W=2,H=2,TH=8,ZS=58,PG=7,CAP=15,RISE=14;
+const S=1.46,TS=1.66,PS=1.62,CS=0.56;           // shaft, talus and gallery widths, cap turret width (tiles)
+const GW=(W+H)*32+4, GH=(W+H)*16+TH+ZS+PG+CAP+RISE+8+10;
 const bx=W*32+2, by=GH-4;
 const g=pixGrid(GW,GH);
-// battered plinth, then the main block
-const pb=pixIsoBox(g,bx,by,W+0.06,H+0.06,7,1,{left:'1',right:'2'});
-ashlar(g,'1',pb.base.L,pb.base.Bm,LIT,{ch:7,bl:12,plinth:7,seed:1});ashlar(g,'2',pb.base.Bm,pb.base.Rr,SHD,{ch:7,bl:12,plinth:7,seed:1});
-const top=pixIsoBox(g,bx,by-1,W,H,Z-1,1,{left:'1',right:'2',top:'3'});
-ashlar(g,'1',top.base.L,top.base.Bm,LIT,{ch:6,bl:11,seed:4});ashlar(g,'2',top.base.Bm,top.base.Rr,SHD,{ch:6,bl:11,seed:5});
-flagstones(g,'3',top,{n:5});
-pixLine(g,top.base.Bm[0],top.base.Bm[1]-1,top.Bm[0],top.Bm[1]+1,'K');
-// corbel table under the parapet on both faces
-machi(g,top.L,top.Bm,1,true);machi(g,top.Bm,top.Rr,1,false);
-// battlements: back parapets now, front parapets after the gun deck
-const front=crenels(g,top,W,H,{th:0.07,n:[4,4],ml:0.13,f0:0.2,lo:3,hi:7,tex:{L:[top.base.L,top.base.Bm],R:[top.base.Bm,top.base.Rr],ch:6,bl:11,seed:4}});
-// timber gun deck and the bombard pointing over the front-right parapet
-const dk=pixIsoBox(g,top.Bm[0]+4,top.Bm[1]-20,0.85,0.85,4,1,{left:'4',right:'5',top:'6'});
-planks(g,'4',dk.base.L,dk.base.Bm,{l:'w',m:'v',s:'w',g:'x',r:'x'},{bw:4,rails:[0]});planks(g,'5',dk.base.Bm,dk.base.Rr,{m:'x',s:'v',g:'y',r:'y'},{bw:4,rails:[0]});
-for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(g[y][x]==='6')g[y][x]=((x+2*y)>>3)%2?'w':'v';
-// the bombard: an iron-banded barrel on a timber bed, aimed down-right over the battlements
-const gx=dk.Bm[0]-14,gy=dk.Bm[1]-13;
-pixStamp(g,gx+2,gy+3,`
-..kkkkkkkkk......
-.kwwwwvvvvvxk....
-kwvvvvvvvvvxxk...
-.kxxxxxxxxxyyyk..
-..kyyk...kyyk....
-...kk.....kk.....
-`);
+const at=(s,z)=>[bx,by-(W-s)*16-z];             // front (Bm) corner of a centred box of width s whose base is at height z
+// ---- talus (battered footing) and shaft
+const ta=pixIsoBox(g,...at(TS,0),TS,TS,TH,1,{left:'1',right:'2',top:'3'});
+ashlar(g,'1',ta.base.L,ta.base.Bm,LIT,{ch:5,bl:12,plinth:TH,seed:1});ashlar(g,'2',ta.base.Bm,ta.base.Rr,SHD,{ch:5,bl:12,plinth:TH,seed:1});
+for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(g[y][x]==='3')g[y][x]='c';
+const sh=pixIsoBox(g,...at(S,TH),S,S,ZS,1,{left:'1',right:'2'});
+ashlar(g,'1',sh.base.L,sh.base.Bm,LIT,{ch:6,bl:10,seed:4});ashlar(g,'2',sh.base.Bm,sh.base.Rr,SHD,{ch:6,bl:10,seed:5});
+pixLine(g,sh.base.Bm[0],sh.base.Bm[1]-1,sh.Bm[0],sh.Bm[1]+1,'K');
+// string course
+const SC=Math.round(ZS*0.42);
+pixLine(g,sh.base.L[0],sh.base.L[1]-SC,sh.base.Bm[0],sh.base.Bm[1]-SC,'q');pixLine(g,sh.base.L[0],sh.base.L[1]-SC+1,sh.base.Bm[0],sh.base.Bm[1]-SC+1,'m');
+pixLine(g,sh.base.Bm[0],sh.base.Bm[1]-SC,sh.base.Rr[0],sh.base.Rr[1]-SC,'Q');pixLine(g,sh.base.Bm[0],sh.base.Bm[1]-SC+1,sh.base.Rr[0],sh.base.Rr[1]-SC+1,'M');
+// ---- gallery: corbels under an overhanging parapet wall
+const gl=pixIsoBox(g,...at(PS,TH+ZS),PS,PS,PG,1,{left:'1',right:'2',top:'3'});
+ashlar(g,'1',gl.base.L,gl.base.Bm,LIT,{ch:4,bl:9,seed:7,qL:false,qR:false});ashlar(g,'2',gl.base.Bm,gl.base.Rr,SHD,{ch:4,bl:9,seed:8,qL:false,qR:false});
+flagstones(g,'3',gl,{n:5,t1:'C',t2:'S',j:'P'});
+pixLine(g,gl.base.Bm[0],gl.base.Bm[1]-1,gl.Bm[0],gl.Bm[1]+1,'K');
+machi(g,gl.base.L,gl.base.Bm,1,true);machi(g,gl.base.Bm,gl.base.Rr,1,false);
+// battlements: four merlons per side on a symmetric rhythm, so each side has a centred embrasure
+const front=crenels(g,gl,PS,PS,{th:0.07,n:[4,4],ml:0.125,f0:0.25,lo:3,hi:8,tex:{L:[gl.base.L,gl.base.Bm],R:[gl.base.Bm,gl.base.Rr],ch:4,bl:9,seed:7}});
+// ---- stair turret in the middle with a slate pyramid cap and a door onto the deck
+const ct=pixIsoBox(g,...at(CS,TH+ZS+PG),CS,CS,CAP,1,{left:'1',right:'2'});
+ashlar(g,'1',ct.base.L,ct.base.Bm,LIT,{ch:4,bl:6,seed:9});ashlar(g,'2',ct.base.Bm,ct.base.Rr,SHD,{ch:4,bl:6,seed:10});
+pixLine(g,ct.base.Bm[0],ct.base.Bm[1]-1,ct.Bm[0],ct.Bm[1]+1,'K');
+{const p=lerpP(ct.base.L,ct.base.Bm,0.5);opening(g,Math.round(p[0])-3,Math.round(p[1])-1,5,8,0.5,{sur:'q',surround:true,fill:(c,r)=>r===2?'y':c%2?'x':'v'})}
+const eave={T:[ct.T[0],ct.T[1]-1],L:[ct.L[0]-2,ct.L[1]+1],Bm:[ct.Bm[0],ct.Bm[1]+2],Rr:[ct.Rr[0]+2,ct.Rr[1]+1]};
+const ap=pixIsoRoof(g,eave,RISE,1,{left:'r',back:'t',front:'5',right:'6'});
+shingles(g,'5',eave.L,eave.Bm,{u:'u',l:'r',m:'s',s:'t'},{ch:3,bl:4});shingles(g,'6',eave.Bm,eave.Rr,{u:'z',l:'s',m:'t',s:'u'},{ch:3,bl:4});
+pixLine(g,eave.Bm[0],eave.Bm[1],ap[0],ap[1],'r');pixSet(g,Math.round(ap[0]),Math.round(ap[1])-1,'o');
+// ---- the deck guns: a bombard on a timber bed behind each front embrasure, barrel run out along that face's normal
 const BAR=(t,o)=>{const c=o<=-2?'k':o===-1?'I':o===0?'i':o===1?'J':'k';return t%5===2&&o>-2&&o<2?(o===-1?'i':'J'):c};
-for(let t=0;t<=18;t++){const cx=gx+t,cy=gy+Math.floor(t*0.5);const r=t<2?1:2;for(let o=-r-(t<1?0:0);o<=r;o++)pixSet(g,cx,cy+o,t===0?'k':BAR(t,o))}
-{const mx=gx+18,my=gy+9;for(let o=-3;o<=3;o++){pixSet(g,mx,my+o,Math.abs(o)===3?'k':'I');pixSet(g,mx+1,my+o,Math.abs(o)===3?'k':o<0?'i':'J')}pixSet(g,mx+1,my,'e');pixSet(g,mx+1,my-1,'e');pixSet(g,mx+2,my-2,'k');pixSet(g,mx+2,my+2,'k');for(let o=-1;o<=1;o++)pixSet(g,mx+2,my+o,'k')}
-// a stack of shot beside the gun
-pixStamp(g,dk.L[0]+6,dk.L[1]-6,`
-.kk.
-kIik
-kiJkk
-.kkIik
-..kiJk
-...kk.
-`);
-const BRZ=[dk.T[0]-2,dk.T[1]+3];pixStamp(g,BRZ[0]-2,BRZ[1]-1,`
-kiIik
-.kJk.
-..y..
-`);
+const GUNS=[[gl.L,gl.Bm,-1],[gl.Bm,gl.Rr,1]].map(([A,B,dir])=>{const e=lerpP(A,B,0.5);return {dir,x:Math.round(e[0])-dir*10,y:Math.round(e[1])-5-5}});
+for(const {dir,x,y} of GUNS){   // timber bed under the barrel, with a wheel at the rear
+  for(let t=-2;t<=8;t++){const cx=x+dir*t,cy=y+Math.floor(t*0.5)+3;pixSet(g,cx,cy,t<-1?'k':'w');pixSet(g,cx,cy+1,'v');pixSet(g,cx,cy+2,'x');pixSet(g,cx,cy+3,'k')}
+  pixStamp(g,x+dir*1-2,y+4,`
+.kkk.
+kxvxk
+kvyvk
+kxvxk
+.kkk.
+`);}
 front();
-// cannon port on the shaded face with a barrel, a blind port on the lit face
-const pr=[Math.round(lerpP(top.base.Bm,top.base.Rr,0.5)[0]),Math.round(lerpP(top.base.Bm,top.base.Rr,0.5)[1]-Z*0.55)];
-pixStamp(g,pr[0]-6,pr[1]-5,`
-..qQQQQq..
-.qeeeeeeQ.
-QeeeeeeeeQ
-QeeeeeeeeQ
-QeeeeeeeeQ
-.QeeeeeeQ.
-..QQQQQQ..
-`);
-// the barrel sticks straight out of the port (down-right, along the face's normal) instead of lying flat along the wall
-for(let k=0;k<10;k++){const yy=pr[1]-4+Math.floor(k/2);pixSet(g,pr[0]-3+k,yy-1,'k');pixSet(g,pr[0]-3+k,yy,'I');pixSet(g,pr[0]-3+k,yy+1,'i');pixSet(g,pr[0]-3+k,yy+2,'J');pixSet(g,pr[0]-3+k,yy+3,'k')}
-const MZ=[pr[0]+7,pr[1]-1];pixLine(g,MZ[0],MZ[1]-1,MZ[0],MZ[1]+3,'k');pixSet(g,MZ[0]-1,MZ[1]+1,'J');
-const pl=[Math.round(lerpP(top.base.L,top.base.Bm,0.62)[0]),Math.round(lerpP(top.base.L,top.base.Bm,0.62)[1]-Z*0.5)];
-pixStamp(g,pl[0]-4,pl[1]-4,`
-.qqqq..
-qeeeeq.
-qeeeeeq
-qeeeeeq
-.qeeeeq
-..qqqq.
-`);
-// arrow slits near the corners
-slit(g,top.base.L[0]+9,top.base.L[1]-22,5,true);slit(g,top.base.Rr[0]-12,top.base.Rr[1]-22,5,true);slit(g,top.base.Bm[0]-8,top.base.Bm[1]-14,4,false);
+const MZ=[];
+const IRON=(o,r,t)=>o===-r-1||o===r?'k':t%4===1?(o<0?'i':'J'):(o+r)/(2*r)<0.34?'I':(o+r)/(2*r)<0.67?'i':'J';   // hoops every 4 px
+for(const {dir,x,y} of GUNS){const len=12,r=3;
+  for(let t=0;t<=len;t++){const cx=x+dir*t,cy=y+Math.floor(t*0.5),rr=t<1?r-1:r;for(let o=-rr-1;o<=rr;o++)pixSet(g,cx,cy+o,t===0?'k':IRON(o,rr,t))}
+  const mx=x+dir*(len+1),my=y+Math.floor((len+1)*0.5);for(let o=-r-2;o<=r+1;o++)pixSet(g,mx,my+o,o===-r-2||o===r+1?'k':o<0?'I':'i');for(let o=-r-1;o<=r;o++)pixSet(g,mx+dir,my+o,o===-r-1||o===r?'k':'e');
+  MZ.push([mx+dir*2,my-3,dir]);}
+// ---- gun ports on the shaft faces, two per face, mirrored; iron barrels run out along each face's normal
+const port=(A,B,f,lit)=>{const p=lerpP(A,B,f),x=Math.round(p[0]),y=Math.round(p[1])-SC-14,dir=lit?-1:1,c=lit?'q':'Q';
+  // a round embrasure with a splayed stone surround, the dark bore of the gun inside, a short barrel and a muzzle ring
+  for(let yy=-4;yy<=4;yy++)for(let xx=-4;xx<=4;xx++){const d=xx*xx+yy*yy*1.3;if(d<=20.5)pixSet(g,x+xx,y+yy+Math.floor((xx+0.5)*(lit?0.5:-0.5)),d>11?c:'e')}
+  for(let t=0;t<=4;t++){const cx=x+dir*t,cy=y+Math.floor(t*0.5);for(let o=-3;o<=2;o++)pixSet(g,cx,cy+o,IRON(o,2,t+2))}
+  const mx=x+dir*5,my=y+2;for(let o=-4;o<=3;o++)pixSet(g,mx,my+o-1,o===-4||o===3?'k':o<0?'I':'i');for(let o=-3;o<=2;o++)pixSet(g,mx+dir,my+o-1,o===-3||o===2?'k':'e')};
+for(const f of [0.25,0.75]){port(sh.base.L,sh.base.Bm,f,true);port(sh.base.Bm,sh.base.Rr,f,false)}
+// loops in the lower shaft, mirrored
+for(const f of [0.25,0.75]){const p=lerpP(sh.base.L,sh.base.Bm,f);slit(g,Math.round(p[0])-1,Math.round(p[1])-12,5,true);const q=lerpP(sh.base.Bm,sh.base.Rr,f);slit(g,Math.round(q[0])-1,Math.round(q[1])-12,5,true)}
 inkOutline(g);
-// idle frames
+// ---- idle frames: a banner centred on each face under the gallery, smoke curling from the deck guns' muzzles
 const SMOKE=[[[0,0],[1,-2],[0,-4]],[[1,-1],[2,-3],[1,-6],[2,-8]],[[1,-2],[3,-5],[2,-8]],[[0,-1],[2,-4],[3,-7],[3,-10]]];
+const BW=8,BL=24;
 const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
-  {const p=lerpP(top.base.L,top.base.Bm,0.22);banner(f,Math.round(p[0]),Math.round(p[1])-Z+7,8,17,k,{sl:0.5})}
-  {const p=lerpP(top.base.Bm,top.base.Rr,0.8);banner(f,Math.round(p[0])-4,Math.round(p[1])-Z+7,8,17,k+1,{sl:-0.5})}
-  flame(f,BRZ[0],BRZ[1]-1,k);
-  SMOKE[k].forEach(([dx,dy],i)=>{const x=MZ[0]+2+dx,y=MZ[1]-1+dy,big=i<SMOKE[k].length-1;pixSet(f,x,y,'X');pixSet(f,x+1,y,'X');pixSet(f,x,y-1,'V');if(big){pixSet(f,x+1,y-1,'V');pixSet(f,x-1,y,'X');pixSet(f,x,y+1,'X')}});
+  {const p=lerpP(sh.base.L,sh.base.Bm,0.5);banner(f,Math.round(p[0])-BW/2,Math.round(p[1])-ZS+3,BW,BL,k,{sl:0.5})}
+  {const p=lerpP(sh.base.Bm,sh.base.Rr,0.5);banner(f,Math.round(p[0])-BW/2,Math.round(p[1])-ZS+3,BW,BL,k+2,{sl:-0.5})}
+  MZ.forEach(([mx,my,dir],gi)=>{const sm=SMOKE[(k+gi*2)%4];sm.forEach(([dx,dy],i)=>{const x=mx+dir*dx,y=my+dy,big=i<sm.length-1;pixSet(f,x,y,'X');pixSet(f,x+1,y,'X');pixSet(f,x,y-1,'V');if(big){pixSet(f,x+1,y-1,'V');pixSet(f,x-1,y,'X');pixSet(f,x,y+1,'X')}})});
   frames.push(pixText(f));}
 export default {
   id:'btower',kind:'building',footprint:[W,H],anchor:[bx,by],

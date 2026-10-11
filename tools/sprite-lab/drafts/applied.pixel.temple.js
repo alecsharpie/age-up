@@ -15,14 +15,17 @@ const paint = (g, chs, fn) => { for (let y = 0; y < g.length; y++) for (let x = 
 const course = (x, y, s, o) => {
   const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v0 = u - row * o.h, v = o.flip ? o.h - 1 - v0 : v0;
   if (v >= o.h - 1) return o.joint;
-  const xs = x + (((row % 2) + 2) % 2) * Math.floor(o.w / 2) + (o.xoff || 0), col = Math.floor(xs / o.w);
+  // o.fall: seams follow a roof's fall line (screen dx per dy, from the ridge down to the eave) instead of the vertical
+  const xt = o.fall ? Math.round((x - o.fall * y) / (1 - o.fall * s)) : x;
+  const xs = xt + (((row % 2) + 2) % 2) * Math.floor(o.w / 2) + (o.xoff || 0), col = Math.floor(xs / o.w);
   if (o.seam && ((xs % o.w) + o.w) % o.w === 0) return o.seam;
   if (o.lip && v < 1) return o.lip;
   return o.tones[Math.floor(hash(col + 17, row + 91) * o.tones.length)];
 };
-/** Thatch: layered bands (slope s, height h) of short vertical strands; the bottom of every band is the shaded underside. */
+/** Thatch: layered bands (slope s, height h) of short vertical strands; the bottom of every band is the shaded underside.
+ *  o.flip: a back slope (downhill is up the screen), so the shaded underside is at the top of every band. */
 const thatch = (x, y, s, o) => {
-  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v = u - row * o.h;
+  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v0 = u - row * o.h, v = o.flip ? o.h - 1 - v0 : v0;
   const hx = hash(x + 5, row + 3);
   if (v >= o.h - 1 - (hx < 0.3 ? 1 : 0)) return o.under;
   return o.tones[Math.floor(hash(x >> 1, row * 7 + 1) * o.tones.length)];
@@ -41,6 +44,31 @@ const outline = (g, ink, sel = {}) => {
 const line = (g, a, b, ch, dy = 0) => pixLine(g, a[0], a[1] + dy, b[0], b[1] + dy, ch);
 /** height above the base line of an iso wall from a to b (a.x < b.x) at (x,y) */
 const wallH = (a, b, x, y) => (a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])) - y;
+/** Ground-plane paving (floors, yards, plinth tops): flagstones on the 2:1 iso grid, so every joint runs along one of the two
+ *  ground axes and the floor reads as lying flat. o.a: stone size across the down-right rows, o.b: along them (both in px of
+ *  screen height), rows staggered by half a stone; o.joint: joint colour; o.lip: optional lit edge just past each joint;
+ *  o.tones: per-stone tones; o.ox/o.oy: grid origin. */
+const pave = (x, y, o) => {
+  const X = x - (o.ox || 0), Y = y - (o.oy || 0), a = Y - X / 2, b = Y + X / 2;
+  const ra = Math.floor(a / o.a), bb = b + (((ra % 2) + 2) % 2) * Math.floor(o.b / 2), rb = Math.floor(bb / o.b);
+  const va = a - ra * o.a, vb = bb - rb * o.b;
+  if (va < 1 || vb < 1) return o.joint;
+  if (o.lip && (va < 2 || vb < 2)) return o.lip;
+  return o.tones[Math.floor(hash(ra + 31, rb + 7) * o.tones.length)];
+};
+/** pixStamp on an iso wall: each column of the template drops by slope × its distance from the centre column, so a door,
+ *  window, banner or emblem lies flat on a wall whose eave runs with that slope (+0.5 lit left face, -0.5 shaded right face). */
+const stampOn = (g, x, y, tpl, slope) => {
+  const rows = tpl.replace(/^\n+|\n+$/g, '').split('\n'), w = Math.max(...rows.map(r => r.length)), c = (w - 1) / 2;
+  rows.forEach((r, yy) => { for (let xx = 0; xx < r.length; xx++) if (r[xx] !== '.' && r[xx] !== ' ') pixSet(g, x + xx, y + yy + Math.round(slope * (xx - c) + 1e-9), r[xx]); });
+};
+/** A round window on an iso wall: fn(dx, dy) in wall units (dx along the wall, dy up it) for each cell of an R-radius disc
+ *  that the wall's slope shears and the iso view narrows (0.9). */
+const discOn = (g, cx, cy, R, slope, fn) => {
+  for (let y = -R - 3; y <= R + 3; y++) for (let x = -R - 1; x <= R + 1; x++) { const u = x / 0.9, v = y - slope * x; if (Math.hypot(u, v) > R + 0.4) continue;
+    const c = fn(u, v); if (c) pixSet(g, cx + x, cy + y, c); }
+};
+
 
 const W = 3, H = 3;
 const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 96;
@@ -55,7 +83,7 @@ const ashR = { h: 4, w: 7, joint: 'Q', seam: 'Q', tones: ['r', 'r', 's'] };
 const yard = pixIsoBox(g, bx, by, W, H, 3, 1, { left: '1', right: '2', top: '3' });
 paint(g, '1', (x, y) => course(x, y, 0.5, { h: 3, w: 6, joint: 'j', seam: 'j', tones: ['S', 'q'] }));
 paint(g, '2', (x, y) => course(x, y, -0.5, { h: 3, w: 6, joint: 'j', seam: 'j', tones: ['q', 'Q'] }));
-paint(g, '3', (x, y) => course(x, y, 0.5, { h: 5, w: 9, joint: 'z', seam: 'z', tones: ['y', 'Y', 'y', 'x'] }));
+paint(g, '3', (x, y) => pave(x, y, { a: 6, b: 8, ox: bx, oy: by, joint: 'z', tones: ['y', 'Y', 'y', 'x'] }));   // flat on the ground
 
 // ---- nave: long along x, ashlar limestone, buttresses, lancet windows with candle glow
 const NX = 0.15, NY = 0.95, NW = 2.75, NH = 1.45, Z = 26, RISE = 18;
@@ -75,7 +103,7 @@ kwwwk
 kmmmk
 `;
 const lancets = [];
-for (let k = 0; k < 6; k++) { const p = lerp(base.L, base.Bm, (k + 0.5) / 6); const x = Math.round(p[0]) - 2, y = Math.round(p[1]) - Z + 8; pixStamp(g, x, y, LANCET); lancets.push([x, y]); }
+for (let k = 0; k < 6; k++) { const p = lerp(base.L, base.Bm, (k + 0.5) / 6); const x = Math.round(p[0]) - 2, y = Math.round(p[1]) - Z + 8; stampOn(g, x, y, LANCET, 0.5); lancets.push([x, y]); }
 // buttresses: stepped piers, lit face / shade face / ink edge, a sloped cap halfway up
 for (let k = 1; k < 6; k++) { const p = lerp(base.L, base.Bm, k / 6); const x = Math.round(p[0]), y = Math.round(p[1]);
   pixRect(g, x - 2, y - Z + 6, 2, Z - 6, 'l'); pixRect(g, x, y - Z + 6, 2, Z - 6, 'r'); pixRect(g, x + 2, y - Z + 6, 1, Z - 6, 'k');
@@ -86,18 +114,20 @@ const r1 = [lerp(top.T, top.L, 0.5)[0], lerp(top.T, top.L, 0.5)[1] - RISE], r2 =
 const eL = [top.L[0] - 1, top.L[1] + 2], eB = [top.Bm[0] - 1, top.Bm[1] + 2];
 pixPoly(g, [top.T, top.Rr, r2, r1], '6');
 pixPoly(g, [top.Rr, top.Bm, r2], '8');
-pixPoly(g, [top.T, top.L, r1], '8');
+// (the far gable end at i = NX faces away from the viewer: the two roof slopes hide it, so it is not painted)
 pixPoly(g, [eL, eB, r2, r1], '7');
-paint(g, '7', (x, y) => course(x, y, 0.5, { h: 4, w: 6, joint: 'c', seam: 'b', lip: 'B', tones: ['A', 'A', 'B'] }));
-paint(g, '6', (x, y) => course(x, y, 0.5, { h: 3, w: 6, joint: 'e', seam: 'e', tones: ['c', 'b'], flip: true }));   // back slope
-paint(g, '8', (x, y) => course(x, y, 0, { h: 4, w: 7, joint: 'Q', seam: 'Q', tones: ['r', 'r', 's'] }));
+// tile seams follow each slope's fall line (ridge to eave), courses run with the eave
+const fallF = (eL[0] - r1[0]) / (eL[1] - r1[1]), fallB = (top.T[0] - r1[0]) / (top.T[1] - r1[1]);
+paint(g, '7', (x, y) => course(x, y, 0.5, { h: 4, w: 6, joint: 'c', seam: 'b', lip: 'B', tones: ['A', 'A', 'B'], fall: fallF }));
+paint(g, '6', (x, y) => course(x, y, 0.5, { h: 3, w: 6, joint: 'e', seam: 'e', tones: ['c', 'b'], flip: true, fall: fallB }));   // back slope
+paint(g, '8', (x, y) => course(x, y, -0.5, ashR));   // gable: same courses as the wall under it
 line(g, r1, r2, 'k'); line(g, r1, r2, 'B', 1); line(g, eL, eB, 'k'); line(g, eL, eB, 'e', -1);
 line(g, eB, r2, 'k'); line(g, [eB[0] + 1, eB[1]], [r2[0] + 1, r2[1]], 'B'); line(g, top.Rr, r2, 'k');
 // gable: rose window (stained glass), arched team door, cross at the peak
 const gm = lerp(top.Rr, top.Bm, 0.5);
 const ROSE = [Math.round(gm[0]), Math.round(gm[1] - 5)];
-{ const [cx, cy] = ROSE; for (let y = -5; y <= 5; y++) for (let x = -5; x <= 5; x++) { const d = Math.hypot(x, y); if (d > 5.4) continue;
-  pixSet(g, cx + x, cy + y, d > 4.4 ? 'k' : d > 3.6 ? 'q' : d < 1.2 ? 'G' : (x === 0 || y === 0 || Math.abs(x) === Math.abs(y)) ? 'k' : ((Math.atan2(y, x) * 4 / Math.PI + 8) % 2 < 1 ? 'n' : 'R')); } }
+discOn(g, ROSE[0], ROSE[1], 5, -0.5, (x, y) => { const d = Math.hypot(x, y), a = (Math.atan2(y, x) * 4 / Math.PI + 8) % 1;
+  return d > 4.4 ? 'k' : d > 3.6 ? 'q' : d < 1.2 ? 'G' : (a < 0.18 || a > 0.82) ? 'k' : ((Math.atan2(y, x) * 4 / Math.PI + 8) % 2 < 1 ? 'n' : 'R'); });
 pixStamp(g, r2[0] - 2, r2[1] - 8, `
 ..k..
 .kGk.
@@ -106,7 +136,7 @@ kGGGk
 .kGk.
 .kgk.
 `);
-{ const dm = lerp(base.Rr, base.Bm, 0.5); pixStamp(g, dm[0] - 4, dm[1] - 15, `
+{ const dm = lerp(base.Rr, base.Bm, 0.5); stampOn(g, Math.round(dm[0]) - 4, Math.round(dm[1]) - 15, `
 ...kkk...
 ..kqqqk..
 .kqTTTqk.
@@ -120,7 +150,7 @@ kqLTDTDqk
 kqLTDTDqk
 kqDDDDDqk
 kSSSSSSSk
-`); }
+`, -0.5); }
 
 // ---- bell tower at the front-left corner, ashlar with string courses, open belfry with a swinging bell, spire, gold cross
 const TX = 0.1, TY = 2.0, TS = 0.9, TZ = 50, SP = 40;
@@ -148,15 +178,15 @@ kmmmmmk
 `;
 const pL = lerp(tbase.L, tbase.Bm, 0.5), pR = lerp(tbase.Bm, tbase.Rr, 0.5);
 const BELL_L = [Math.round(pL[0]) - 3, Math.round(pL[1]) - TZ + 3], BELL_R = [Math.round(pR[0]) - 3, Math.round(pR[1]) - TZ + 3];
-pixStamp(g, BELL_L[0], BELL_L[1], BELFRY); pixStamp(g, BELL_R[0], BELL_R[1], BELFRY.replace(/m/g, 's'));
-pixStamp(g, Math.round(pL[0]) - 3, Math.round(pL[1]) - 30, `
+stampOn(g, BELL_L[0], BELL_L[1], BELFRY, 0.5); stampOn(g, BELL_R[0], BELL_R[1], BELFRY.replace(/m/g, 's'), -0.5);
+stampOn(g, Math.round(pL[0]) - 3, Math.round(pL[1]) - 30, `
 .kkkkk.
 kqnnnqk
 knnGnnk
 kqnnnqk
 .kkkkk.
-`);
-{ const pB = lerp(tbase.Bm, tbase.Rr, 0.35); pixStamp(g, Math.round(pB[0]) - 3, Math.round(pB[1]) - 31, `
+`, 0.5);
+{ const pB = lerp(tbase.Bm, tbase.Rr, 0.35); stampOn(g, Math.round(pB[0]) - 3, Math.round(pB[1]) - 31, `
 kkkkkkk
 kDTTTDk
 kTTLTTk
@@ -167,7 +197,7 @@ kTTTTTk
 kDTTTDk
 kTDTDTk
 .k.k.k.
-`); }
+`, -0.5); }
 { const roofZ = j => 3 + 24 + 20 * (NY + NH - j) / (NH / 2);   // nave front slope / wall in front of the tower's right face
   const hid = (x, y) => { if (x + 0.5 <= tbase.Bm[0]) return false; const i = TX + TS, j = i - (x + 0.5 - bx) / 32; return j < NY + NH && by - 96 + (i + j) * 16 - (y + 0.5) < roofZ(j); };
   const cells = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underTower[y][x]) cells.push([x, y]);

@@ -1,4 +1,4 @@
-const W = 2, H = 2, Z = 6, HOUSE = 14, ROOF = 9;
+const W = 2, H = 2, Z = 6, HOUSE = 17, ROOF = 9;
 const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + Z + 12 + 7 + 26;
 const bx = W * 32 + 2, by = GH - 4;
 const Tt = [bx, by - 64], L = [bx - 64, by - 32], Rr = [bx + 64, by - 32], Bm = [bx, by];
@@ -13,42 +13,71 @@ for (let k = 0; k + 1 < PILES.length; k++) { if (k === 3) continue; const [x0, y
 // ---- deck: planks running front-left to back-right, staggered butt joints, nail dots; a thick lit edge with plank ends
 const pT = up(Tt, Z), pL = up(L, Z), pR = up(Rr, Z), pB = up(Bm, Z);
 pixPoly(g, [pT, pR, pB, pL], '1');
-paint(g, '1', (x, y) => { const c = course(x, y, -0.5, { h: 3, w: 22, joint: 'q', seam: 'v', tones: ['p', 'P', 'p', 'o'] }); return c; });
+// Planks lie on the ground plane: in iso ground coordinates from pL (a along L->T / Bm->Rr, b along L->Bm; 1 unit = 2 px across)
+// they run along a, 2 b wide (4 px), with staggered butt joints that are lines of constant a, i.e. they slant 2:1 down-right
+// like the L->Bm edge instead of standing vertical.
+const PLK = 20;
+const isoAB = (x, y) => { const dx = x + 0.5 - pL[0], dy = y + 0.5 - pL[1]; return [(dx / 2 - dy) / 2, (dx / 2 + dy) / 2]; };
+paint(g, '1', (x, y) => {
+  const [a, b] = isoAB(x, y), row = Math.floor(b / 2), v = b - row * 2;
+  if (v >= 1.5) return 'q';                                                     // gap between planks
+  const aa = a + ((row * 7) % PLK), seg = Math.floor(aa / PLK), fa = aa - seg * PLK;
+  if (fa < 0.5) return 'q';                                                   // butt joint
+  if (fa < 1 && v >= 0.5 && v < 1) return 'o';                            // nail at the plank end
+  return ['p', 'P', 'p', 'Y', 'P'][Math.floor(hash(seg + 3, row + 11) * 5)];
+});
 for (const [a, b, top, mid, low] of [[pL, pB, 'w', 'u', 'v'], [pB, pR, 'u', 'v', 'V']]) { line(g, a, b, top, 0); for (let k = 1; k < 4; k++) line(g, a, b, k === 3 ? 'k' : (k === 1 ? mid : low), k); }
-for (let k = 1; k < 16; k++) { const p = lerp(pL, pB, k / 16); pixSet(g, p[0], p[1] + 1, 'V'); pixSet(g, p[0], p[1] + 2, 'V'); const q = lerp(pB, pR, k / 16); pixSet(g, q[0], q[1] + 1, 'k'); }
+// plank end grain on the L->Bm fascia, one split per plank; nail heads along the long Bm->Rr side board
+for (let n = 1; n * 2 < 32; n++) { const p = [pL[0] + 4 * n, pL[1] + 2 * n]; pixSet(g, p[0], p[1] + 1, 'V'); pixSet(g, p[0], p[1] + 2, 'V'); }
+for (let k = 1; k < 16; k++) { const q = lerp(pB, pR, k / 16); pixSet(g, q[0], q[1] + 1, 'k'); }
 // ---- boathouse on the back tile: vertical boards, open boat bay with a prow, tile roof in courses, team awning
 const hb = [bx + 2, by - 32 - Z - 2];
 const top = pixIsoBox(g, hb[0], hb[1], 0.9, 0.9, HOUSE, 1, { left: '2', right: '3' });
 const HB = top.base;
-paint(g, '2', (x, y) => { const h = wallH(HB.L, HB.Bm, x, y); return h > HOUSE - 2 ? 'v' : (x % 3 === 0 ? 'u' : (hash(x, 3) < 0.5 ? 'w' : 'W')); });
-paint(g, '3', (x, y) => { const h = wallH(HB.Bm, HB.Rr, x, y); return h > HOUSE - 2 ? 'V' : (x % 3 === 0 ? 'v' : 'u'); });
-{ const p = lerp(HB.Bm, HB.Rr, 0.5); pixStamp(g, Math.round(p[0]) - 6, Math.round(p[1]) - 13, `
-kkkkkkkkkkkk
-kvvvvvvvvvVk
-kViiiiiiiiVk
-kVii.iiiiiVk
-kViiiiiiiiVk
-kViiiiwwiiVk
-kViiiwWWwiVk
-kViiwWuuWwVk
-kViwWuuuuWVk
-kVwWuuuvvuVk
-kVkkkkkkkkVk
-`.replace(/\./g, 'i')); }
-{ const p = lerp(HB.L, HB.Bm, 0.45); pixStamp(g, Math.round(p[0]) - 3, Math.round(p[1]) - 11, `
-.kkkkk.
-kiiOiik
-kiOyOik
-kiiOiik
-kwwwwwk
-`); }
-const R = { L: [top.L[0] - 2, top.L[1] + 2], Bm: [top.Bm[0], top.Bm[1] + 3], Rr: [top.Rr[0] + 2, top.Rr[1] + 2], T: [top.T[0], top.T[1] - 1] };
+// weatherboarded walls: horizontal boards running with each wall (overlap shadow under every board, a lit lower lip, staggered
+// butt joints), corner posts, eave shadow. Openings are laid out in wall space (u along the wall, h up) so they slant with it.
+const LEN = 0.9 * 32;
+const board = (h, u, lit) => {
+  const bd = Math.floor(h / 3), vb = h - bd * 3;
+  if (((u + bd * 7) % 19 + 19) % 19 === 0) return lit ? 'u' : 'v';
+  return vb === 2 ? (lit ? 'u' : 'V') : vb === 1 ? (lit ? 'W' : 'u') : (lit ? 'w' : 'u');
+};
+const wallPaint = (A, Bp, lit, open) => (x, y) => {
+  const u = Math.floor(x + 0.5 - A[0]), h = Math.floor(wallH(A, Bp, x + 0.5, y + 0.5));
+  const o = open && open(u, h); if (o) return o;
+  if (h >= HOUSE - 2) return lit ? 'v' : 'V';
+  if (u < 2 || u >= LEN - 2) return (u < 1 || u >= LEN - 1) === lit ? 'u' : (lit ? 'w' : 'v');   // corner posts
+  if (h < 1) return lit ? 'v' : 'V';                                                         // sole plate on the deck
+  return board(h - 1, u, lit);
+};
+// lit wall: a small lamp-lit window
+const winAt = (u, h) => { const u0 = 9, u1 = 17, h0 = 4, h1 = 9; if (u < u0 || u > u1 || h < h0 || h > h1) return null;
+  if (h === h0) return 'w';                                                                  // sill
+  if (u === u0 || u === u1 || h === h1) return 'v';                                          // frame
+  return (u === 13 && (h === 6 || h === 7)) ? (h === 6 ? 'O' : 'y') : ((u === 12 || u === 14) && h === 6 ? 'O' : (u === 13 ? 'v' : 'i')); };
+// shaded wall: the open boat bay, its lintel running with the wall, a prow inside
+const bayAt = (u, h) => { const u0 = 6, u1 = 23, h1 = 8, n = u1 - u0, su = u - u0; if (u < u0 || u > u1 || h > h1 + 1) return null;
+  if (h === h1 + 1) return 'v';                                                              // lintel
+  if (su <= 1 || su >= n - 1) return su === 0 || su === n ? 'V' : 'v';                      // jambs
+  if (h === h1) return 'V';
+  const c = n / 2, d = Math.abs(su - c), w = (7 - h) * 1.2;                                // prow: stem at the centre, hull widening down
+  if (h <= 6 && d <= w) return d < 0.6 ? 'w' : (d > w - 1 ? (su < c ? 'w' : 'v') : (su < c ? 'W' : 'u'));
+  return 'i'; };
+paint(g, '2', wallPaint(HB.L, HB.Bm, true, winAt));
+paint(g, '3', wallPaint(HB.Bm, HB.Rr, false, bayAt));
+// the roof overhangs by e and drops by d along the iso axes, so its eaves stay exactly 2:1 and parallel to the courses; every
+// face uses the same tile (3-px courses, 4-px tiles, lit lip, seams), lit on the left faces and shaded on the right ones, and
+// each face's courses start from its own eave so the eave row is whole
+const e = 1.5, dr = 1.5;
+const R = { L: [top.L[0] - 2 * e, top.L[1] + dr], Bm: [top.Bm[0], top.Bm[1] + e + dr], Rr: [top.Rr[0] + 2 * e, top.Rr[1] + dr], T: [top.T[0], top.T[1] - e + dr] };
 const ap = pixIsoRoof(g, R, ROOF, 1, { back: '5', left: '6', front: '7', right: '8' });
-paint(g, '6', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'c', lip: 'g', tones: ['b'], flip: true }));   // back slopes: flip
-paint(g, '7', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', seam: 'd', lip: 'b', tones: ['c'] }));
-paint(g, '5', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', tones: ['a'], flip: true }));
-paint(g, '8', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'e', seam: 'e', lip: 'a', tones: ['d'] }));
-line(g, R.L, R.Bm, 'e'); line(g, R.Bm, R.Rr, 'e'); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], 'h');
+const LIT = { joint: 'd', seam: 'd', lip: 'g', tones: ['b', 'b', 'c'] }, SHD = { joint: 'e', seam: 'e', lip: 'a', tones: ['d', 'd', 'a'] };
+const offP = p => -Math.round(p[1] - 0.5 * p[0]), offM = p => -Math.round(p[1] + 0.5 * p[0]);
+paint(g, '7', (x, y) => course(x, y, 0.5, { h: 3, w: 4, off: offP(R.L), ...LIT }));
+paint(g, '8', (x, y) => course(x, y, -0.5, { h: 3, w: 4, off: offM(R.Bm), ...SHD }));
+paint(g, '6', (x, y) => course(x, y, -0.5, { h: 3, w: 4, off: offM(R.L), flip: true, ...LIT }));   // back slopes: flip
+paint(g, '5', (x, y) => course(x, y, 0.5, { h: 3, w: 4, off: offP(R.Rr), flip: true, ...SHD }));
+line(g, R.L, R.Bm, 'e'); line(g, R.Bm, R.Rr, 'e'); line(g, R.L, ap, 'h'); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], 'h');
 // back posts of the awning, drawn before the goods so the barrels and crate stand in front of them: the cloth's high back
 // edge rests on these instead of hanging in the air
 const AW = { A0: lerp(pL, pB, 0.22), A1: lerp(pL, pB, 0.58), D: [9, -4.5], HF: 13, HB: 16 };
@@ -137,7 +166,7 @@ export default {
   id: 'dock', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
     k: '#24180f',                                                          // ink
-    p: '#a8864f', P: '#937344', o: '#7d5f36', q: '#5a3f22',                 // deck planks / joints
+    Y: '#b8975e', p: '#a8864f', P: '#937344', o: '#7d5f36', q: '#5a3f22',                 // deck planks / joints
     w: '#a07a4a', W: '#93703f', u: '#8a6a3a', v: '#5a3a18', V: '#3b2614', K: '#2c3a40', // timber, wet pile foot
     i: '#1f1610', O: '#d8813a', y: '#ffc95a',                               // openings, lamp
     g: '#d8805c', h: '#eea582', b: '#b85a3e', c: '#a0482e', a: '#8a3a2a', d: '#73301f', e: '#4e2016', // roof tiles

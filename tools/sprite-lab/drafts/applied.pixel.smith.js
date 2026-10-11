@@ -1,7 +1,7 @@
 // @pixel smith
 // Blacksmith (2×2): coursed stone smithy under a slate gable roof, a stone chimney through the roof, a wide forge mouth in
 // the lit wall with the hearth glowing inside, tools hung on a rail, a team-striped awning over the work bench, an anvil on
-// its block in the yard with a quench tub and a coal heap on cinder-strewn earth.
+// its stump in the yard, a plank quench trough and a coal bin with a shovel against the wall, on cinder-strewn earth.
 // idle ×6: smoke puffs rise and drift from the chimney, the forge glow pulses (on the hearth, jambs and the ground), sparks fly off the anvil.
 // Drawn by drafts/building.smith.js: pixDraw(PIXELS.smith,'idle',b.built?Math.floor(G.time*5):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ---- local kit: iso faces with surface coordinates, structured textures, selective outline, seeded rng ----
@@ -141,39 +141,44 @@ wallC(g, 1.56, 0.14, 0.5, 0, 5, (U, V) => (V >= 4 ? 'w' : Math.floor(U) % 10 < 2
 wallC(g, AC, AA0, AA1, AZ0 - 2, AZ0, (U, V) => (Math.floor(U) % 4 < 2 ? 'D' : V >= 1 ? 'T' : null));
 for (const a of [AA0 + 0.02, AA1 - 0.02]) { const p = iso(a, AC, 0); for (let z = 0; z < AZ0 - 1; z++) { pixSet(g, p[0], p[1] - z, 'w'); pixSet(g, p[0] + 1, p[1] - z, 'v'); } }
 
-// ---- yard props: coal heap, quench tub, anvil on its block
-heap(g, ...iso(1.62, 1.5, 0), 6, 4, ['n', 'K', 'K', 'K'], 2, 2);
-{ const p = iso(1.82, 1.82, 0); pixStamp(g, Math.round(p[0]) - 4, Math.round(p[1]) - 7, `
-.kkkkkkk.
-kbBBBBbbk
-kwbbbbbvk
-kwwwwWWvk
-kQQQQQQVk
-kwwwwWWvk
-.kkkkkkk.
-`); }
-const AN = iso(1.04, 1.7, 0);
-function anvil(fr) {
-pixStamp(fr, Math.round(AN[0]) - 6, Math.round(AN[1]) - 12, `
-..kkkkkkkkk..
-kkmmmmmmmMMk.
-kMMMMMMMMMnnk
-.kkknMMMnkkk.
-....knMnk....
-...kwwwwvk...
-...kwWWWvk...
-...kwWWWvk...
-...kwWWvvk...
-....kkkkk....
+// a prop painted on its own layer, inked round its silhouette, then laid over the scene (so it reads against the yard)
+function inked(gr, draw) { const t = pixGrid(gr[0].length, gr.length); draw(t); outline(t, () => 'k'); for (let y = 0; y < t.length; y++) for (let x = 0; x < t[0].length; x++) if (t[y][x] !== '.') gr[y][x] = t[y][x]; }
+// ---- yard props, each built on the iso axes: a coal bin against the wall under the tool rail, a plank quench trough
+// by the anvil, and the anvil on its stump (painted per frame, in front of the forge glow)
+inked(g, g => { const BA0 = 1.42, BA1 = 1.74, BC0 = 1.3, BC1 = 1.48, BZ = 5;
+  wallC(g, BC0, BA0, BA1, 0, BZ + 1, (U, V) => (V >= BZ ? 'W' : 'v'));                                   // back board
+  heap(g, ...iso((BA0 + BA1) / 2, (BC0 + BC1) / 2, BZ - 1), 7, 3, ['M', 'n', 'x', 'K'], 6, 2);
+  wallC(g, BC1, BA0, BA1, 0, BZ - 1, (U, V) => (V >= BZ - 2 ? 'w' : Math.floor(U) % 5 === 0 ? 'v' : 'W'));
+  wallA(g, BA1, BC1, BC0, 0, BZ, (U, V) => (V >= BZ - 1 ? 'W' : 'v'));
+  // a shovel stuck in the coal
+  const sp = iso(BA0 + 0.1, BC0 + 0.08, BZ); line(g, [sp[0], sp[1]], [sp[0] - 2, sp[1] - 8], 'w'); pixSet(g, sp[0] - 2, sp[1] - 9, 'v');
+});
+inked(g, g => { const TA0 = 1.36, TA1 = 1.8, TC0 = 1.62, TC1 = 1.8, TZ = 6;
+  flat(g, TA0, TA1, TC0, TC1, TZ, (s, t) => (s < 0.06 || s > 0.94 || t < 0.16 || t > 0.84 ? (t < 0.16 || s < 0.06 ? 'W' : 'w') : (t < 0.4 && s > 0.2 && s < 0.6 ? 'B' : 'b')));
+  wallC(g, TC1, TA0, TA1, 0, TZ, (U, V) => { const u = Math.floor(U); if (u === 2 || u === 11) return 'n'; if (V >= TZ - 1) return 'w'; return Math.floor(V) === 2 ? 'v' : 'W'; });
+  wallA(g, TA1, TC1, TC0, 0, TZ, (U, V) => (V >= TZ - 1 ? 'W' : 'v'));
+});
+const NA = 1.0, NC = 1.66, NT = 13;
+const AN = iso(NA, NC, -2);
+function anvil(fr) { inked(fr, fr => {
+  // stump
+  wallC(fr, NC + 0.08, NA - 0.08, NA + 0.08, 0, 7, (U, V) => (V >= 6 ? 'w' : Math.floor(U) % 3 === 0 ? 'v' : 'W'));
+  wallA(fr, NA + 0.08, NC + 0.08, NC - 0.08, 0, 7, (U, V) => (V >= 6 ? 'W' : 'v'));
+  flat(fr, NA - 0.08, NA + 0.08, NC - 0.08, NC + 0.08, 7, () => 'u');
+});
+  // the anvil: a classic side profile (horn left, square heel right, waist, spread foot) seated on the stump top
+  const t = iso(NA, NC, 7);
+  pixStamp(fr, Math.round(t[0]) - 8, Math.round(t[1]) - 9, `
+kkkkkk..........
+kmmmmmkkkkkkkkkk
+.kkMmmmmmmmmmmmk
+...kkMMMMMMMMMnk
+.....kkMMMMMnnk.
+.......kMMMnk...
+......kMMMnnk...
+.....kNMMnnnNk..
+.....kkkkkkkkk..
 `);
-// hammer resting on the anvil face
-pixStamp(fr, Math.round(AN[0]) - 2, Math.round(AN[1]) - 14, `
-kkk.....
-kMnkkkk.
-kkkwwwvk
-....kkk.
-`);
-
 }
 // ---- per-frame life
 const GLOW = [0, 1, 2, 2, 1, 0];
@@ -181,9 +186,16 @@ const HEARTH = [['r', 'o', 'o'], ['o', 'O', 'O'], ['O', 'Y', 'Y']];
 function forge(fr, lv) {
   const [c1, c2, c3] = HEARTH[lv];
   // hearth bed at the back of the mouth: embers below, flame tongues, light on the jambs and the ground in front
-  wallC(fr, C1, FA0 + 0.08, FA1 - 0.08, 0, FZ - 1, (U, V, x) => { const u = Math.floor(U), mid = Math.abs(U - 9.5); if (V < 3) return mid < 7 ? (hash(u, 0, lv) < 0.4 ? c1 : 'r') : null; if (V < 4 + lv && mid < 4 - (V - 3) * 0.8) return V < 4 ? c2 : c3; if (V < 6 && mid < 1.5) return lv > 1 ? c2 : null; return null; });
-  if (lv) { wallC(fr, C1, FA0, FA0 + 0.06, 1, FZ - 1, (U, V) => (Math.floor(V) % 3 ? 'O' : null)); }
-  flat(fr, FA0 + 0.1, FA1 - 0.1, C1, C1 + 0.03 + 0.03 * lv, 0, (s, t, x, y) => (hash(x, y, 1) < 0.35 + lv * 0.2 ? 'o' : 'r'));
+  const span = (FA1 - FA0 - 0.12) * 32;
+  wallC(fr, C1, FA0 + 0.06, FA1 - 0.06, 0, FZ - 1, (U, V) => {
+    const u = Math.floor(U), mid = Math.abs(U - span / 2);
+    if (V < 4) return V >= 3 ? 'P' : u % 6 === 0 || V < 1 ? 'j' : 'p';                       // stone hearth bed
+    if (V < 5) return hash(u, 0, lv) < 0.4 ? c1 : c2;                                         // glowing coals on it
+    if (V < 6 + lv && mid < 4.5 - (V - 5) * 1.2) return V < 6 ? c2 : c3;                       // flame
+    return null;
+  });
+  if (lv) { wallC(fr, C1, FA0, FA0 + 0.06, 4, FZ - 1, (U, V) => (Math.floor(V) % 3 ? 'O' : null)); }
+  flat(fr, FA0 + 0.1, FA1 - 0.1, C1, C1 + 0.04 + 0.03 * lv, 0, (s, t, x, y) => (hash(x, y, 1) < 0.15 + lv * 0.15 ? (t < 0.5 ? 'o' : 'r') : null));
 }
 function smoke(fr, f) {
   const top = iso((KA0 + KA1) / 2, (KC0 + KC1) / 2, KZ);
@@ -210,7 +222,7 @@ export default {
     X: '#8a95a4', s: '#5e6876', S: '#525b68', Z: '#363c47',                                     // slate: lip, body, alt, gap/soot
     a: '#5a4430', c: '#3b2614', w: '#a07a4a', W: '#8a6a3a', v: '#5a3a18', K: '#1a1512',         // boards, timber, dark
     r: '#a8401c', o: '#ff8c2a', O: '#ffb347', Y: '#ffe08a',                                     // ember → white heat
-    m: '#e6eaee', M: '#9aa0a6', n: '#5f656c', b: '#4a6a8a', B: '#7aa0c0',                       // steel, water
+    m: '#e6eaee', M: '#9aa0a6', n: '#5f656c', N: '#3e444b', u: '#c49a5c', b: '#4a6a8a', B: '#7aa0c0',                       // steel, water
     g: '#7d7873', G: '#a29d97', H: '#c4beb8', k: '#24180f',                                     // smoke ramp, ink
     T: 'team', D: 'teamdark', L: 'teamlight',
   },

@@ -1,7 +1,8 @@
 // ==head
 // @pixel mine
 // Mining camp (2×2): a coursed-stone ore store with a board roof and a team-colour door along the back, a timber-cribbed shaft
-// with a headframe, pulley and bucket on the front-left tile, rails with an ore cart full of gold, gold and stone heaps.
+// with a headframe, pulley and bucket on the front-left tile, rails with an ore cart just out of the shaft, a gold heap at
+// the rail end, quarried stone by the front edge, pit props leaning on the end wall, a loft hatch in the boarded gable.
 // idle ×4: the pulley turns (spokes advance 45°), the bucket rides 1 px on its rope, glints twinkle across the gold.
 // Drawn by drafts/building.mine.js: pixDraw(PIXELS.mine,'idle',Math.floor(G.time*4),tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ==end
@@ -39,7 +40,15 @@ kmMMMnk
 const RA0 = -0.02, RA1 = 2.0, RC0 = 0.0, RC1 = 0.98, RR = 0.48;
 wallC(g, C1, A0, A1, Z - 2, Z, () => 'k');
 { const o = iso(RA0, RC0, Z), u = sub2(iso(RA1, RC0, Z), o), v = sub2(iso(RA0, RR, Z + ROOF), o); face(g, o, u, v, (s) => (Math.floor(s * u[0]) % 4 === 0 ? 'c' : 'a')); }
-{ const pA = iso(RA1, RC1, Z), pB = iso(RA1, RC0, Z), pC = iso(RA1, RR, Z + ROOF); poly(g, [pA, pB, pC], (x, y) => ((x - pA[0]) % 4 === 1 ? 'c' : y > pA[1] - 2 ? 'c' : 'a')); }
+// gable end: upright boards on a tie beam, a loft hatch for hoisting gear in, the hoist beam above it
+{ const span = (RC1 - RC0) * 32;
+  wallA(g, RA1, RC1, RC0, Z, Z + ROOF, (U, V) => {
+    const c = RC1 - U / 32, top = ROOF * (1 - Math.abs(c - RR) / (c > RR ? RC1 - RR : RR - RC0));
+    if (V > top) return null; if (V < 2) return V < 1 ? 'c' : 'B';                     // tie beam
+    const hu = U - span / 2; if (Math.abs(hu) < 3.5 && V >= 3 && V < 9) return Math.abs(hu) > 2.5 || V < 4 || V >= 8 ? 'B' : 'i';   // hatch
+    return Math.floor(U) % 4 === 0 ? 'c' : Math.floor(U) % 4 === 1 ? 'b' : 'a';
+  }); }
+
 { const o = iso(RA0, RC1, Z), u = sub2(iso(RA1, RC1, Z), o), v = sub2(iso(RA0, RR, Z + ROOF), o);
   face(g, o, u, v, (s, t, x, y) => {
     const U = s * u[0], b = Math.floor(U / 4), cu = U - b * 4, h = hash(b, 0, 3);
@@ -54,11 +63,12 @@ line(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), 'k');
 line(g, iso(RA1, RC1, Z), iso(RA1, RR, Z + ROOF), 'k'); line(g, iso(RA1, RC0, Z), iso(RA1, RR, Z + ROOF), 'k');
 line(g, iso(RA0, RC0, Z), iso(RA1, RC0, Z), 'k');
 
-// ---- heaps by the store: gold ore and quarried stone
-heap(g, ...iso(1.62, 1.14, 0), 9, 6, ['Y', 'y', 'z', 'Z'], 3);
-heap(g, ...iso(1.9, 1.32, 0), 7, 5, ['P', 'p', 'Q', 'V'], 4, 3);
-heap(g, ...iso(1.42, 1.0, 0), 5, 4, ['P', 'p', 'Q', 'V'], 6, 3);
-
+// ---- pit props for the shaft leaning on the store's end wall, then the gold heap where the rails end
+for (const [c, k] of [[0.22, 0], [0.34, 1], [0.46, 0], [0.58, 1], [0.7, 0]]) {
+  const f0 = iso(A1 + 0.045, c + 0.03, 0), t0 = iso(A1, c, Z - 1 - k);
+  line(g, f0, t0, 'w'); line(g, [f0[0] + 1, f0[1]], [t0[0] + 1, t0[1]], 'v'); pixSet(g, t0[0], t0[1] - 1, 'W');
+}
+heap(g, ...iso(1.74, 1.2, 0), 10, 8, ['Y', 'y', 'z', 'Z'], 3, 3);
 // ---- the shaft: timber cribbing, inner walls going down into the dark
 const S0 = 0.16, S1 = 0.86, T0 = 1.14, T1 = 1.84;
 flat(g, S0, S1, T0, T1, 0, () => 'K');
@@ -70,18 +80,23 @@ line(g, iso(S0, T0, 0), iso(S0, T1, 0), 'W'); line(g, iso(S0, T0, 1), iso(S0, T1
 wallC(g, T1, S0, S1 + 0.04, 0, 3, (U, V) => (Math.floor(U) % 11 === 0 ? 'V' : V >= 2 ? 'w' : V >= 1 ? 'W' : 'v'));
 wallA(g, S1 + 0.04, T1, T0, 0, 3, (U, V) => (Math.floor(U) % 11 === 0 ? 'V' : V >= 2 ? 'W' : 'v'));
 
-// ---- rails from the shaft to the front-right, sleepers, the ore cart
-for (let a = 0.92; a < 1.96; a += 0.11) line(g, iso(a, 1.43, 0), iso(a, 1.69, 0), 'v');
-line(g, iso(0.9, 1.47, 0), iso(1.96, 1.47, 0), 'n'); line(g, iso(0.9, 1.47, 1), iso(1.96, 1.47, 1), 'M');
-line(g, iso(0.9, 1.65, 0), iso(1.96, 1.65, 0), 'n'); line(g, iso(0.9, 1.65, 1), iso(1.96, 1.65, 1), 'M');
-{ const ca0 = 1.32, ca1 = 1.72, cc0 = 1.42, cc1 = 1.7, cz0 = 3, cz1 = 10;
-  // wheels behind (far side) first
-  for (const a of [ca0 + 0.08, ca1 - 0.08]) { const p = iso(a, cc0, 3); disc(g, Math.round(p[0]), Math.round(p[1]), 2, (dx, dy, ring) => (ring ? 'k' : 'n')); }
-  heap(g, ...iso((ca0 + ca1) / 2, (cc0 + cc1) / 2, cz1 - 1), 9, 4, ['Y', 'y', 'z', 'Z'], 9);
-  wallC(g, cc1, ca0, ca1, cz0, cz1, (U, V) => { const u = Math.floor(U); if (u < 1 || u >= 12) return 'v'; if (V >= cz1 - cz0 - 1) return 'n'; if (V < 1) return 'n'; return Math.floor(V) % 3 === 0 ? 'W' : 'w'; });
-  wallA(g, ca1, cc1, cc0, cz0, cz1, (U, V) => { if (V >= cz1 - cz0 - 1 || V < 1) return 'n'; return Math.floor(V) % 3 === 0 ? 'v' : 'W'; });
-  for (const a of [ca0 + 0.08, ca1 - 0.08]) { const p = iso(a, cc1, 3); disc(g, Math.round(p[0]), Math.round(p[1]), 3, (dx, dy, ring) => (ring ? 'k' : (dx === 0 && dy === 0) ? 'M' : dx + dy < 0 ? 'M' : 'n')); }
+// ---- rails from the shaft to the gold heap, sleepers under them, the ore cart just out of the shaft
+for (let a = 0.92; a < 1.62; a += 0.11) line(g, iso(a, 1.43, 0), iso(a, 1.69, 0), 'v');
+line(g, iso(0.9, 1.47, 0), iso(1.6, 1.47, 0), 'n'); line(g, iso(0.9, 1.47, 1), iso(1.6, 1.47, 1), 'M');
+line(g, iso(0.9, 1.65, 0), iso(1.6, 1.65, 0), 'n'); line(g, iso(0.9, 1.65, 1), iso(1.6, 1.65, 1), 'M');
+// buffer stop at the rail end
+wallC(g, 1.7, 1.6, 1.66, 0, 4, (U, V) => (V >= 3 ? 'w' : 'v'));
+// (the cart stands in front of the headframe's right post, so it is painted per frame after that post: see cart())
+function cart(g) { const ca0 = 1.06, ca1 = 1.4, cc0 = 1.43, cc1 = 1.69, cz0 = 3, cz1 = 9;
+  // the box's open top: dark inside, back rims, a mound of ore that sits inside and only crowns above the rim
+  flat(g, ca0, ca1, cc0, cc1, cz1, (s, t) => (s < 0.08 || t < 0.1 ? 'W' : 'i'));
+  heap(g, ...iso((ca0 + ca1) / 2, (cc0 + cc1) / 2, cz1 - 2), 8, 4, ['Y', 'y', 'z', 'Z'], 9);
+  wallC(g, cc1, ca0, ca1, cz0, cz1, (U, V) => { const u = Math.floor(U); if (u === 0 || u === 10) return 'n'; if (V >= cz1 - cz0 - 1) return 'w'; return Math.floor(V) === 2 ? 'n' : 'W'; });
+  wallA(g, ca1, cc1, cc0, cz0, cz1, (U, V) => (V >= cz1 - cz0 - 1 ? 'W' : Math.floor(V) === 2 ? 'J' : 'v'));
+  for (const a of [ca0 + 0.07, ca1 - 0.07]) { const p = iso(a, cc1 + 0.01, 2); disc(g, Math.round(p[0]), Math.round(p[1]), 2, (dx, dy, ring) => (ring ? 'k' : dx + dy < 0 ? 'M' : 'n')); }
 }
+// quarried stone by the front edge, clear of the rails
+heap(g, ...iso(1.62, 1.9, 0), 7, 5, ['P', 'p', 'Q', 'V'], 4, 3);
 
 // ---- headframe over the shaft: two posts with braces, a crossbeam, the team banner
 const HZ = 30, HL = 0.08, HR = 0.94, HC = 1.5;
@@ -109,10 +124,10 @@ kWyYyvk
 .kvvvk.
 `);
   // glints: one twinkle star per frame on the gold (heap and cart)
-  const gl = [iso(1.58, 1.1, 5), iso(1.5, 1.52, 13), iso(1.7, 1.18, 2), iso(1.42, 1.6, 12)][f];
+  const gl = [iso(1.66, 1.12, 7), iso(1.2, 1.5, 11), iso(1.8, 1.22, 4), iso(1.28, 1.58, 9)][f];
   const [gx, gy] = [Math.round(gl[0]), Math.round(gl[1])];
   pixSet(fr, gx, gy, 'G'); pixSet(fr, gx - 1, gy, 'Y'); pixSet(fr, gx + 1, gy, 'Y'); pixSet(fr, gx, gy - 1, 'Y'); pixSet(fr, gx, gy + 1, 'Y');
-  const g2 = [iso(1.66, 1.06, 3), iso(1.56, 1.12, 6), iso(1.46, 1.55, 12), iso(1.6, 1.58, 11)][(f + 2) % 4]; pixSet(fr, g2[0], g2[1], 'G');
+  const g2 = [iso(1.7, 1.06, 5), iso(1.62, 1.16, 8), iso(1.16, 1.54, 10), iso(1.84, 1.3, 3)][(f + 2) % 4]; pixSet(fr, g2[0], g2[1], 'G');
 }
 function front(fr) {
   post(fr, HR);
@@ -132,7 +147,7 @@ kTTTTDk
 }
 const inkOf = ch => (GROUND.includes(ch) ? 'X' : 'k');
 const frames = [];
-for (let f = 0; f < 4; f++) { const fr = clone(g); animated(fr, f); front(fr); outline(fr, inkOf); frames.push(pixText(fr)); }
+for (let f = 0; f < 4; f++) { const fr = clone(g); animated(fr, f); front(fr); cart(fr); outline(fr, inkOf); frames.push(pixText(fr)); }
 
 export default {
   id: 'mine', kind: 'building', footprint: [W, H], anchor: [bx, by],

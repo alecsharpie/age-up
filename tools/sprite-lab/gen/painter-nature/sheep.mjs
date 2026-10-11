@@ -1,114 +1,128 @@
-import { grid, ell, line, stamp, outline, text, shift, set, get, emit } from './lib.mjs';
+// Sheep (feedback round 1 repaint): a deep woolly barrel on short thin dark legs, a small dark wedge head carried low on a
+// short wool-covered neck, ears out sideways, a stubby wool tail. Fleece is lumpy (wool locks as small volumes + crimp marks),
+// lit from the upper-left. Usage: node tools/sprite-lab/gen/painter-nature/sheep.mjs tools/sprite-lab/drafts/pixel.sheep.js
+import { paint, despeckle, text, put, get, hash, emit } from './quad.mjs';
 import fs from 'fs';
 const W = 21, H = 14, GY = 13;
-const FL = ['g', 'f', 'F', 'G'];
-const HEAD = {
-  up: `
-.KKk...
-pKkkk..
-.Kkekkk
-..kkkkk
-...kkkn
-....kn.`,
-  upEar: `
-pKKk...
-.Kkkk..
-.Kkekkk
-..kkkkk
-...kkkn
-....kn.`,
-  recoil: `
-..KKk..
-.pKkkk.
-..Kkekk
-..kkkkk
-...kkkn
-....kn.`,
-  down: `
-.KK...
-pKkk..
-.Kkkk.
-..kekk
-..kkkk
-..kkkk
-...kkn`,
-  down2: `
-......
-.KK...
-pKkk..
-.Kkkk.
-..kekk
-..kkkk
-...kkn`,
-  dead: `
-....pp...
-.KKkkkkk.
-.Kkkkkkkn
-..kkkkkn.`,
+const mats = {
+  wool: { t: ['g', 'f', 'F', 'G'], thr: [0.55, 0.12, -0.32], ink: 'o', rim: 'G' },
+  face: { t: ['K', 'k', 'j', 'n'], thr: [0.55, 0.1, -0.3], ink: 'n', rim: 'n' },
 };
-const LIT = { g: 'F', f: 'F', F: 'G', G: 'G', K: 'k', k: 'k', p: 'k', e: 'k', n: 'n' };
+// p: {ox, bob, by, legs:[[dx,lift]x4 nearHind,nearFore,farHind,farFore], head:'up'|'ear'|'down'|'down2'|'recoil'|'dead', tail, T, lying}
 function sheep(p) {
-  const g = grid(p.W || W, H); const ox = p.ox || 0;
-  const bx = 8 + ox + (p.bx || 0), by = 6.5 + (p.by || 0) + (p.bob || 0);
-  const legs = p.legs || [[0, 0], [0, 0], [0, 0], [0, 0]]; // [nearBack, nearFront, farBack, farFront] each [dx, lift]
-  const hipY = Math.round(by + 3.4);
-  const hips = [bx - 4, bx + 3, bx - 2, bx + 5];
-  // far legs behind the body
-  for (const k of [2, 3]) if (!p.lying) { const [dx, lf] = legs[k]; line(g, hips[k], hipY, hips[k] + dx, GY - lf, 'n'); }
-  // fleece body: main + wool bumps (each its own little sphere so the coat reads curly)
-  const th = p.th || 0, ry = p.ry || 3.6;
-  ell(g, bx, by, 6, ry, FL, { th });
-  const bumps = p.lying ? [[-3.5, -2.2, 2.6, 1.6], [0.5, -2.6, 3, 1.6], [4, -1.8, 2.2, 1.4], [-5.4, 0, 1.6, 2]] : [[-3.5, -2.5, 2.7, 2], [0.5, -2.9, 3.3, 1.7], [4, -2.3, 2.3, 1.8], [-5.4, 0.2, 1.8, 2.3]];
-  for (const [dx, dy, rx, r2] of bumps) ell(g, bx + dx * Math.cos(th) - dy * Math.sin(th), by + dx * Math.sin(th) + dy * Math.cos(th), rx, r2, FL.slice(0, 3), { thr: [0.62, 0.25, -0.5] });
-  // wool curls: short shade scallops on the mid tone, staggered so they read as fleece, not noise
-  for (let y = 0; y < H; y++) for (let x = 0; x < g[0].length; x++) if ((y % 2 === 0) && ((x + (y % 4 === 0 ? 0 : 2)) % 4 === 0) && get(g, x, y) === 'f' && get(g, x + 1, y) === 'f' && get(g, x, y + 1) === 'f') { set(g, x, y, 'F'); }
-  // tail
-  if (!p.lying) ell(g, bx - 6.6, by - 1 - (p.tail ? 1.2 : 0), 1.2, 1.4, FL.slice(0, 3), { thr: [0.6, 0.2, -0.5] });
-  // head
-  const hk = p.head || 'up', hp = { up: [13, 1], upEar: [13, 1], recoil: [12, 0], down: [14, 6], down2: [14, 6], dead: [12, 7] }[hk];
-  if (hk === 'up' || hk === 'upEar' || hk === 'recoil') ell(g, 13.6 + ox + (p.bx || 0) + (p.hx || 0), 1.6 + (p.bob || 0) + (p.hy || 0), 1.4, 1.0, ['g', 'f', 'F'], { thr: [0.5, 0, -1] }); // wool top-knot
-  stamp(g, hp[0] + ox + (p.bx || 0) + (p.hx || 0), hp[1] + (p.bob || 0) + (p.hy || 0), HEAD[hk]);
-  // selective outline: top edges of the left part lighten to the material's shade
-  const cx = bx;
-  outline(g, 'o', (x, y, nb) => (nb[0] !== '.' && nb[0] !== 'o' && x < cx + 1 && y < by - 1) ? LIT[nb[0]] : null);
-  // near legs over the outline (dark already)
-  if (!p.lying) for (const k of [0, 1]) { const [dx, lf] = legs[k]; line(g, hips[k], hipY, hips[k] + dx, GY - lf, 'k'); set(g, hips[k] + dx, GY - lf, 'n'); }
-  else for (const [hx, hy, ex, ey] of p.lying) { line(g, hx + ox, hy, ex + ox, ey, 'k'); set(g, ex + ox, ey, 'n'); }
-  if (p.after) p.after(g);
+  const ox = p.ox || 0, by = (p.by || 0) + (p.bob || 0), X = x => x + ox;
+  const legs = p.legs || [[0, 0], [0, 0], [0, 0], [0, 0]], hd = p.head || 'up';
+  const forms = [
+    { cx: X(9.2), cy: 6.4 + by, rx: 6.2, ry: 3.4 * (p.ry || 1), mat: 'wool' },            // barrel
+    { cx: X(4.6), cy: 6.3 + by, rx: 3.3, ry: 3.3 * (p.ry || 1), mat: 'wool' },            // quarters
+    { cx: X(13.2), cy: 6.2 + by, rx: 3.0, ry: 3.2 * (p.ry || 1), mat: 'wool' },           // shoulder / chest
+    ...(p.lying ? [] : [{ cx: X(6.2), cy: 3.6 + by, rx: 2.4, ry: 1.4, mat: 'wool', z: 0 },   // wool locks along the back
+    { cx: X(10.4), cy: 3.4 + by, rx: 2.6, ry: 1.4, mat: 'wool', z: 0 }]),
+    { cx: X(2.4), cy: 5.4 + by - (p.tail ? 0.8 : 0), rx: 1.1, ry: 1.5, mat: 'wool' },      // tail
+  ];
+  // head: a small dark wedge (long Roman nose, ear out behind the poll), hand-drawn per pose; the neck is a wool volume
+  const HD = {
+    up: [`
+.Kk...
+nKkk..
+.kekj.
+..kkjj
+...jn.`, 15.2, 1.6],
+    ear: [`
+n.....
+.Kk...
+pKkk..
+.kekj.
+..kkjj
+...jn.`, 15.2, 0.6],
+    recoil: [`
+..Kk..
+nKkkk.
+.kekkj
+..kjjn`, 14.6, 0.6],
+    down: [`
+nKk.
+.Kkk
+.kek
+.kkj
+..kj
+..jn`, 16.4, 7.5],
+    down2: [`
+.Kk.
+nKkk
+.kek
+.kkj
+..kj
+..jn`, 16.5, 7.8],
+    dead: [`
+.nKkk..
+..kkekj
+...jjjn`, 16, 10.2],
+  }[hd];
+  const hx = X(HD[1] + (p.hx || 0)), hy = HD[2] + (hd.startsWith('down') || hd === 'dead' ? 0 : by) + (p.hy || 0);
+  const neck = hd.startsWith('down') ? { cx: X(15.0), cy: 7.4 + by, rx: 2.3, ry: 2.0, ang: 1.0 } : hd === 'dead' ? { cx: X(15.0), cy: 10.4 + by * 0.2, rx: 2.4, ry: 1.6, ang: 0.2 } : { cx: X(14.4), cy: 5.0 + by, rx: 2.4, ry: 2.2, ang: -0.6 };
+  forms.push({ ...neck, mat: 'wool', z: 1 });
+  const hips = [[X(4.4), 8.4 + by], [X(12.4), 8.6 + by], [X(6.6), 8.0 + by], [X(14.4), 8.2 + by]];
+  const base = [X(4.0), X(12.6), X(6.8), X(14.6)];
+  const L = p.lying ? p.lying.map(([a, b, c, d, e, f], i) => ({ pts: [[X(a), b], [X(c), d], [X(e), f]], far: i > 1, mat: 'face', w: [1.6, 1.2, 1.0], hoof: 'n' }))
+    : legs.map(([dx, lift], i) => ({ hip: hips[i], foot: [base[i] + dx + 0.5, GY + 0.5 - lift - (i > 1 ? 0.6 : 0)], L1: 3.0, L2: 2.7, bend: i % 2 === 0 ? 'hind' : 'fore', far: i > 1, mat: 'face', w: [2.0, 1.0, 0.9], hoof: 'n' }));
+  const r = paint(p.W || W, H, {
+    T: p.T, mats, forms, legs: L, stamps: [{ x: hx, y: hy, txt: HD[0], mat: 'face' }],
+    // crimp: small staggered shadow ticks with a lit pixel above them, so the coat reads as locks of wool, not a cloud
+    tex: (x, y, inf) => {
+      if (inf.mat !== 'wool') return null;
+      const row = Math.floor((y - by) / 2.5), k = (x + row * 2 + (row % 2) * 1) % 4;
+      if (inf.t <= 1 && k === 0 && hash(x, row, 3) < 0.75) return inf.t === 0 ? 'f' : 'F';
+      return null;
+    },
+    keep: 'nkKj',
+  });
+  let g = despeckle(r.g, 'eprRq');
+  if (p.after) p.after(g, ox);
   return text(g);
 }
-// walk: diagonal pairs (nearFront+farBack) and (nearBack+farFront), 6 frames
-const DX = [1, 0, -1, -1, 0, 1], LF = [0, 0, 0, 1, 1, 0], BOB = [0, -1, 0, 0, -1, 0];
-const walk = [0, 1, 2, 3, 4, 5].map(i => { const a = i, b = (i + 3) % 6; return sheep({ bob: BOB[i], legs: [[DX[b], LF[b]], [DX[a], LF[a]], [DX[a], LF[a]], [DX[b], LF[b]]], head: 'up', hy: i % 3 === 1 ? 1 : 0 }); });
-const stand = { legs: [[0, 0], [0, 0], [-1, 0], [1, 0]] };
-const idleA = sheep({ ...stand, head: 'up' });
-const idleEar = sheep({ ...stand, head: 'upEar' });
-const idleTail = sheep({ ...stand, head: 'up', tail: 1, by: 0 });
-const idleBreath = sheep({ ...stand, head: 'up', ry: 3.3, by: 0.3 });
-const graze1 = sheep({ ...stand, head: 'down' });
-const graze2 = sheep({ ...stand, head: 'down2', tail: 1 });
-// death: recoil, buckle, fall, impact, bounce, settle (wider grid for the corpse)
-const DW = 23, D = { W: DW, ox: 1 };
-const lieLegs = [[5, 10, 9, 13], [7, 10, 11, 13], [12, 10, 16, 13], [14, 10, 18, 12]];
-const blood = g => { for (const [x, y, c] of [[12, 13, 'R'], [13, 13, 'r'], [14, 13, 'r'], [15, 13, 'R'], [17, 13, 'r'], [18, 13, 'R'], [19, 13, 'R']]) if (get(g, x, y) === '.' || get(g, x, y) === 'o') set(g, x, y, c); for (const [x, y, c] of [[12, 8, 'q'], [13, 8, 'r'], [12, 9, 'r'], [13, 9, 'R']]) set(g, x, y, c); };
+// walk: diagonal pairs (near hind with far fore), 6 frames; feet sweep back on the ground and swing forward lifted
+const gait = ph => { ph = ((ph % 1) + 1) % 1; if (ph < 0.62) return [Math.round(1.6 - ph / 0.62 * 3.2), 0]; const s = (ph - 0.62) / 0.38; return [Math.round(-1.6 + s * 3.2), s > 0.15 && s < 0.85 ? 1 : 0]; };
+const OFF = [0, 0.5, 0.5, 0];   // nearHind, nearFore, farHind, farFore
+const walk = [0, 1, 2, 3, 4, 5].map(k => sheep({ legs: OFF.map(o => gait(k / 6 + o)), bob: [0, -0.4, 0, 0, -0.4, 0][k], hy: k % 3 === 1 ? -0.4 : 0 }));
+const stand = { legs: [[0, 0], [0, 0], [0, 0], [0, 0]] };
+const idleA = sheep({ ...stand });
+const idleBreath = sheep({ ...stand, by: 0.35, ry: 0.96 });
+const idleEar = sheep({ ...stand, head: 'ear' });
+const idleTail = sheep({ ...stand, tail: 1 });
+const graze1 = sheep({ ...stand, legs: [[0, 0], [1, 0], [0, 0], [1, 0]], head: 'down' });
+const graze2 = sheep({ ...stand, legs: [[0, 0], [1, 0], [0, 0], [1, 0]], head: 'down2', tail: 1 });
+// death (23 wide, anchor 11): recoil, knees buckle, falling, impact, bounce, settle; last frame = carcass
+const D = { W: 23, ox: 1 };
+const wound = (x, y) => (g, ox) => { put(g, x + ox, y, 'r'); };
+const lie = [[4.5, 10.8, 6.5, 12.2, 9, 13.2], [11.5, 10.8, 13.5, 12.2, 16, 13.2]];   // the near legs stick out stiff; far legs hidden under the body
+const blood = (g, ox) => {
+  for (const [x, y, c] of [[11, 13, 'R'], [12, 13, 'r'], [13, 13, 'r'], [14, 13, 'R'], [16, 13, 'r'], [17, 13, 'R']]) if (get(g, x + ox, y) === '.' || get(g, x + ox, y) === 'o') put(g, x + ox, y, c);
+  for (const [x, y, c] of [[11, 9, 'q'], [12, 9, 'r'], [11, 10, 'r'], [12, 10, 'R']]) put(g, x + ox, y, c);
+};
 const death = [
-  sheep({ ...D, head: 'recoil', bx: -1, legs: [[-1, 0], [1, 0], [-1, 0], [1, 0]], after: g => { set(g, 13, 6, 'r'); } }),
-  sheep({ ...D, head: 'down', th: 0.2, by: 1, hy: 1, legs: [[0, 0], [-2, 0], [-1, 0], [-1, 0]], after: g => { set(g, 13, 7, 'r'); } }),
-  sheep({ ...D, head: 'dead', hx: 1, hy: -1, th: -0.1, by: 1.4, ry: 3.1, lying: [[5, 9, 6, 13], [7, 9, 9, 13], [12, 9, 14, 13], [13, 9, 15, 12]] }),
-  sheep({ ...D, head: 'dead', hx: 1, by: 2, ry: 2.8, lying: lieLegs }),
-  sheep({ ...D, head: 'dead', hx: 1, hy: -1, by: 1, ry: 2.8, lying: lieLegs.map(([a, b, c, d]) => [a, b - 1, c, d - 1]) }),
-  sheep({ ...D, head: 'dead', hx: 1, by: 2, ry: 2.8, lying: lieLegs, after: blood }),
+  sheep({ ...D, head: 'recoil', hx: -0.6, legs: [[-1, 0], [1, 0], [-1, 0], [1, 0]], after: wound(12, 6) }),
+  sheep({ ...D, head: 'down', by: 1.2, legs: [[0, 0], [-2, 2], [0, 0], [-2, 2]], T: { ang: 0.12, px: 5, py: 13 }, after: wound(12, 8) }),
+  sheep({ ...D, head: 'dead', by: 2.2, ry: 0.88, lying: lie.map(r => r.map((v, i) => i % 2 ? v - 0.6 : v)) }),
+  sheep({ ...D, head: 'dead', by: 2.3, ry: 0.78, lying: lie }),
+  sheep({ ...D, head: 'dead', by: 1.7, ry: 0.78, lying: lie.map(r => r.map((v, i) => i % 2 ? v - 0.6 : v)) }),
+  sheep({ ...D, head: 'dead', by: 2.3, ry: 0.78, lying: lie, after: blood }),
 ];
 const spec = {
   id: 'sheep', anchor: [10, 14], fps: { idle: 3, death: 10 }, anchors: { death: [11, 14] },
   palette: {
-    o: ['#24180f', 'ink outline'], g: ['#fbf6ea', 'fleece light'], f: ['#e6dfcf', 'fleece'], F: ['#bcb6a8', 'fleece shade (cooler)'], G: ['#8e8a80', 'fleece deep'],
-    K: ['#5e554c', 'face light'], k: ['#3a342e', 'face, legs'], n: ['#1e1a16', 'hooves, deep'], p: ['#b8786c', 'inner ear'], e: ['#e0d8c8', 'eye glint'],
+    o: ['#3b3128', 'ink (warm dark grey-brown, softer than black against the fleece)'],
+    g: ['#f4eedd', 'fleece light'], f: ['#ddd4bf', 'fleece'], F: ['#b3a993', 'fleece shade (cooler)'], G: ['#857c6c', 'fleece deep / lit rim'],
+    K: ['#6a5d52', 'face light'], k: ['#463c34', 'face, legs'], j: ['#2e2722', 'face shade'], n: ['#1c1714', 'hooves, deep'],
+    p: ['#a87064', 'inner ear'], e: ['#7a6440', 'eye (dull amber)'],
     r: ['#a8242c', 'blood'], R: ['#5e1418', 'blood dark'], q: ['#d8606a', 'wound'],
   },
   frames: { idle: [idleA, idleBreath, idleEar, idleA, graze1, graze2, graze1, idleTail], walk, death },
 };
-fs.writeFileSync(process.argv[2].replace(".js",".json").replace(/.*\//,""), JSON.stringify(spec));
-fs.writeFileSync(process.argv[2], emit('sheep', ['Sheep, facing right: curly white fleece (each wool bump its own little sphere, lit from the upper-left), black face and legs. Wild: no team keys.',
-  'Composed by a script (paint body once, move legs/head stamps per frame), then emitted as literal grids. 20×14, hooves on the bottom row.',
-  'idle: breathe, ear twitch, graze (head down, chew), tail flick. walk: 6-frame diagonal-pair trot with 1px bob. death: recoil, buckle, fall, impact, bounce, settle; last frame = carcass (22×14).'], spec));
+fs.writeFileSync(process.argv[2], emit('sheep', [
+  'Sheep, facing right (feedback round 1 repaint): a deep woolly barrel on short thin dark legs with a hock behind and a knee in front,',
+  'a small dark wedge head carried low on a short wool-covered neck, ears out sideways, stubby tail. Fleece = overlapping lit volumes',
+  '+ crimp ticks (light upper-left); outline is a warm dark grey on the shaded side and the fleece deep tone on the lit rim. Wild: no team keys.',
+  'Generated by tools/sprite-lab/gen/painter-nature/sheep.mjs (shared painter quad.mjs). 21×14, hooves on the bottom row.',
+  'idle: stand, breathe, ear flick, graze (head down to the grass, chew), tail flick. walk: 6-frame walk, diagonal pairs, 1px bob.',
+  'death: recoil, front knees buckle, fall, impact, bounce, settle; last frame = carcass (23×14).'], spec));

@@ -1,52 +1,66 @@
-const W = 2, H = 2, Z = 16, ROOF = 24, PL = 3;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + Z + ROOF + 14;
+const W = 2, H = 2, Z = 20, ROOF = 24, PL = 3;
+// canvas kept at its old size (it was sized for Z 16): the taller walls use the headroom over the ridge
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 40 + 14;
 const bx = W * 32 + 2, by = GH - 4;
 const g = pixGrid(GW, GH);
 
-// ---- walls: stone plinth, wattle-and-daub panels in a timber frame
+// ---- walls: stone plinth, close-studded timber frame (sill beam, studs, mid rail, top plate) with daub panels.
+// Every opening is laid out in wall space (u along the wall from its left end, h height above the base line), so windows,
+// doors, rails and straps follow the wall's iso slope instead of being upright screen rectangles.
 const top = pixIsoBox(g, bx, by, W, H, Z, 1, { left: 'l', right: 'r' });
 const B = top.base;
-paint(g, 'l', (x, y) => { const h = wallH(B.L, B.Bm, x, y); return h < PL ? course(x, y, 0.5, { h: 3, w: 6, joint: 'j', tones: ['S', 'q', 'S'], lip: 'S' }) : (h > Z - 3 ? 'h' : (hash(x >> 2, Math.floor((y - 0.5 * x) / 3)) < 0.25 ? 'm' : 'l')); });
-paint(g, 'r', (x, y) => { const h = wallH(B.Bm, B.Rr, x, y); return h < PL ? course(x, y, -0.5, { h: 3, w: 6, joint: 'j', tones: ['q', 'Q', 'q'], lip: 'q' }) : (h > Z - 3 ? 'H' : (hash(x >> 2, Math.floor((y + 0.5 * x) / 3)) < 0.25 ? 's' : 'r')); });
-// timber frame: corner/mid posts, sill beam over the plinth, mid rail, braces
-const post = (a, b, t, lit) => { const p = lerp(a, b, t); pixLine(g, p[0], p[1] - Z + 2, p[0], p[1] - PL, lit ? 't' : 'u'); pixLine(g, p[0] + 1, p[1] - Z + 2, p[0] + 1, p[1] - PL, lit ? 'u' : 'v'); };
-for (const t of [0.02, 0.5, 0.97]) post(B.L, B.Bm, t, true);
-for (const t of [0.5, 0.97]) post(B.Bm, B.Rr, t, false);
-line(g, B.L, B.Bm, 't', -PL); line(g, B.L, B.Bm, 'u', -PL + 1);
-line(g, B.Bm, B.Rr, 'u', -PL); line(g, B.Bm, B.Rr, 'v', -PL + 1);
-line(g, B.L, B.Bm, 't', -9); line(g, B.Bm, B.Rr, 'u', -9);
-{ const a = lerp(B.L, B.Bm, 0.53), b = lerp(B.L, B.Bm, 0.95); pixLine(g, a[0] + 2, a[1] - PL - 1, b[0] - 1, b[1] - 9, 'u'); pixLine(g, a[0] + 2, a[1] - PL - 2, b[0] - 1, b[1] - 10, 't'); }
-{ const a = lerp(B.Bm, B.Rr, 0.53), b = lerp(B.Bm, B.Rr, 0.95); pixLine(g, a[0] + 2, a[1] - 9, b[0] - 1, b[1] - PL - 1, 'v'); }
-// corner quoins on the front corner
-for (let k = 0; k < Z - 3; k += 3) { pixRect(g, B.Bm[0] - 2, B.Bm[1] - k - 3, 2, 2, 'S'); pixRect(g, B.Bm[0], B.Bm[1] - k - 3, 2, 2, 'q'); pixSet(g, B.Bm[0] - 2, B.Bm[1] - k - 1, 'j'); pixSet(g, B.Bm[0] + 1, B.Bm[1] - k - 1, 'Q'); }
-// window on the lit wall: deep recess, warm glow, team shutters, stone sill
-const WIN = lerp(B.L, B.Bm, 0.27);
-pixStamp(g, WIN[0] - 5, WIN[1] - 11, `
-...vvvvv....
-.TTvwwwvD...
-.TLvwggvD...
-.TLvwgGvDD..
-.TTvwggvTD..
-..DvvvvvTD..
-...SSSSSqD..
-.......qq...
-`);
-// door in team colour on the shaded wall: plank leaves, iron strap, dark frame and step
-const DR = lerp(B.Bm, B.Rr, 0.3);
-pixStamp(g, DR[0] - 4, DR[1] - 12, `
-.vvvvvvv.
-vLTTTDTDv
-vLTTTDTDv
-vLkkkkkDv
-vLTTTDTDv
-vLTTTTkDv
-vLTTTDTDv
-vLkkkkkDv
-vLTTTDTDv
-vDDDDDDDv
-SSqqqqqQQ
-`);
-// a log pile against the lit wall, near the front corner
+const RAIL = 8, PLATE = 14; // the thatch eave hangs to about h 16, so the top plate sits just under it
+const wallUV = (a, b, x, y) => [x - a[0], Math.floor(wallH(a, b, x + 0.5, y + 0.5))];
+// lit wall (L -> Bm): back corner post, studs, the window panel between 22 and 37, front corner post
+const LW = { a: B.L, b: B.Bm, studs: [0, 11, 22, 37, 49, 62], win: { u0: 24, u1: 36, h0: 6, h1: PLATE } };
+// shaded wall (Bm -> Rr): front corner post, the door panel between 13 and 27, studs, back corner post
+const RW = { a: B.Bm, b: B.Rr, studs: [0, 13, 27, 39, 51, 62], door: { u0: 15, u1: 25, h0: PL, h1: PLATE } };
+const wallCell = (wl, lit, x, y) => {
+  const [u, h] = wallUV(wl.a, wl.b, x, y);
+  const T1 = lit ? 't' : 'u', T2 = lit ? 'u' : 'v', P = lit ? 'l' : 'r', Pm = lit ? 'm' : 's', Sh = lit ? 'h' : 'H';
+  const win = wl.win, dr = wl.door;
+  if (win && u >= win.u0 && u <= win.u1 && h >= win.h0 && h <= win.h1) {
+    // casement window: open team shutters flat against the wall either side, dark frame, firelit panes, centre mullion
+    const su = u - win.u0, n = win.u1 - win.u0;
+    if (h === win.h0) return su <= 1 || su >= n - 1 ? (su === 0 || su === n ? T2 : 'Q') : (su === 2 ? 'S' : (su === n - 2 ? 'q' : 'S')); // stone sill
+    if (su <= 2 || su >= n - 2) { const e = su <= 2 ? su : n - su; return h === win.h1 || h === win.h0 + 1 ? 'D' : (e === 0 ? 'D' : (e === 2 ? 'L' : 'T')); }
+    if (su === 3 || su === n - 3 || h === win.h0 + 1 || h === win.h1) return 'v';
+    if (su === Math.round(n / 2)) return 'v';
+    return h === win.h1 - 1 ? 'w' : ((su === 5 && h === win.h0 + 2) ? 'G' : 'g');
+  }
+  if (dr && u >= dr.u0 && u <= dr.u1 && h >= dr.h0 - 1 && h <= dr.h1) {
+    // plank door in team colour: frame, lintel, vertical boards, two iron straps running with the wall, stone step
+    const su = u - dr.u0, n = dr.u1 - dr.u0;
+    if (h < dr.h0) return su === 0 || su === n ? null : 'S';
+    if (h >= dr.h1 - 1) return h === dr.h1 ? 'u' : 'v';
+    if (su === 0 || su === n) return 'v';
+    if (h === dr.h0 + 2 || h === dr.h1 - 4) return 'k';
+    if (su === 1) return 'L';
+    if (su === n - 1) return 'D';
+    if (su % 3 === 1) return 'D';
+    return (su === n - 2 && h === dr.h0 + 5) ? 'k' : 'T';
+  }
+  if (h < PL) return null; // plinth, painted separately
+  for (const s of wl.studs) if (u >= s && u <= s + 1) return u === s ? T1 : T2;
+  if (h === PL || h === PL + 1) return h === PL + 1 ? T1 : T2;            // sill beam
+  if (h === RAIL || h === RAIL - 1) return h === RAIL ? T1 : T2;          // mid rail
+  if (h === PLATE || h === PLATE + 1) return h === PLATE + 1 ? T1 : T2;   // top plate
+  if (h > PLATE + 1) return Sh;                                           // eave shadow
+  if (h === PLATE - 1) return Pm;                                         // shadow under the plate
+  // daub: weathered in soft clusters (a splash stain above the sill, a few patches), never per-pixel noise
+  if (h === PL + 2 && hash(u >> 2, 7) < 0.6) return Pm;
+  const pn = wl.studs.findIndex(s => s > u), cl = hash(pn * 3 + (h > RAIL ? 1 : 0), lit ? 5 : 9);
+  if (cl < 0.35 && Math.abs(u - (wl.studs[pn - 1] || 0) - 5) + Math.abs(h - (h > RAIL ? 11 : 6)) * 2 < 4) return Pm;
+  return P;
+};
+paint(g, 'l', (x, y) => { const h = wallH(B.L, B.Bm, x, y); return h < PL ? course(x, y, 0.5, { h: 3, w: 6, joint: 'j', tones: ['S', 'q', 'S'], lip: 'S' }) : null; });
+paint(g, 'r', (x, y) => { const h = wallH(B.Bm, B.Rr, x, y); return h < PL ? course(x, y, -0.5, { h: 3, w: 6, joint: 'j', tones: ['q', 'Q', 'q'], lip: 'q' }) : null; });
+{ const o = copy(g);
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    if (o[y][x] === 'l') { const c = wallCell(LW, true, x, y); if (c) g[y][x] = c; }
+    else if (o[y][x] === 'r') { const c = wallCell(RW, false, x, y); if (c) g[y][x] = c; }
+  } }
+// a log pile on the ground against the lit wall, near the front corner
 pixStamp(g, B.Bm[0] - 26, B.Bm[1] - 14, `
 ...kkkk..kkkk..
 ..kNnnnkkNnnnk.
@@ -86,7 +100,13 @@ const chTop = pixIsoBox(g, ch[0], ch[1], 0.24, 0.24, 14, 1, { top: 'j', left: '6
 paint(g, '6', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'Q', tones: ['S', 'q'] }));
 paint(g, '7', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'j', tones: ['q', 'Q'] }));
 pixRect(g, chTop.T[0] - 1, chTop.T[1] + 1, 4, 2, 'k');
-pixRect(g, chTop.L[0], chTop.L[1] + 3, Math.round(chTop.Rr[0] - chTop.L[0]) + 1, 1, 'e');
+// cap stones: the top course of each face is a lit band, its joint running with that face (no flat screen-horizontal line)
+{ const capL = (x, y) => y - (chTop.L[1] + (x - chTop.L[0]) * 0.5), capR = (x, y) => y - (chTop.Bm[1] - (x - chTop.Bm[0]) * 0.5);
+  for (let y = 0; y < GH; y++) for (let x = Math.floor(chTop.L[0]); x <= Math.ceil(chTop.Rr[0]); x++) {
+    const left = x + 0.5 < chTop.Bm[0], d = left ? capL(x + 0.5, y + 0.5) : capR(x + 0.5, y + 0.5);
+    if (!['S', 'q', 'Q', 'j'].includes(g[y][x]) || d < 0 || d > 3) continue;
+    g[y][x] = d < 2 ? (left ? 'S' : 'q') : (left ? 'Q' : 'j');
+  } }
 { const rise = ROOF * 0.24, cL = ch[0] - 0.24 * 32;
   const hid = (x, y) => { const cx = x + 0.5, d = ch[0] - cx; return d > 0 && y + 0.5 > ch[1] - d * 0.5 - rise * d / (ch[0] - cL); };
   for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underCh[y][x] && hid(x, y)) g[y][x] = underCh[y][x];
@@ -100,6 +120,7 @@ const puff = (f, x, y, r) => { // a soft round puff: light top-left, grey bottom
   if (r === 0) { pixRect(f, x, y, 2, 2, 'x'); pixSet(f, x, y, 'z'); return; }
   for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) { const d = xx * xx + yy * yy; if (d > r * r + r * 0.6) continue; pixSet(f, x + xx, y + yy, (xx + yy < 0) ? 'z' : (xx + yy > r ? 'X' : 'x')); }
 };
+const glow = []; base.forEach((r, y) => r.forEach((c, x) => { if (c === 'g' || c === 'G') glow.push([x, y]); }));
 const frames = [];
 for (let i = 0; i < 6; i++) {
   const f = copy(base);
@@ -109,8 +130,7 @@ for (let i = 0; i < 6; i++) {
     puff(f, sx + Math.round(Math.sin(t * 5) * 1.5 + t * 9), sy - Math.round(rise), r);
   }
   const fl = [0, 1, 0, 2, 1, 0][i]; // flicker: glow core moves / dims
-  if (fl === 1) { pixSet(f, WIN[0] - 1, WIN[1] - 10, 'g'); pixSet(f, WIN[0], WIN[1] - 9, 'G'); }
-  if (fl === 2) { pixSet(f, WIN[0], WIN[1] - 10, 'G'); pixSet(f, WIN[0], WIN[1] - 9, 'g'); pixSet(f, WIN[0] - 1, WIN[1] - 9, 'G'); }
+  if (fl) glow.forEach(([x, y], k) => { if ((k + fl) % 3 === 0) f[y][x] = base[y][x] === 'G' ? 'g' : 'G'; });
   frames.push(pixText(f));
 }
 

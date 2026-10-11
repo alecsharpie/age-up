@@ -2,8 +2,8 @@
 // Archery Range (3×3): a packed-earth range on a low plinth. Along the back-left edge an open timber shooting shed
 // under a lean-to awning striped in team colour and canvas, with a scalloped valance; bows and quivers hang inside.
 // Worn shooting lanes lead to three straw butts on A-frame stands (red/white rings, gold centre) with arrows stuck
-// in them; a rail fence with a gap, hay bales and an arrow barrel. Generated (code before export); anchor = footprint
-// bottom corner. idle: 4 frames — the awning valance flutters, the pennant on the barrel stake flicks.
+// in them; a rail fence with a gap and an arrow barrel at the shooting line. Generated (code before export); anchor = footprint
+// bottom corner. idle: 4 frames — the awning valance flutters.
 const W = 3, H = 3, Z = 2;
 const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 44;
 const bx = W * 32 + 2, by = GH - 4;
@@ -86,48 +86,42 @@ for (let ty = 0; ty < 3; ty++) {
 for (const [x, y] of [[120, 70], [64, 112], [150, 100], [92, 92], [176, 90]]) { g[y][x] = 'J'; g[y][x + 1] = 'Y'; }
 
 // ---- straw butts: a disc in the plane that faces the shed (sheared ellipse), bale thickness behind, A-frame stand
-function butt(t, c, arrows) {
+// Clean concentric rings (straw rim, white, red, white, red, gold), a splayed A-frame with a crossbar and a back prop, a
+// contact shadow on the earth, and one or two arrows drawn after the inking so their fletching stays crisp.
+function buttShadow(c) { for (const [x, y] of cells([P(c, -5, 12), P(c, 3, 9), P(c, 12, 12), P(c, 4, 15)])) if ('yYj'.includes(g[y][x])) g[y][x] = 'J'; }
+function butt(t, c) {
   const R = 6.6, AX = 0.82;
   const disc = (ox, oy, fn) => { for (let y = Math.floor(c[1] - 10); y <= c[1] + 10; y++) for (let x = Math.floor(c[0] - 9); x <= c[0] + 9; x++) { const U = (c[0] + ox - x - 0.5) / AX, V = c[1] + oy - (y + 0.5); const r = Math.hypot(U, V); if (r < R) put(t, x, y, fn(r, U, V)); } };
-  // stand legs first (behind), then the bale side, then the painted face
-  pixLine(t, c[0] + 2, c[1], c[0] + 6, c[1] + 11, 'u');
+  // back prop first (behind the bale), then the bale side, then the painted face, then the front legs
   for (let s = 3; s >= 1; s--) disc(s * 0.9, s * 0.3, () => s === 3 ? 'e' : 'E');
-  disc(0, 0, (r, U, V) => r > 5.5 ? (V - U > 1 ? 'h' : V - U < -3 ? 'E' : 'H') : r > 4.4 ? 'A' : r > 3.2 ? ((U + V) < -2 ? 'R' : 'r') : r > 2.0 ? 'A' : r > 1.0 ? 'r' : 'g');
-  pixLine(t, c[0] - 1, c[1] + 4, c[0] - 4, c[1] + 12, 't'); pixLine(t, c[0] + 2, c[1] + 4, c[0] + 2, c[1] + 12, 't');
-  for (const [dx, dy] of arrows) { const x = Math.round(c[0] + dx), y = Math.round(c[1] + dy); pixLine(t, x, y, x - 4, y - 2, 'W'); pixSet(t, x - 5, y - 3, 'A'); pixSet(t, x - 4, y - 3, 'r'); pixSet(t, x - 5, y - 2, 'r'); }
+  disc(0, 0, (r, U, V) => r > 5.4 ? (V - U > 2 ? 'h' : V - U < -3 ? 'E' : 'H') : r > 4.3 ? 'A' : r > 3.1 ? 'r' : r > 1.9 ? 'A' : r > 0.9 ? 'r' : 'g');
 }
-const butts = [[tile(2.25, 0.5), [[1, -2], [-1, 2]]], [tile(2.25, 1.5), [[2, 1], [0, -3], [-2, 0]]], [tile(2.1, 2.25), [[1, 2]]]];
-for (const [p, ar] of butts) inked(g, t => butt(t, P(p, 0, -12), ar));
-// arrows that missed, stuck in the earth behind the butts
-for (const [x, y] of [[170, 86], [151, 103], [184, 92], [118, 120]]) { pixLine(g, x, y, x - 3, y - 2, 'W'); pixSet(g, x - 4, y - 3, 'A'); pixSet(g, x - 3, y - 3, 'r'); }
+// the stand: thin 1-px timbers drawn after the inking (splayed front legs, a back prop behind the bale)
+function stand(c) {
+  const bk = (x, y) => { if (g[y][x] === 'J' || 'yYj'.includes(g[y][x])) g[y][x] = 'u'; };
+  { const a = P(c, 4, 4), b = P(c, 7, 12); for (let k = 0; k <= 8; k++) { const p = lerp(a, b, k / 8); bk(Math.round(p[0]), Math.round(p[1])); } }
+  pixLine(g, c[0] - 2, c[1] + 6, c[0] - 4, c[1] + 12, 'u'); pixLine(g, c[0] + 1, c[1] + 6, c[0] + 3, c[1] + 12, 'u');
+}
+function arrow(x, y) { pixLine(g, x, y, x - 3, y - 1, 'W'); pixSet(g, x, y, 'u'); pixSet(g, x - 4, y - 2, 'A'); pixSet(g, x - 5, y - 2, 'A'); pixSet(g, x - 5, y - 3, 'a'); pixSet(g, x - 4, y - 1, 'a'); }
+const butts = [[tile(2.25, 0.5), [[-2, -2]]], [tile(2.25, 1.5), [[-1, 1], [-2, -3]]], [tile(2.05, 2.15), [[-2, 2]]]];
+for (const [p] of butts) buttShadow(P(p, 0, -12));
+for (const [p, ar] of butts) { const c = P(p, 0, -12); inked(g, t => butt(t, c)); stand(c); for (const [dx, dy] of ar) arrow(Math.round(c[0] + dx), Math.round(c[1] + dy)); }
 
-// ---- hay bales and an arrow barrel near the shed's front end
+// ---- an arrow barrel at the shooting line by the shed's open end (iron-hooped staves, a sheaf of fletched arrows)
 inked(g, t => {
-  stampL(t, 46, 104, `
-...hhhhhh...
-..hhHhhhhHE.
-.hHhhhhhhHEe
-.EeEEEEEEEEe
-.HhhhHhhhhEe
-.EEEEEEEEEEe
-`);
-  stampL(t, 58, 100, `
-.hhhhhh..
-hhHhhhHE.
-hhhhhhhEe
-EEEEEEEEe
-`);
-});
-inked(g, t => {
-  stampL(t, 76, 108, `
-.A.A.A.
-.r.W.r.
-.W.W.W.
-uwwwwwu
-uWwwwwu
-GGGGGGG
-uWwwwwu
-.uwwwu.
+  stampL(t, 52, 100, `
+.A..T..A.
+.AA.T.AA.
+..W.W.W..
+..W.W.W..
+.uWuWuWu.
+uiiiiiiiu
+Wuuuuuuut
+WGGGGGGGt
+Wwwwwwwwt
+WwwwwwwWt
+WGGGGGGGt
+.wwwwwwt.
 `);
 });
 
@@ -171,7 +165,7 @@ inked(g, t => {
   }
 }
 
-// ---- animated: valance hem flutter + a team pennant on a stake by the barrel
+// ---- animated: valance hem flutter
 function valance(t, f) {
   const n = 48; // per two pixels along the eave
   for (let i = 0; i < 96; i++) {
@@ -182,16 +176,10 @@ function valance(t, f) {
     for (let k = 0; k < len; k++) put(t, x, y + k, k === len - 1 ? (team ? 'D' : 'a') : (team ? 'T' : 'A'));
   }
 }
-function pennant(t, f) {
-  const x = 84, y = 108; pixLine(t, x, y + 6, x, y - 14, 'u');   // the stake runs down beside the barrel to the ground
-  const rows = [[`TTTL`, `TTTTT`, `DTT`], [`TTTT`, `TTTTD`, `DTTT`], [`TTTL`, `TTTTT`, `DTTT`], [`TTT`, `TTTTD`, `DTTL`]][f];
-  rows.forEach((r, k) => { for (let i = 0; i < r.length; i++) put(t, x + 1 + i, y - 14 + k + (f === 1 && i > 2 ? 1 : 0), r[i]); });
-}
 const frames = [];
 for (let f = 0; f < 4; f++) {
   const q = copy(g);
   inked(q, t => valance(t, f));
-  inked(q, t => pennant(t, f));
   outline(q, 'k', 'K');
   frames.push(pixText(q));
 }

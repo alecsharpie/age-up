@@ -1,8 +1,8 @@
 // ==head
 // @pixel mill
 // Windmill (2×2): a round tapering tower of coursed stone on a plinth, an arched team-colour door and lit slit windows,
-// a thatched conical cap with a finial, four lattice sails in team cloth on the front of the cap; grain sacks, a spare
-// millstone and a cobbled ring on the packed-earth apron. idle ×4: the sails turn in 22.5° steps (4 arms → seamless loop).
+// a thatched conical cap with a finial, four lattice sails in team cloth on the front of the cap; on the packed-earth
+// apron a cobbled ring, flour sacks stacked on a pallet by the door, a spare millstone lying flat and a handcart. idle ×4: the sails turn in 22.5° steps (4 arms → seamless loop).
 // Drawn by drafts/building.mill.js: pixDraw(PIXELS.mill,'idle',b.built?Math.floor(G.time*3):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ==end
 const W = 2, H = 2, Z = 18, ROOF = 14, ARM = 25;
@@ -83,7 +83,8 @@ kOk
 kwk
 `);
 
-// ---- props on the apron: grain sacks by the door, a spare millstone against the shaded side
+// ---- props on the apron, each with a job: sacks of flour stacked on a pallet against the tower by the door, a spare
+// millstone lying flat on the shaded side, and a handcart waiting at the end of the door path to take the flour away
 const sack = (x, y) => pixStamp(g, x, y, `
 ...k...
 ..kvk..
@@ -93,20 +94,37 @@ kSsssmk
 ksssmmk
 .kkkkk.
 `);
-for (const [x, y] of [[CX - 34, CY + 2], [CX - 29, CY + 4], [CX - 31, CY - 3], [CX - 24, CY + 7], [CX - 39, CY + 6]]) sack(x, y);
-{ const mx = CX + 26, my = CY + 4; disc(g, mx, my, 6, (dx, dy, ring) => (ring ? 'k' : Math.hypot(dx, dy) < 1.5 ? 'K' : (Math.abs(Math.hypot(dx, dy) - 3.5) < 0.5 ? 'U' : dx + dy < -1 ? 'p' : dx + dy > 2 ? 'U' : 'q'))); }
-// a handcart with a sack, front-right
-pixStamp(g, CX + 8, CY + 14, `
-....kkkk......
-...kSssk......
-.kkkkkkkkkkk..
-kwwwwwwwwwwWk.
-kWWWWWWWWWWvk.
-.kkkkkkkkkkkkkk
-..kk.....kk....
-.kMnk...kMnk...
-..kk.....kk....
+// pallet: two planks laid along a on the ground plane, shadow edge on the shaded side
+flat(g, 0.36, 0.78, 1.12, 1.5, 0, (s, t) => (t < 0.08 ? 'J' : Math.floor(s * 4) !== Math.floor((s + 0.06) * 4) ? 'v' : t > 0.85 ? 'v' : 'W'));
+wallC(g, 1.5, 0.36, 0.78, 0, 2, (U, V) => (V >= 1 ? 'w' : 'v'));
+wallA(g, 0.78, 1.5, 1.12, 0, 2, () => 'v');
+{ const p = iso(0.57, 1.31, 2), x = Math.round(p[0]), y = Math.round(p[1]);
+  // back row against the wall, front row, one on top
+  sack(x - 8, y - 9); sack(x - 2, y - 7); sack(x - 11, y - 5); sack(x - 5, y - 3); sack(x - 6, y - 11); }
+// millstone lying flat: a 2:1 disc with 3 px of edge, a dressed top (furrows) and the square eye
+{ const p = iso(1.52, 0.6, 0), mx = Math.round(p[0]), my = Math.round(p[1]), R = 8, ZT = 3;
+  for (let z = 0; z < ZT; z++) for (let dx = -R; dx <= R; dx++) { const hy = Math.round(Math.sqrt(Math.max(0, R * R - dx * dx)) / 2); pixSet(g, mx + dx, my + hy - z, z === 0 ? 'k' : dx > R * 0.3 ? 'U' : dx < -R * 0.5 ? 'q' : 'Q'); }
+  for (let dy = -5; dy <= 5; dy++) for (let dx = -R; dx <= R; dx++) { const d = Math.hypot(dx, dy * 2); if (d > R + 0.3) continue;
+    const ang = Math.atan2(dy * 2, dx), sec = (ang + Math.PI) / (Math.PI / 3), fur = sec % 1 < 0.16 && d > 2.5 && d < R - 1.2;
+    pixSet(g, mx + dx, my - ZT + dy, d > R - 0.9 ? (dx + dy * 2 < 0 ? 'p' : 'U') : fur ? 'U' : dx + dy * 2 < -2 ? 'P' : 'p'); }
+  pixStamp(g, mx - 1, my - ZT - 1, `
+KK
+KK
 `);
+}
+// handcart at the end of the door path: a plank bed on the iso axes (long along c), side boards, a spoked wheel on the
+// near side, handles reaching toward the viewer and resting on the ground
+{ const A0 = 1.5, A1 = 1.74, C0 = 1.36, C1 = 1.7, BZ = 5;
+  flat(g, A0 - 0.04, A1 + 0.1, C0 - 0.02, C1 + 0.2, 0, (s, t, x, y) => (hash(x, y, 9) < 0.7 ? 'f' : null));      // its shadow on the earth
+  flat(g, A0, A1, C0, C1, BZ, (s, t) => (Math.floor(s * 4) !== Math.floor((s + 0.07) * 4) ? 'v' : t < 0.2 ? 'O' : 'w'));
+  const sp = iso((A0 + A1) / 2, (C0 + C1) / 2 - 0.04, BZ); sack(Math.round(sp[0]) - 3, Math.round(sp[1]) - 9);
+  wallA(g, A1, C1, C0, BZ - 2, BZ + 2, (U, V) => (V < 1 ? 'k' : V >= 3 ? 'W' : Math.floor(U) % 6 === 0 ? 'J' : 'v'));
+  wallC(g, C1, A0, A1, BZ - 2, BZ + 2, (U, V) => (V < 1 ? 'k' : V >= 3 ? 'O' : 'w'));
+  const wc = iso(A1 + 0.02, (C0 + C1) / 2, 4), wx = Math.round(wc[0]), wy = Math.round(wc[1]);
+  disc(g, wx, wy, 4, (dx, dy, ring) => (ring ? 'k' : dx === 0 || dy === 0 ? 'w' : 'v'));
+  pixSet(g, wx, wy, 'M');
+  for (const sa of [A0 + 0.03, A1 - 0.03]) { line(g, iso(sa, C1, BZ + 1), iso(sa, C1 + 0.26, 1), (i, n) => (i === n ? 'k' : 'O')); line(g, iso(sa, C1, BZ), iso(sa, C1 + 0.26, 0), (i, n) => (i === n ? 'k' : 'v')); }
+}
 
 // ---- sails: hub on the front of the cap; the sail plane faces the lit (front-left) side
 const hub = [CX - 12, capY - 3];

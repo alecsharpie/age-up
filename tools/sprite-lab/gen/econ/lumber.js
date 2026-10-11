@@ -1,7 +1,7 @@
 // ==head
 // @pixel lumber
 // Lumber camp (2×2): an open-fronted timber shed with a shingled gable roof and a team-colour valance, boards stacked inside,
-// a log pile with cut ends to the front, a saw horse with a half-sawn log, the axe left in a stump, wood chips over packed earth.
+// a tidy two-course log stack with flush cut ends between stakes, a saw horse with a half-sawn log, the axe left in a stump, wood chips over packed earth.
 // idle ×4: the bow saw rocks in its kerf and sawdust trickles, the team pennant on the corner pole flutters.
 // Drawn by drafts/building.lumber.js: pixDraw(PIXELS.lumber,'idle',Math.floor(G.time*4),tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ==end
@@ -57,7 +57,7 @@ line(g, iso(A0, C1, 0), iso(A1, C1, 0), 'V');
 for (const a of [0.68, 1.32]) { const p = iso(a, C1, Z - 2); line(g, [p[0] - 4, p[1] - 2], [p[0], p[1] + 2], 'v'); line(g, [p[0] + 1, p[1] + 2], [p[0] + 5, p[1] + 2 - 2 + 2], 'v'); }
 
 // ---- gable roof, ridge along a: eave shadow, front slope in shingle courses, plank gable end, bargeboards
-const RA0 = -0.06, RA1 = 1.99, RC0 = 0.0, RC1 = 1.14, RR = 0.53;
+const RA0 = 0.0, RA1 = 1.99, RC0 = 0.0, RC1 = 1.14, RR = 0.53;
 // eave beam + shadow band on the inner wall
 wallC(g, C1, A0, A1, Z - 3, Z, (U, V) => (V >= 2 ? 'V' : 'i'));
 // back slope (seen as a strip above the ridge): shingles in shade
@@ -83,14 +83,17 @@ line(g, iso(RA0, RR, Z + ROOF), iso(RA1, RR, Z + ROOF), 'k');
 line(g, iso(RA0 + 0.03, RR + 0.03, Z + ROOF - 1), iso(RA1 - 0.03, RR + 0.03, Z + ROOF - 1), 'A');
 line(g, iso(RA1, RC1, Z), iso(RA1, RR, Z + ROOF), 'k'); line(g, iso(RA1, RC0, Z), iso(RA1, RR, Z + ROOF), 'k');
 line(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), 'k');
+// bargeboard on the left rake: the roof's end reads as a finished timber edge sitting on the corner post
+line(g, iso(RA0 + 0.04, RC1 - 0.02, Z), iso(RA0 + 0.04, RR, Z + ROOF), 'A'); line(g, iso(RA0 + 0.07, RC1 - 0.02, Z), iso(RA0 + 0.07, RR, Z + ROOF), 'b');
 // team-colour valance hung under the front eave: lit hem, body, scalloped dark fringe
 wallC(g, RC1, RA0 + 0.04, RA1 - 0.04, Z - 5, Z - 1, (U, V) => { const u = Math.floor(U); if (V >= 3) return 'L'; if (V >= 1) return u % 8 === 0 ? 'D' : 'T'; return (u % 8) < 6 ? 'D' : null; });
 
 // ---- yard props
-// log pile, front-left: three layers, cut ends to the front
-for (const [a, z] of [[0.16, 0], [0.38, 0], [0.6, 0], [0.82, 0], [0.27, 5], [0.49, 5], [0.71, 5], [0.38, 10], [0.6, 10]]) logC(g, a, 1.28, 1.84, z, 3);
-// wedges/stakes holding the pile
-for (const a of [0.06, 0.96]) { const p = iso(a, 1.84, 0); line(g, p, [p[0], p[1] - 6], 'v'); pixSet(g, p[0] + 1, p[1] - 5, 'w'); }
+// log pile, front-left: a tidy stack of two even courses, logs of one length with their cut ends flush to the front,
+// held by a stake at each end
+const PILE = [0.14, 0.34, 0.54, 0.74, 0.94];
+for (const z of [0, 6]) for (const a of PILE) logC(g, a, 1.3, 1.84, z, 3);
+for (const a of [0.03, 1.05]) { const p = iso(a, 1.8, 0); line(g, p, [p[0], p[1] - 15], 'w'); line(g, [p[0] + 1, p[1]], [p[0] + 1, p[1] - 15], 'v'); pixSet(g, p[0], p[1] - 16, 'k'); pixSet(g, p[0] + 1, p[1] - 16, 'k'); }
 // saw horse: two X-trestles with a log across, front-right
 const SH = { a0: 1.3, a1: 1.82, c: 1.5, z: 8 };
 const trestle = (a) => { const b = iso(a, SH.c - 0.1, 0), f = iso(a, SH.c + 0.1, 0), tp = iso(a, SH.c, SH.z + 2); line(g, b, [tp[0] + 2, tp[1] - 2], 'v'); line(g, f, [tp[0] - 2, tp[1] - 2], 'w'); line(g, [f[0] + 1, f[1]], [tp[0] - 1, tp[1] - 2], 'v'); };
