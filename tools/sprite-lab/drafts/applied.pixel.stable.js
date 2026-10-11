@@ -78,6 +78,52 @@ const copy = g => g.map(r => r.slice());
 /** draw into a fresh layer, ink its outline, composite it: props and masses get their own dark edge inside the silhouette */
 function inked(g, draw, ink = 'k', inkLit = 'K', self = '') { const t = pixGrid(GW, GH); draw(t); outline(t, ink, inkLit, self); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (t[y][x] !== '.') g[y][x] = t[y][x]; }
 const stampL = (g, x, y, text) => pixStamp(g, Math.round(x), Math.round(y), text);
+// ---- natural edges (HOLISTIC.md "Natural lines"): grass over the wall foot, weathered faces, sagging lines ----
+// Cyrillic chars so they never collide with a generator's letters or the age kit's Greek; merge NAT into the palette.
+const NAT = { 'ж': '#7cb85a', 'г': '#4f9a42', 'д': '#33702c', 'Д': '#22461c',      // grass tuft light / mid / dark, its ink edge
+  'м': '#8c9462', 'л': '#6a7250', 'ь': '#4f5640' };                                    // moss / lichen lit, shade, deep
+const mod = (a, n) => ((a % n) + n) % n;
+/** lowest opaque cell of column x (the wall foot on the silhouette), or -1 */
+function footRow(g, x) { for (let y = GH - 1; y >= 0; y--) if (g[y][x] !== '.') return y; return -1; }
+/** grass tufts growing over the foot of the walls along the bottom silhouette: clustered, 1–3 px blades.
+ *  o.dens (share of columns, clustered), o.h (max blade), o.s seed, o.skip(x, y, ch) → leave a column bare. */
+function tufts(g, o = {}) {
+  const dens = o.dens ?? 0.4, s = o.s ?? 1, mh = o.h ?? 3;
+  for (let x = 0; x < GW; x++) {
+    const y = footRow(g, x); if (y < 0 || (o.skip && o.skip(x, y, g[y][x]))) continue;
+    const n = vnoise(x, 0, 5, s); if (n > dens) continue;
+    const hh = 1 + Math.floor(hash(x, 7, s) * mh * (1.15 - n / dens * 0.6));
+    for (let k = 0; k < hh; k++) put(g, x, y - k, k === hh - 1 && hh > 1 ? 'ж' : k === 0 ? 'д' : 'г');
+  }
+}
+/** after the outline: the ink under a tuft becomes the grass's own dark edge, so the wall foot is not one ruler line */
+function tuftInk(g) {
+  for (let y = 1; y < GH; y++) for (let x = 0; x < GW; x++) if ((g[y][x] === 'k' || g[y][x] === 'K') && 'дгж'.includes(g[y - 1][x])) g[y][x] = 'Д';
+}
+/** wrap a wall face fn(a, v, u, x, y) (v rows from the top, H tall): damp and moss creep up from the foot in clusters and
+ *  rain streaks run down from the top. o.dark {ch: darker}, o.moss {ch: mossCh} (optional), o.mh max moss rows, o.st
+ *  streak share, o.top first streak row, o.s seed. Only chars listed in o.dark are touched (openings and cloth stay clean). */
+const weathered = (fn, H, o) => (a, v, u, x, y) => {
+  const c = fn(a, v, u, x, y); if (!c || !(c in o.dark)) return c;
+  const s = o.s ?? 3, fb = H - 1 - v, X = x ?? a, Y = y ?? v;
+  const n = vnoise(X, 0, 5, s), mh = Math.floor(n * n * (o.mh ?? 4) * 1.6 + 0.5);
+  if (fb < mh) return o.moss && vnoise(X, Y, 3, s + 7) > 0.56 ? o.moss[c] || o.dark[c] : o.dark[c];   // damp foot, moss in clumps
+  const sl = 3 + Math.floor(hash(X, 5, s) * 7), t0 = o.top ?? 1;
+  if (hash(X, 1, s) < (o.st ?? 0.07) && v >= t0 && v < t0 + sl) return v < t0 + sl - 2 || hash(X, v, s) < 0.5 ? o.dark[o.dark[c]] || o.dark[c] : o.dark[c];   // rain streak
+  return c;
+};
+/** points along a→b with a sag of `depth` rows in the middle (a sine arc) */
+const sagAt = (u, depth) => Math.round(depth * Math.sin(Math.PI * Math.max(0, Math.min(1, u))));
+/** sag an interior line (a ridge between two roof planes) by `depth` rows: the plane above flows down over the dip, then
+ *  draw(x, y) paints the line at its new place (call with each column's sagged y). */
+function sagLine(t, a, b, depth, draw) {
+  const x0 = Math.round(Math.min(a[0], b[0])), x1 = Math.round(Math.max(a[0], b[0]));
+  for (let x = x0; x <= x1; x++) {
+    const u = (x - a[0]) / (b[0] - a[0]), y = Math.round(a[1] + u * (b[1] - a[1])), dy = sagAt(u, depth);
+    for (let k = 0; k < dy; k++) put(t, x, y + k, t[y - 1] ? t[y - 1][x] : '.');
+    draw(x, y + dy);
+  }
+}
 const g = pixGrid(GW, GH);
 const top = pixIsoBox(g, bx, by, W, H, 2, 1, { left: 'z', right: 'x' });
 const { T, L, Rr, Bm } = top;
@@ -93,6 +139,10 @@ for (const [x, y] of cells([T, Rr, Bm, L])) {
   else if (s > 0.86) ch = 'j';
   g[y][x] = ch;
 }
+for (let i = 0; i < 40; i++) { const p = [24 + hash(i, 71) * 100, 92 + OY + hash(i, 72) * 40], x = Math.round(p[0]), y = Math.round(p[1]);   // hoof prints in the mud: a little dark crescent
+  if (g[y] && inPad(x, y) && 'yYJ'.includes(g[y][x]) && 'yYJ'.includes(g[y][x + 1]) && g[y + 1] && 'yYJ'.includes(g[y + 1][x])) { g[y][x] = 'u'; g[y][x + 1] = 'x'; g[y + 1][x] = 'x'; } }
+for (let i = 0; i < 30; i++) { const x = Math.round(80 + hash(i, 73) * 110), y = Math.round(70 + OY + hash(i, 74) * 60), d = hash(i, 75) < 0.5 ? 1 : -1;   // loose straw
+  if (g[y] && g[y + d] && !inPad(x, y) && 'yYj'.includes(g[y][x]) && 'yYj'.includes(g[y + d][x + 1])) { g[y][x] = 'h'; g[y + d][x + 1] = 'H'; } }
 for (const [x, y0] of [[40, 104], [54, 112], [70, 118], [46, 96], [84, 122], [62, 104]]) { const y = y0 + OY; g[y][x] = 'u'; g[y][x + 1] = 'u'; g[y + 1][x + 1] = 'J'; }
 
 // ---- the stall block
@@ -163,26 +213,17 @@ hHhhHhhHhh.
   pixLine(t, st.Bm[0], st.Bm[1], st.Bm[0], st.Bm[1] + SZ - 1, AGE === 1 ? 'u' : AS[4]);
   // roof: back plane, lit hip, front plane, shaded hip; shingles in courses with a lit butt and a shadow line
   // the back plane slopes away: its eave T→Rr sits above the ridge on screen, so its courses lap upward (flip)
-  if (AGE >= 2) {                                                                           // the age kit's tiles / slate
+  {                                                                                         // the age kit's shingles / tiles / slate (they lean to the owner's colour)
     plane(t, [st.T, st.Rr, r2, r1], st.T, st.Rr, (a, d, u, x, y) => AK.roofXY(x, y, 0.5, 3, { flip: true }), true);
     plane(t, [st.L, st.T, r1], st.L, st.T, (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 2, { flip: true }));
     plane(t, [st.L, st.Bm, r2, r1], st.L, st.Bm, (a, d, u, x, y) => AK.roofXY(x, y, 0.5, 0));
     plane(t, [st.Bm, st.Rr, r2], st.Bm, st.Rr, (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 1));
-    pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); AK.crest(t, r1, r2);
+    if (AGE === 1) sagLine(t, r1, r2, 1, (x, y) => { put(t, x, y, 'k'); AK.crest(t, [x, y], [x, y]); });   // the timber ridge has settled
+    else { pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); AK.crest(t, r1, r2); }
     for (const [a, b] of [[st.L, r1], [st.T, r1], [st.Bm, r2], [st.Rr, r2]]) pixLine(t, a[0], a[1], b[0], b[1], AR[5]);
     pixLine(t, st.Bm[0] - 1, st.Bm[1] - 1, r2[0] - 1, r2[1], AR[1]);
     for (const [a, b, c1, c2] of [[st.L, st.Bm, 'T', 'D'], [st.Bm, st.Rr, 'D', 'D']]) { pixLine(t, a[0], a[1], b[0], b[1], c1); pixLine(t, a[0], a[1] + 1, b[0], b[1] + 1, c2); }
     if (AGE === 3) { AK.trim(t, st.L, st.Bm, -1); AK.trim(t, st.Bm, st.Rr, -1); }
-  } else {
-  plane(t, [st.T, st.Rr, r2, r1], st.T, st.Rr, tiles({ t: ['P', 'R', 'p'], ch: 3, tw: 5, s: 22 }), true);
-  plane(t, [st.L, st.T, r1], st.L, st.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 23 }));
-  { const hi = tiles({ t: ['V', 'O', 'Q'], ch: 3, tw: 5, s: 24 }), mid = tiles({ t: ['O', 'Q', 'q', 'P'], ch: 3, tw: 5, s: 24 }), lo = tiles({ t: ['Q', 'q', 'P'], ch: 3, tw: 5, s: 24 });
-    plane(t, [st.L, st.Bm, r2, r1], st.L, st.Bm, (a, d, u) => d >= 21 ? hi(a, d) : d < 6 ? lo(a, d) : mid(a, d)); }
-  plane(t, [st.Bm, st.Rr, r2], st.Bm, st.Rr, tiles({ t: ['R', 'p', 'u'], ch: 3, tw: 5, s: 25 }));
-  pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] + 1, r2[0], r2[1] + 1, 'O');
-  for (const [a, b] of [[st.L, r1], [st.T, r1], [st.Bm, r2], [st.Rr, r2]]) pixLine(t, a[0], a[1], b[0], b[1], 'u');
-  // team fascia boards along both visible eaves
-  for (const [a, b, c1, c2] of [[st.L, st.Bm, 'T', 'D'], [st.Bm, st.Rr, 'D', 'D']]) { pixLine(t, a[0], a[1], b[0], b[1], c1); pixLine(t, a[0], a[1] + 1, b[0], b[1] + 1, c2); }
   }
 });
 // Castle: a tiled hay-loft dormer with a hoist beam on the front slope; Imperial: a lantern cupola with a gilt weathervane
@@ -249,8 +290,12 @@ hHhhEhhhhEEEee
 // ---- paddock: inner fence, water trough
 const fence = (t, a, b, n) => {
   const FC = AGE === 3 ? [AS[3], AS[0], AS[0], AS[2], AS[2]] : ['u', 'w', 'W', 't', 't'];
-  for (let k = 0; k <= n; k++) { const p = lerp(a, b, k / n); const x = Math.round(p[0]), y = Math.round(p[1]); pixRect(t, x, y - 8, 1, 8, FC[0]); pixSet(t, x, y - 9, FC[1]); }
-  for (const [h, c] of [[7, FC[2]], [6, FC[3]], [3, FC[4]]]) for (let i = 0; i <= 64; i++) { const p = lerp(a, b, i / 64); put(t, Math.floor(p[0]), Math.floor(p[1]) - h, c); }
+  const rough = AGE < 3, sd = Math.round(a[0] * 3 + b[1]);                                // posts of varied height and lean, sagging rails (Imperial: trim white rails)
+  for (let k = 0; k <= n; k++) { const p = lerp(a, b, k / n); const x = Math.round(p[0]), y = Math.round(p[1]);
+    const hk = hash(k, 51, sd), ht = 8 + (rough ? (hk < 0.3 ? 1 : 0) - (hk > 0.8 ? 1 : 0) : 0), ln = rough && hash(k, 52, sd) < 0.3 ? (hash(k, 53, sd) < 0.5 ? -1 : 1) : 0;
+    pixRect(t, x, y - 4, 1, 4, FC[0]); pixRect(t, x + ln, y - ht, 1, ht - 4, FC[0]); pixSet(t, x + ln, y - ht - 1, FC[1]); }
+  for (const [h, c, sg] of [[7, FC[2], 1.3], [6, FC[3], 1.3], [3, FC[4], 0.8]]) for (let i = 0; i <= 64; i++) { const p = lerp(a, b, i / 64), k = i / 64 * n;
+    put(t, Math.floor(p[0]), Math.floor(p[1]) - h + (rough ? sagAt(k % 1, sg * (0.7 + hash(Math.floor(k), 54, sd) * 0.6)) : 0), c); }
 };
 fence(g, iso(0, PAD.ty), iso(PAD.tx, PAD.ty), 6);                                        // back runs of the paddock fence
 fence(g, iso(0, PAD.ty), iso(0, 3), 4);
@@ -316,7 +361,8 @@ for (let f = 0; f < 4; f++) {
   // the paddock's front fence goes over the horse
   fence(q, iso(0, 3), iso(PAD.tx, 3), 6); fence(q, iso(PAD.tx, PAD.ty), iso(PAD.tx, PAD.ty + 0.55), 2); fence(q, iso(PAD.tx, 2.55), iso(PAD.tx, 3), 2);
   inked(q, t => vane(t, f));
-  outline(q, 'k', 'K');
+  tufts(q, { s: 21 + AGE, dens: 0.42 });
+  outline(q, 'k', 'K'); tuftInk(q);
   frames.push(pixText(q));
 }
 
@@ -324,7 +370,7 @@ return {
   id: 'stable', kind: 'building', footprint: [W, H], anchor: [bx, by],
   ...(AGE >= 2 ? { flags: AGE === 2 ? [[Math.round(st.T[0]) - bx, Math.round(st.T[1]) - by + 1, 14]] : [[Math.round(st.T[0]) - bx, Math.round(st.T[1]) - by + 1, 14]] } : {}),
   palette: {
-    ...AK.pal,
+    ...AK.pal, ...NAT,
     k: '#24180f', K: '#4a3520',                                              // ink
     y: '#a0824f', Y: '#8a6d3e', j: '#b8955a', J: '#6f5730', z: '#7d6236', x: '#5e4a28', // earth, mud, plinth
     t: '#5a3a18', w: '#8a6a3a', W: '#a07a4a', u: '#3b2614', i: '#3a2c1f', I: '#241a12', // timber, stall dark

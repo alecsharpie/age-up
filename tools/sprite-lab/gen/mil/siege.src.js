@@ -123,6 +123,12 @@ inked(g, t => {
     }
     return board(a, v);
   });
+  if (!IMP) wall(t, sh.L, sh.Bm, 22, (a, v, u, x) => {                                    // rain-stained boards: darker runs from the eave, damp at the sill
+    if (a <= 1 || a >= EW - 2 || v <= 1 || v >= 20 || (a >= DL - 1 && a <= DR + 1 && v >= DT - 1)) return null;
+    const c = board(a, v); if (c === 't') return null;
+    const run = hash(a, 91) < 0.3 ? 3 + Math.floor(hash(a, 92) * 8) : 0, damp = 17 - Math.floor(vnoise(x, 0, 4, 9) * 3);
+    return v < 2 + run || v >= damp ? 't' : null;
+  });
   // gable over the end wall: the same boards up to the barge boards, a louvred vent under the ridge
   for (const [x, y] of cells([sh.L, sh.Bm, r1])) {
     const a = EA(x), d = Math.floor(sh.L[1] + (x + 0.5 - sh.L[0]) / (sh.Bm[0] - sh.L[0]) * (sh.Bm[1] - sh.L[1]) - y - 0.5), c = Math.abs(a - EW / 2 + 0.5);
@@ -140,22 +146,24 @@ inked(g, t => {
     pixLine(t, sh.Bm[0], sh.Bm[1], sh.Bm[0], sh.Bm[1] + SZ - 1, AS[4]);
   } else {
   // the back slope faces away: its eave L→T sits above the ridge on screen, so its courses lap upward (flip)
-  plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 41 }), true);
-  plane(t, [r1, r2, P(sh.Rr, 1, 1), P(sh.Bm, 0, 1)], P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), (a, d) => tiles({ t: d > 14 ? ['Q', 'q', 'P'] : ['q', 'P', 'p', 'R'], ch: 3, tw: 5, s: 42 })(a, d));
-  pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] - 1, r2[0], r2[1] - 1, 'O');
+  // the age kit's red clay tiles (they lean to the owner's colour); the eave drips unevenly
+  plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 2, { flip: true }), true);
+  plane(t, [r1, r2, P(sh.Rr, 1, 1), P(sh.Bm, 0, 1)], P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 1));
+  pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); AK.crest(t, r1, r2);
   pixLine(t, sh.L[0], sh.L[1], r1[0], r1[1], 'u'); pixLine(t, sh.Bm[0], sh.Bm[1] + 1, r1[0], r1[1], 'u');
-  pixLine(t, sh.Bm[0], sh.Bm[1] + 1, sh.Rr[0] + 1, sh.Rr[1] + 1, 'p');
+  { const n = Math.round(sh.Rr[0] + 1 - sh.Bm[0]); for (let i = 0; i <= n; i++) { const p = lerp(P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), i / n), x = Math.round(p[0]), y = Math.round(p[1]);
+    put(t, x, y, AR[6]); if (hash(x >> 1, 29) < 0.2) put(t, x, y + 1, AR[5]); } }
   pixLine(t, sh.Bm[0], sh.Bm[1], sh.Bm[0], sh.Bm[1] + 21, 'u');
   }
 });
 if (IMP) inked(g, t => AK.finial(t, Math.round(r1[0]), Math.round(r1[1]) - 1));
 // team banner hung on the gable end
 inked(g, t => wall(t, sh.L, sh.Bm, SZ, (a, v) => {
-  const i = a - 31, vo = IMP ? 2 : 0; v -= vo; if (i < 0 || i > 8 || v < 1) return null; if (v === 1) return i === 0 || i === 8 ? 'h' : IMP ? Au[1] : 't';
-  const end = 15 - (Math.abs(i - 4) < 2 ? 2 : 0); if (v > end) return null; if (v === end) return IMP ? Au[i % 2] : 'D';
-  if (IMP && (i === 0 || i === 8)) return Au[i === 0 ? 0 : 2];
-  if (v >= 5 && v <= 9 && ((i === 4) || (v === 7 && i >= 2 && i <= 6))) return 'L';
-  return i === 0 ? 'L' : i === 8 ? 'D' : 'T';
+  const i = a - 30, vo = IMP ? 2 : 0, N = 10; v -= vo; if (i < 0 || i > N || v < 1) return null; if (v === 1) return i === 0 || i === N ? 'h' : IMP ? Au[1] : 't';
+  const end = 16 - (Math.abs(i - N / 2) < 2 ? 2 : 0); if (v > end) return null; if (v === end) return IMP ? Au[i % 2] : 'D';
+  if (IMP && (i === 0 || i === N)) return Au[i === 0 ? 0 : 2];
+  if (v >= 5 && v <= 11 && ((i === N / 2) || (v === 8 && i >= 2 && i <= N - 2))) return 'L';
+  return i === 0 ? 'L' : i === N ? 'D' : 'T';
 }));
 // the shed as painted so far: the brazier inside the bay may only show where nothing in the yard was drawn over it
 const gShed = copy(g);
@@ -194,7 +202,7 @@ const LOGD = 5, LOGL = 22, SP = [LOGD * 0.9, LOGD * 0.45];
 inked(g, t => {
   const base = P(iso(2.02, 2.86), 0, -LOGD / 2);
   // the cloth is shaded as one draped surface (light over the crown, team on the slopes, dark down the near flank), not per log
-  const tarp = (s, b, row, edge) => s < 0.5 ? null : s < 0.56 ? 'D' : row === 2 && b > 0 ? 'L' : edge && b < 0.3 ? 'D' : 'T';
+  const tarp = (s, b, row, edge) => s < 0.3 ? null : s < 0.36 ? 'D' : row === 2 && b > 0 ? 'L' : edge && b < 0.3 ? 'D' : 'T';
   for (const [n, row] of [[4, 0], [3, 1], [2, 2]]) for (let k = 0; k < n; k++) {
     const c = P(base, SP[0] * (k + row / 2), SP[1] * (k + row / 2) - row * LOGD * 0.82);
     cyl(t, c, LOGD, LOGL, (part, s, b, r) => part === 'end' ? endCol(r) : tarp(s, b, row, k === n - 1) || barkCol(s, b));
@@ -275,7 +283,8 @@ for (let f = 0; f < 4; f++) {
   { const b = pixGrid(GW, GH); brazier(b, f); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (b[y][x] !== '.' && g[y][x] === gShed[y][x]) q[y][x] = b[y][x]; }
   if (IMP) { inked(q, t => gantryBack(t, f)); inked(q, t => gantryFront(t), 'k', 'K', 'B'); }
   else { inked(q, t => craneBack(t, f)); inked(q, t => craneFront(t), 'k', 'K', 'B'); }
-  outline(q, 'k', 'K');
+  tufts(q, { s: 31 + AGE, dens: 0.42 });
+  outline(q, 'k', 'K'); tuftInk(q);
   frames.push(pixText(q));
 }
 
@@ -283,7 +292,7 @@ export default {
   id: 'siege', kind: 'building', footprint: [W, H], anchor: [bx, by],
   ...(IMP ? { flags: [[Math.round(sh.Bm[0]) - bx, Math.round(sh.Bm[1]) - by, 14]] } : {}),
   palette: {
-    ...AK.pal,
+    ...AK.pal, ...NAT,
     k: '#24180f', K: '#4a3520',                                                      // ink
     y: '#a0824f', Y: '#8a6d3e', j: '#b8955a', d: '#c9a24a', z: '#7d6236', x: '#5e4a28', // earth, sawdust, plinth
     t: '#5a3a18', w: '#8a6a3a', W: '#a07a4a', u: '#3b2614', i: '#3a2c1f', I: '#241a12', // timber, bay interior
