@@ -60,3 +60,49 @@ const copy = g => g.map(r => r.slice());
 /** draw into a fresh layer, ink its outline, composite it: props and masses get their own dark edge inside the silhouette */
 function inked(g, draw, ink = 'k', inkLit = 'K', self = '') { const t = pixGrid(GW, GH); draw(t); outline(t, ink, inkLit, self); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (t[y][x] !== '.') g[y][x] = t[y][x]; }
 const stampL = (g, x, y, text) => pixStamp(g, Math.round(x), Math.round(y), text);
+// ---- natural edges (HOLISTIC.md "Natural lines"): grass over the wall foot, weathered faces, sagging lines ----
+// Cyrillic chars so they never collide with a generator's letters or the age kit's Greek; merge NAT into the palette.
+const NAT = { 'ж': '#7cb85a', 'г': '#4f9a42', 'д': '#33702c', 'Д': '#22461c',      // grass tuft light / mid / dark, its ink edge
+  'м': '#8c9462', 'л': '#6a7250', 'ь': '#4f5640' };                                    // moss / lichen lit, shade, deep
+const mod = (a, n) => ((a % n) + n) % n;
+/** lowest opaque cell of column x (the wall foot on the silhouette), or -1 */
+function footRow(g, x) { for (let y = GH - 1; y >= 0; y--) if (g[y][x] !== '.') return y; return -1; }
+/** grass tufts growing over the foot of the walls along the bottom silhouette: clustered, 1–3 px blades.
+ *  o.dens (share of columns, clustered), o.h (max blade), o.s seed, o.skip(x, y, ch) → leave a column bare. */
+function tufts(g, o = {}) {
+  const dens = o.dens ?? 0.4, s = o.s ?? 1, mh = o.h ?? 3;
+  for (let x = 0; x < GW; x++) {
+    const y = footRow(g, x); if (y < 0 || (o.skip && o.skip(x, y, g[y][x]))) continue;
+    const n = vnoise(x, 0, 5, s); if (n > dens) continue;
+    const hh = 1 + Math.floor(hash(x, 7, s) * mh * (1.15 - n / dens * 0.6));
+    for (let k = 0; k < hh; k++) put(g, x, y - k, k === hh - 1 && hh > 1 ? 'ж' : k === 0 ? 'д' : 'г');
+  }
+}
+/** after the outline: the ink under a tuft becomes the grass's own dark edge, so the wall foot is not one ruler line */
+function tuftInk(g) {
+  for (let y = 1; y < GH; y++) for (let x = 0; x < GW; x++) if ((g[y][x] === 'k' || g[y][x] === 'K') && 'дгж'.includes(g[y - 1][x])) g[y][x] = 'Д';
+}
+/** wrap a wall face fn(a, v, u, x, y) (v rows from the top, H tall): damp and moss creep up from the foot in clusters and
+ *  rain streaks run down from the top. o.dark {ch: darker}, o.moss {ch: mossCh} (optional), o.mh max moss rows, o.st
+ *  streak share, o.top first streak row, o.s seed. Only chars listed in o.dark are touched (openings and cloth stay clean). */
+const weathered = (fn, H, o) => (a, v, u, x, y) => {
+  const c = fn(a, v, u, x, y); if (!c || !(c in o.dark)) return c;
+  const s = o.s ?? 3, fb = H - 1 - v, X = x ?? a, Y = y ?? v;
+  const n = vnoise(X, 0, 5, s), mh = Math.floor(n * n * (o.mh ?? 4) * 1.6 + 0.5);
+  if (fb < mh) return o.moss && vnoise(X, Y, 3, s + 7) > 0.56 ? o.moss[c] || o.dark[c] : o.dark[c];   // damp foot, moss in clumps
+  const sl = 3 + Math.floor(hash(X, 5, s) * 7), t0 = o.top ?? 1;
+  if (hash(X, 1, s) < (o.st ?? 0.07) && v >= t0 && v < t0 + sl) return v < t0 + sl - 2 || hash(X, v, s) < 0.5 ? o.dark[o.dark[c]] || o.dark[c] : o.dark[c];   // rain streak
+  return c;
+};
+/** points along a→b with a sag of `depth` rows in the middle (a sine arc) */
+const sagAt = (u, depth) => Math.round(depth * Math.sin(Math.PI * Math.max(0, Math.min(1, u))));
+/** sag an interior line (a ridge between two roof planes) by `depth` rows: the plane above flows down over the dip, then
+ *  draw(x, y) paints the line at its new place (call with each column's sagged y). */
+function sagLine(t, a, b, depth, draw) {
+  const x0 = Math.round(Math.min(a[0], b[0])), x1 = Math.round(Math.max(a[0], b[0]));
+  for (let x = x0; x <= x1; x++) {
+    const u = (x - a[0]) / (b[0] - a[0]), y = Math.round(a[1] + u * (b[1] - a[1])), dy = sagAt(u, depth);
+    for (let k = 0; k < dy; k++) put(t, x, y + k, t[y - 1] ? t[y - 1][x] : '.');
+    draw(x, y + dy);
+  }
+}
