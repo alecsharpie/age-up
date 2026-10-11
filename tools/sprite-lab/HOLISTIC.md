@@ -62,6 +62,16 @@ k 0.5, s 0.13, alpha 0.34). Everything that stands throws the same kind of shado
 A painted ground shadow inside a sprite must agree with that (offset right/down, not a centred disc); contact shadow under
 the trunk/feet is darker and tight, the cast part lighter and long.
 
+Done (pt4-nature, `fxShadows` in the RENDER FX block): no sprite paints its own ground shadow any more (the wood, gold, stone
+and berry discs are gone). Every cast shadow (trees, resources, buildings, units, animals, relics) is drawn opaque into one
+screen layer and laid on the ground once at `SUN.a`, so overlapping shadows merge instead of stacking. Trees, bushes and piles
+use `fxVolShadow` (each silhouette row's span becomes an iso ground ellipse carried along the light, so a crown throws a lumpy
+crown-shaped shadow with depth); buildings keep the sheared silhouette (`fxShadowCanvas`); units and animals get a soft ellipse
+along the light sized from their sprite anchor (`fxBodyShadow`) plus drawUnit's tight foot shade. Sun flecks are cut out of the
+tree part (`fxDapple`), and tree casts are cached per 8x8-tile chunk. Contact shade under trunks, piles and bushes is baked into
+the cached resource sprite (`fxBakeContact`, `SUN.c`). New standing art needs nothing painted: give it a clean silhouette and an
+anchor on the ground line.
+
 ## Process
 
 Own worktree and branch per family (`git worktree add ../aoe-pt4-<family> -b pt4-<family> pt4-sprites`). Edit only your

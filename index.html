@@ -1346,21 +1346,25 @@ function resSprite(kind,v){const key=kind+v;if(resSprites[key])return resSprites
   x.imageSmoothingEnabled=false;
   const f=pixFrame(PIXELS.wood,'idle',v,null);
   x.drawImage(f,ox-PIXELS.wood.anchor[0],oy-PIXELS.wood.anchor[1]);
+  if(typeof fxBakeContact==='function')fxBakeContact(x,c,ox,oy); // contact shadow under it, one light (render FX)
   resSprites[key]=c;return c}
  /*lab:stone*/if(kind==='stone'){
   x.imageSmoothingEnabled=false;
   const f=pixFrame(PIXELS.stone,'idle',v,null);
   x.drawImage(f,ox-PIXELS.stone.anchor[0],oy-PIXELS.stone.anchor[1]);
+  if(typeof fxBakeContact==='function')fxBakeContact(x,c,ox,oy); // contact shadow under it, one light (render FX)
   resSprites[key]=c;return c}
  /*lab:gold*/if(kind==='gold'){
   x.imageSmoothingEnabled=false;
   const f=pixFrame(PIXELS.gold,'idle',v,null);
   x.drawImage(f,ox-PIXELS.gold.anchor[0],oy-PIXELS.gold.anchor[1]);
+  if(typeof fxBakeContact==='function')fxBakeContact(x,c,ox,oy); // contact shadow under it, one light (render FX)
   resSprites[key]=c;return c}
  /*lab:food*/if(kind==='food'){
   x.imageSmoothingEnabled=false;
   const f=pixFrame(PIXELS.food,'idle',v,null);
   x.drawImage(f,ox-PIXELS.food.anchor[0],oy-PIXELS.food.anchor[1]);
+  if(typeof fxBakeContact==='function')fxBakeContact(x,c,ox,oy); // contact shadow under it, one light (render FX)
   resSprites[key]=c;return c}
  if(kind==='wood'){if(v===2){x.fillStyle='#5b3a1c';x.fillRect(ox-3,oy-18,6,20);const g=['#2f6b2a','#3a7d33','#4a8f3c'];for(let k=0;k<3;k++){x.fillStyle=g[k];x.beginPath();x.moveTo(ox,oy-62+k*12);x.lineTo(ox+20-k*3,oy-18+k*4-k*10);x.lineTo(ox-20+k*3,oy-18+k*4-k*10);x.closePath();x.fill()}}
   else{x.fillStyle='#5b3a1c';x.fillRect(ox-3,oy-20,6,22);const g=['#2e6a2b','#3c8236','#4f9a42','#63ad50'];for(let k=0;k<5;k++){x.fillStyle=g[Math.min(3,k)];x.beginPath();x.arc(ox+(r()-0.5)*20,oy-30-k*7+(r()-0.5)*6,14-k*1.5,0,7);x.fill()}}
@@ -2202,8 +2206,9 @@ PIXELS.wood=Object.assign((()=>{
 // by a blend of its own sphere and the whole crown (light from the upper-left), leafy value noise breaks the tone bands into
 // clusters, sun flecks dapple the lit side, and a few sky holes and limbs show through. Conifers are drooping branch tiers with
 // needle fringes, each tier shading the one below. Trunks taper, lean a little, carry bark furrows and darken under the crown.
-// The outline is dark ink on the shaded (lower/right) side only; the lit rim is the leaves themselves. Ferns and a translucent
-// forest-floor shadow sit at the base.
+// The outline is dark ink on the shaded (lower/right) side only; the lit rim is the leaves themselves. Ferns sit at the base.
+// No painted ground shadow: the engine casts every tree's shadow from this silhouette along the one light (render FX
+// fxShadows: the canopy's cast shadow, merged across a wood with sun flecks, plus a tight contact shadow at the trunk foot).
 const W = 64, H = 80, AX = 32, AY = 68;
 function rng(seed) { let a = seed | 0; return () => { a = (a * 1664525 + 1013904223) | 0; return ((a >>> 8) & 0xffff) / 65536; }; }
 const hsh = (x, y, s) => { let h = (x * 374761393 + y * 668265263 + s * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -2213,7 +2218,7 @@ function vnoise(x, y, sc, s) {   // smooth value noise, cell size sc
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 const L3 = (() => { const v = [-0.55, -0.68, 0.48]; const n = Math.hypot(...v); return v.map(a => a / n); })();
-const SOLID = c => c !== '.' && c !== 'z';
+const SOLID = c => c !== '.';
 // ---- ramps (dark → light) ----
 const OAK = ['k', 'd', 'm', 'l', 'h'], BEECH = ['k', 'd', 'e', 'E', 'j'], BIRCH = ['k', 'n', 'N', 'Y', 'y'], PINE = ['P', 'p', 'q', 'Q'], BARK = ['x', 'b', 't', 'T'];
 
@@ -2315,9 +2320,6 @@ function ferns(g, spots, seed) {
     pixSet(g, fx, fy, 'f');
   }
 }
-function floor(g, rx, ry) {   // translucent forest-floor shadow, wider than the tile so neighbours' shadows join up
-  for (let y = AY - ry; y <= AY + ry; y++) for (let x = AX - rx; x <= AX + rx; x++) { const dx = (x + 0.5 - AX) / rx, dy = (y + 0.5 - AY - 1) / ry; if (dx * dx + dy * dy <= 1 && pixGet(g, x, y) === '.') pixSet(g, x, y, 'z'); }
-}
 /** shaded-side outline: empty cells right of / below the silhouette get ink; on the lit upper-left the leaf edge stands alone */
 function ink(g) {
   const add = [];
@@ -2341,7 +2343,7 @@ function despeckle(g) {
 }
 // ---- the six variants ----
 function oak() {
-  const g = pixGrid(W, H); floor(g, 29, 10);
+  const g = pixGrid(W, H);
   trunk(g, { x: 31, h: 27, w0: 3.6, w1: 2.4, lean: -1, shadeTo: AY - 14, seed: 4 });
   crown(g, { seed: 11, lad: OAK, cx: 32, cy: 29, rx: 28, ry: 22, n: 46, rmin: 3.6, rmax: 6.6, droop: 3, flecks: 18, holes: 3,
     limbs: [[30, 44, 22, 34], [31, 44, 41, 32], [30, 40, 33, 26]], extra: [[-22, 10, 5], [22, 9, 5.5], [-4, -20, 5], [-7, 13, 4.2]] });
@@ -2349,7 +2351,7 @@ function oak() {
   ink(g); despeckle(g); return g;
 }
 function birch() {
-  const g = pixGrid(W, H); floor(g, 26, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 28, h: 46, w0: 2.2, w1: 1.4, lean: -3, birch: true, bark: ['x', 'w', 'w', 'W'], shadeTo: AY - 34, seed: 6 });
   trunk(g, { x: 37, h: 40, w0: 1.8, w1: 1.1, lean: 4, birch: true, bark: ['x', 'w', 'w', 'W'], shadeTo: AY - 30, seed: 7 });
   crown(g, { seed: 29, lad: BIRCH, cx: 33, cy: 22, rx: 22, ry: 18, n: 52, rmin: 2.6, rmax: 4.6, droop: 5, flecks: 22, holes: 7,
@@ -2358,14 +2360,14 @@ function birch() {
   ink(g); despeckle(g); return g;
 }
 function spruce() {
-  const g = pixGrid(W, H); floor(g, 24, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 32, h: 16, w0: 2.4, w1: 1.6, shadeTo: AY - 4, seed: 9 });
   conifer(g, { seed: 7, cx: 32, top: 4, base: AY - 7, tiers: 8, w: 21 });
   ferns(g, [[22, AY + 1, 4], [42, AY + 1, 3]], 12);
   ink(g); despeckle(g); return g;
 }
 function beech() {
-  const g = pixGrid(W, H); floor(g, 29, 10);
+  const g = pixGrid(W, H);
   trunk(g, { x: 33, h: 34, w0: 3.0, w1: 2.0, lean: 1, bark: ['x', 'G', 'g', 'v'], shadeTo: AY - 16, seed: 2 });
   crown(g, { seed: 41, lad: BEECH, cx: 32, cy: 25, rx: 27, ry: 21, n: 50, rmin: 3.2, rmax: 6.0, droop: 5, flecks: 16, holes: 1,
     limbs: [[33, 36, 25, 28], [33, 38, 43, 30]], extra: [[-21, 12, 4.6], [21, 12, 4.8]] });
@@ -2373,7 +2375,7 @@ function beech() {
   ink(g); despeckle(g); return g;
 }
 function birchHazel() {
-  const g = pixGrid(W, H); floor(g, 27, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 36, h: 44, w0: 2.0, w1: 1.3, lean: 2, birch: true, bark: ['x', 'w', 'w', 'W'], shadeTo: AY - 32, seed: 8 });
   crown(g, { seed: 57, lad: BIRCH, cx: 37, cy: 22, rx: 20, ry: 17, n: 44, rmin: 2.6, rmax: 4.4, droop: 5, flecks: 18, holes: 6 });
   for (const [sx, lean] of [[19, -2], [22, 0], [25, 2]]) pixLine(g, sx, AY, sx + lean, AY - 6, 'b');   // hazel stems under a low leafy dome
@@ -2382,7 +2384,7 @@ function birchHazel() {
   ink(g); despeckle(g); return g;
 }
 function sprucePair() {
-  const g = pixGrid(W, H); floor(g, 27, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 23, h: 12, w0: 1.8, w1: 1.2, shadeTo: AY - 3, seed: 10 });
   conifer(g, { seed: 19, cx: 23, top: 14, base: AY - 6, tiers: 7, w: 16 });
   trunk(g, { x: 39, h: 15, w0: 2.4, w1: 1.6, shadeTo: AY - 4, seed: 11 });
@@ -2402,7 +2404,6 @@ return {
     G: '#4a463e', g: '#6c6656', v: '#8e8874',                                              // beech bark: smooth grey
     W: '#e4ded0', w: '#a69e8e',                                                            // birch bark
     f: '#2c5022', F: '#4f7c32',                                                            // ferns
-    z: 'rgba(8,20,6,0.30)',                                                                // forest-floor shadow
   },
   frames: { idle: [pixText(oak()), pixText(birch()), pixText(spruce()), pixText(beech()), pixText(birchHazel()), pixText(sprucePair())] },
 };
@@ -10874,7 +10875,9 @@ function ink(g) {
   }
   for (const [x, y, c] of add) pixSet(g, x, y, c);
 }
-function v(seed, build, m) { const g = pixGrid(W, H); disc(g, AX, AY - 2, 19, 'z', 7); const R = rng(seed); build(g, R); moss(g, R, m); chips(g, R, 4); ink(g); return g; }
+/** occlusion: where a facet meets the ground or the rock below it, the bottom 1–2 px darken to a cool deep tone (ragged, not a ruled line) */
+function occl(g) { for (let y = H - 2; y > 0; y--) for (let x = 0; x < W; x++) { const c = g[y][x], b = g[y + 1][x]; if ((c === 'd' || c === 'm') && (b === 'k' || b === '.' || b === 'D') && ((x * 7 + y * 3) % 5 < 3 || c === 'd')) g[y][x] = c === 'd' ? 'D' : 'd'; } }
+function v(seed, build, m) { const g = pixGrid(W, H); const R = rng(seed); build(g, R); occl(g); moss(g, R, m); chips(g, R, 4); ink(g); return g; }
 const v0 = v(9, (g, R) => { rock(g, AX - 9, AY - 8, 15, 9, R); rock(g, AX + 9, AY - 8, 14, 8, R); rock(g, AX, AY - 2, 18, 12, R); rock(g, AX - 15, AY, 11, 6, R); rock(g, AX + 13, AY, 11, 6, R); }, 3);
 const v1 = v(31, (g, R) => { slab(g, AX + 2, AY - 10, 26, 5); slab(g, AX - 4, AY - 5, 28, 5); slab(g, AX, AY, 30, 5); rock(g, AX + 15, AY - 1, 10, 7, R); rock(g, AX - 17, AY, 9, 5, R); }, 2);
 const v2 = v(77, (g, R) => { rock(g, AX + 12, AY - 6, 12, 7, R); rock(g, AX - 6, AY - 1, 20, 18, R); rock(g, AX + 5, AY - 1, 14, 14, R); rock(g, AX - 17, AY, 10, 6, R); rock(g, AX + 15, AY + 1, 9, 5, R); }, 4);
@@ -10882,9 +10885,8 @@ const v2 = v(77, (g, R) => { rock(g, AX + 12, AY - 6, 12, 7, R); rock(g, AX - 6,
 return {
   id: 'stone', kind: 'resource', anchor: [AX, AY],
   palette: {
-    o: '#1e262c', k: '#3a444a', c: '#4e585e', d: '#66717a', m: '#8a959a', l: '#adb7ba', w: '#d4dcdc',   // blue-grey rock: ink, seam, crack, shade, body, lit facet, sunlit ridge
+    o: '#1e262c', k: '#3a444a', c: '#4e585e', d: '#66717a', m: '#8a959a', l: '#adb7ba', w: '#d4dcdc', D: '#525c64',   // blue-grey rock: ink, seam, crack, shade, body, lit facet, sunlit ridge, occluded underside
     M: '#5a7a3a', G: '#7a9a4a',                                                                          // moss
-    z: 'rgba(0,0,0,0.16)',
   },
   frames: { idle: [pixText(v0), pixText(v1), pixText(v2)] },
 };
@@ -23661,7 +23663,7 @@ function ink(g) {
   for (const [x, y, c] of add) pixSet(g, x, y, c);
 }
 function pile(rocks, seed, nuggets, veins, glints) {
-  const g = pixGrid(W, H); disc(g, AX, AY - 2, 19, 'z', 7);
+  const g = pixGrid(W, H);
   const R = rng(seed);
   for (const [dx, dy, w, h] of rocks) rock(g, AX + dx, AY + dy, w, h, R);      // back rocks first (listed higher on screen)
   for (const [x, y, n] of veins) vein(g, R, AX + x, AY + y, n);
@@ -23683,7 +23685,6 @@ return {
   palette: {
     o: '#261a10', k: '#3e3020', d: '#64543e', m: '#8a7a5c', l: '#aa9a76', L: '#c8b892',   // brown-grey host rock (kept duller than the ore so the gold pops): ink, seam, shade, body, lit facet, ridge
     g: '#a87a12', G: '#e1b12c', y: '#ffe28a', w: '#ffffff',                                // gold: shade, mid, light (shared ramp), glint
-    z: 'rgba(0,0,0,0.16)',
   },
   frames: { idle: [pixText(v0), pixText(v1), pixText(v2)] },
 };
@@ -24133,7 +24134,7 @@ const inkOf = (n, x, y, litRim) => BERRY.includes(n) ? 'Q' : n === 'x' || n === 
 /** a berry: 2×2 round fruit, highlight top-left, shade bottom-right */
 function berry(g, x, y) { pixSet(g, x, y, 'R'); pixSet(g, x + 1, y, 'r'); pixSet(g, x, y + 1, 'r'); pixSet(g, x + 1, y + 1, 'q'); }
 function bush(blobs, seed, bunches, twigs) {
-  const g = pixGrid(W, H); disc(g, AX, AY - 1, 18, 'z', 6);
+  const g = pixGrid(W, H);
   crown(g, LEAF, rng(seed), blobs, AX, AY, 3);
   const R = rng(seed + 1);
   for (const [bx, by, n] of bunches) {                                  // a bunch: n berries jostled together, the front one bigger
@@ -24154,7 +24155,6 @@ return {
     o: '#12301a', k: '#1c4620', d: '#2d6e2f', m: '#3b8a3c', l: '#56b055', h: '#8ccf6a',   // leaves: ink → deep → shade → mid → light → sun (cooler than the oak)
     R: '#ff9a98', r: '#d0303c', q: '#8a1a2a', Q: '#4a0e18',                               // berries: highlight, body, shade, ink
     t: '#5a3a18', x: '#2e1c0c',                                                            // twigs
-    z: 'rgba(0,0,0,0.16)',
   },
   frames: { idle: [pixText(v0), pixText(v1), pixText(v2)] },
 };
@@ -33127,7 +33127,7 @@ function pixBuild(spec, grid, tc) {
 // (collapse, dust, debris, fire) and the rubble that is left, cast shadows, warm light. Purely visual: reads G, never writes it,
 // keeps its own state in FX (reset when G changes) and uses Math.random only for particles, so the sim stays deterministic.
 const FX={G:null,t:0,seen:new Map(),aprons:new Map(),rubble:[],parts:[],items:[],done:new WeakSet(),handled:new WeakSet(),shadows:new WeakMap(),prune:0};
-const SUN={k:0.5,s:0.13,a:0.34};                    // shadows fall to the right and a little toward the viewer: light from the upper-left, like the sprites
+const SUN={k:0.5,s:0.13,a:0.4,c:0.34,col:'#0d0b0f'}; // shadows fall to the right and a little toward the viewer: light from the upper-left, like the sprites; a: cast, c: contact (one light, see fxShadows)
 function fxHash(a,b,c){let h=Math.imul(a|0,374761393)^Math.imul(b|0,668265263)^Math.imul(c|0,2246822519);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967296}
 function fxVis(x,y){if(ME<0||!G.vis[ME])return true;const i=Math.max(0,Math.min(MAP-1,Math.floor(x))),j=Math.max(0,Math.min(MAP-1,Math.floor(y)));return G.vis[ME][idx(i,j)]===2}
 function fxW(x,y){x=Math.max(0,Math.min(MAP,x));y=Math.max(0,Math.min(MAP,y));return[wpx(x,y),wpy(x,y)]}
@@ -33167,26 +33167,90 @@ function fxApron(b){const key=b.type+'|'+b.tx+'|'+b.ty+'|'+(b.built?1:0);let a=F
  a={key,cv,front:fr,x:B.x0,y:B.y0};FX.aprons.set(b.id,a);return a}
 function fxGround(onscreen){if(!G.buildings.length)return;
  for(const b of G.buildings){if(b.type==='farm'||BUILDINGS[b.type].water)continue;const wx=wpx(b.tx+b.w/2,b.ty+b.h/2),wy=wpy(b.tx+b.w/2,b.ty+b.h/2);if(!onscreen(wx,wy))continue;if(!allied(b.team,ME)&&!exploredBy(ME,b.tx+b.w/2,b.ty+b.h/2))continue;
-  const a=fxApron(b);ctx.drawImage(a.cv,a.x,a.y);if(!b.built)fxStakes(b);const s=FX.seen.get(b.id);if(s&&s.c)fxCast(s)}}
+  const a=fxApron(b);ctx.drawImage(a.cv,a.x,a.y);if(!b.built)fxStakes(b)}} // the building's cast shadow goes with every other one (fxShadows)
 // the foundation's setting-out: corner stakes with a taut string
 function fxStakes(b){const P=[fxW(b.tx,b.ty),fxW(b.tx+b.w,b.ty),fxW(b.tx+b.w,b.ty+b.h),fxW(b.tx,b.ty+b.h)];ctx.strokeStyle='rgba(236,226,196,0.75)';ctx.lineWidth=0.75;ctx.beginPath();P.forEach(([x,y],i)=>i?ctx.lineTo(x,y-3):ctx.moveTo(x,y-3));ctx.closePath();ctx.stroke();ctx.lineWidth=1;
  for(const[x,y]of P){ctx.fillStyle='#3b2614';ctx.fillRect(Math.round(x)-1,Math.round(y)-5,2,6);ctx.fillStyle='#a07a4a';ctx.fillRect(Math.round(x)-1,Math.round(y)-5,1,5)}}
 
-// ---- cast shadows from the sprite silhouette: each column is sheared about its own ground point (the front edges of the
-// footprint), so the plinth stays put and only what stands up throws a shadow. Cached per sprite frame.
+// ---- one light (pt4): everything that stands throws the same shadow, from the same sun (SUN): trees (lone, edge and interior),
+// gold/stone/berries, buildings, units and animals. Two parts, like a real shadow:
+//  * cast: the silhouette laid along the light (fxShadowCanvas; a soft ellipse along the same line for units and animals, whose
+//    frames change every tick). All casts are drawn opaque into one screen-space layer, so overlapping shadows merge into one
+//    shade instead of stacking (a wood's floor reads as one canopy shadow, not a grid of discs), and the layer goes onto the
+//    ground once at SUN.a. Sun flecks are cut out of the tree part (a world-anchored dapple pattern) before the rest is added.
+//  * contact: the sprite's lowest rows pressed flat onto the ground, nudged with the light and softened (fxContactCanvas), baked
+//    under the resource sprite at SUN.c: the dark, tight shade where a trunk, a pile or a bush meets the ground (units: drawUnit's
+//    foot ellipse).
+// Shapes are cached per sprite canvas (FX.shadows) and tree casts per chunk of the map, so a frame costs one drawImage per chunk,
+// resource, building and unit plus one layer composite.
+// cast: each column is sheared about its own ground point (the front edges of the footprint for buildings, the anchor row
+// otherwise), so the plinth stays put and only what stands up throws a shadow.
 function fxShadowCanvas(c,ax,ay,w,h){let m=FX.shadows.get(c);if(!m){m=new Map();FX.shadows.set(c,m)}const key=ax+'|'+ay+'|'+w+'|'+h;let s=m.get(key);if(s)return s;
  const k=SUN.k,sq=SUN.s,flat=!w;const yb=x=>{if(flat)return ay;const dxp=x-ax;return dxp<0?ay-Math.min(-dxp,h*HW)/2:ay-Math.min(dxp,w*HW)/2};
  const maxH=ay,pad=4;const cv=fxCanvas(Math.ceil(c.width+k*maxH+pad*2),Math.ceil(ay*(1+sq)+pad*2)),g=cv.getContext('2d');
  for(let x=0;x<c.width;x++){const b=Math.min(c.height,Math.round(yb(x+0.5)));if(b<=0)continue;g.setTransform(1,0,-k,-sq,k*b+pad,b*(1+sq)+pad);g.drawImage(c,x,0,1,b,x,0,1.6,b)}
- g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-in';g.fillStyle='#0e0a06';g.fillRect(0,0,cv.width,cv.height);
+ g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-in';g.fillStyle=SUN.col;g.fillRect(0,0,cv.width,cv.height);
  const bl=fxCanvas(cv.width,cv.height),q=bl.getContext('2d');q.filter='blur(1.4px)';q.drawImage(cv,0,0);s={cv:bl,pad};m.set(key,s);return s}
-function fxCast(s){if(s.clip<1)return;const an=s.an;const sh=fxShadowCanvas(s.c,an[0],an[1],s.w,s.h);ctx.globalAlpha=SUN.a;ctx.drawImage(sh.cv,s.dx-sh.pad,s.dy-sh.pad);ctx.globalAlpha=1}
-// trees at the edge of a wood (where a shadow lands on open ground) throw one too
-function fxTreeShadows(onscreen){const v=G.vis[ME];const isWood=(x,y)=>x>=0&&y>=0&&x<MAP&&y<MAP&&FX.wood[idx(x,y)]===1;
- if(!FX.wood||FX.woodN!==G.resources.length){FX.wood=new Uint8Array(N);for(const r of G.resources)if(r.res==='wood'&&!r.fish&&!r.cliff&&!r.carcass)FX.wood[idx(r.tx,r.ty)]=1;FX.woodN=G.resources.length}
- ctx.globalAlpha=SUN.a*0.8;for(const r of G.resources){if(r.res!=='wood'||r.fish||r.cliff||r.carcass)continue;if(isWood(r.tx+1,r.ty)&&isWood(r.tx,r.ty-1)&&isWood(r.tx+1,r.ty-1))continue;
-  const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(!onscreen(wx,wy)||v[idx(r.tx,r.ty)]===0)continue;const sp=resSprite('wood',fxWoodV(r));const sh=fxShadowCanvas(sp,32,68,0,0);
-  const jx=((r.tx*73+r.ty*151)%7)-3,jy=((r.tx*31+r.ty*57)%5)-2;ctx.drawImage(sh.cv,wx+jx-32-sh.pad,wy+jy-68-sh.pad)}ctx.globalAlpha=1}
+// volumetric casters (tree crowns, bushes, rock piles): each row of the silhouette is a slice of a roughly round body, so its shadow
+// is the slice's footprint (an iso ellipse as wide as the row's run, half as deep) carried along the light by the slice's height;
+// the union of the slices follows the crown's lumpy outline and has the depth a flat sheared card lacks. Same canvas
+// convention as fxShadowCanvas (sprite (0,0) at (pad,pad)).
+function fxVolShadow(c,ax,ay){let m=FX.shadows.get(c);if(!m){m=new Map();FX.shadows.set(c,m)}const key='v'+ax+'|'+ay;let s=m.get(key);if(s)return s;
+ const k=SUN.k,sq=SUN.s,pad=6,cw=c.width,cv=fxCanvas(Math.ceil(cw+k*ay+pad*2),Math.ceil(ay*(1+sq)+cw/4+pad*2)),g=cv.getContext('2d');
+ const d=c.getContext('2d').getImageData(0,0,cw,Math.min(c.height,ay+3)).data;g.fillStyle=SUN.col;g.beginPath();
+ for(let y=0;y<Math.min(c.height,ay+3);y++){const hgt=Math.max(0,ay-y);let x=0;
+  while(x<cw){while(x<cw&&d[(y*cw+x)*4+3]<128)x++;if(x>=cw)break;let e=x,gap=0;for(let q=x;q<cw;q++){if(d[(y*cw+q)*4+3]>=128){e=q;gap=0}else if(++gap>2)break}
+   const rx=(e+1-x)/2,ry=Math.max(0.6,rx*0.5*Math.min(1,hgt/10+0.25));g.moveTo(pad+x+rx+k*hgt+rx,pad+ay+sq*hgt);g.ellipse(pad+x+rx+k*hgt,pad+ay+sq*hgt,rx,ry,0,0,7);x=e+1}}
+ g.fill();const bl=fxCanvas(cv.width,cv.height),q=bl.getContext('2d');q.filter='blur(1.6px)';q.drawImage(cv,0,0);s={cv:bl,pad};m.set(key,s);return s}
+// contact: rows ay-6 … ay+1 squashed to 40 % of their height around the ground line, smeared 0…2 px toward the light's side, blurred
+function fxContactCanvas(c,ax,ay){let m=FX.shadows.get(c);if(!m){m=new Map();FX.shadows.set(c,m)}const key='c'+ax+'|'+ay;let s=m.get(key);if(s)return s;
+ const B=6,pad=4,gy=pad+3,cv=fxCanvas(c.width+pad*2+2,gy+pad+2),g=cv.getContext('2d');
+ for(const dx of[0,1,2])g.drawImage(c,0,ay-B,c.width,B+2,pad+dx,gy-B*0.4,c.width,(B+2)*0.4);
+ g.globalCompositeOperation='source-in';g.fillStyle=SUN.col;g.fillRect(0,0,cv.width,cv.height);
+ const bl=fxCanvas(cv.width,cv.height),q=bl.getContext('2d');q.filter='blur(1px)';q.drawImage(cv,0,0);s={cv:bl,ox:pad,oy:gy};m.set(key,s);return s}
+// units and animals: a soft ellipse from the feet along the light, as long as the figure's shadow would be (h tall, w wide)
+function fxSoftDot(){if(FX.dot)return FX.dot;const c=fxCanvas(40,20),g=c.getContext('2d');g.filter='blur(2px)';g.fillStyle=SUN.col;g.beginPath();g.ellipse(20,10,15,6,0,0,7);g.fill();return FX.dot=c}
+function fxBodyShadow(L,x,y,w,h){const len=Math.hypot(SUN.k,SUN.s)*h,rx=len*0.5+w*0.25,ry=Math.max(1.8,w*0.17),sx=rx/15,sy=ry/6;
+ L.save();L.translate(x,y);L.rotate(Math.atan2(SUN.s,SUN.k));L.drawImage(fxSoftDot(),len*0.5-w*0.06-20*sx,-10*sy,40*sx,20*sy);L.restore()}
+// sun flecks: soft holes in the canopy's shadow, on a tile anchored to the world so they stay put while the camera moves
+function fxDapple(L){if(FX.dap)return FX.dap;const T=160,c=fxCanvas(T,T/2),g=c.getContext('2d'),rnd=mulberry32(0x5eed1);g.filter='blur(1.5px)';
+ for(let k=0;k<30;k++){const x=rnd()*T,y=rnd()*T/2,rx=2+rnd()*rnd()*7,ry=rx*0.5,a=0.45+rnd()*0.45;g.fillStyle=`rgba(0,0,0,${a})`;
+  for(const ox of[-T,0,T])for(const oy of[-T/2,0,T/2]){g.beginPath();g.ellipse(x+ox,y+oy,rx,ry,0,0,7);g.fill()}}
+ return FX.dap=L.createPattern(c,'repeat')}
+// contact shade baked under a resource sprite once (resSprite calls this for painted trees, piles and bushes): no per-frame cost,
+// and it dims with the sprite under explored fog
+function fxBakeContact(x,c,ox,oy){const t=fxCanvas(c.width,c.height);t.getContext('2d').drawImage(c,0,0);const k=fxContactCanvas(t,ox,oy);
+ x.save();x.globalCompositeOperation='destination-over';x.globalAlpha=SUN.c;x.drawImage(k.cv,-k.ox,oy-k.oy);x.restore()}
+// tree casts are static, so a wood's shadow is cached per chunk of CH×CH tiles (world px, dapples cut in), rebuilt only when a tree
+// in it falls or is first explored; a frame draws a few dozen chunk canvases instead of a shadow per tree
+const FX_CH=8;
+function fxTreeShadow(r){const sp=resSprite('wood',fxWoodV(r)),sh=fxVolShadow(sp,32,68),wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);
+ return[sh.cv,wx+((r.tx*73+r.ty*151)%7)-3-32-sh.pad,wy+((r.tx*31+r.ty*57)%5)-2-68-sh.pad]}
+function fxTreeChunk(key,list,sig,L){let e=FX.tc.get(key);if(e&&e.sig===sig){FX.tc.delete(key);FX.tc.set(key,e);return e} // (re-insert: most recently used last)
+ if(FX.tcBudget--<=0)return null;const sh=list.map(fxTreeShadow);let X0=1e9,Y0=1e9,X1=-1e9,Y1=-1e9;for(const[c,x,y]of sh){X0=Math.min(X0,x);Y0=Math.min(Y0,y);X1=Math.max(X1,x+c.width);Y1=Math.max(Y1,y+c.height)}
+ X0=Math.floor(X0);Y0=Math.floor(Y0);const cv=fxCanvas(Math.ceil(X1-X0),Math.ceil(Y1-Y0)),g=cv.getContext('2d');for(const[c,x,y]of sh)g.drawImage(c,x-X0,y-Y0);
+ g.globalCompositeOperation='destination-out';g.translate(-X0,-Y0);g.fillStyle=fxDapple(g);g.fillRect(X0,Y0,cv.width,cv.height);
+ e={sig,cv,x:X0,y:Y0};FX.tc.delete(key);FX.tc.set(key,e);while(FX.tc.size>140)FX.tc.delete(FX.tc.keys().next().value);return e}
+let fxShL=null;
+function fxShadows(onscreen,x0,y0,x1,y1){const q=cam.zoom>=1?0.5:1,lw=Math.ceil(W*q),lh=Math.ceil(H*q); // shadows are soft: zoomed in, the layer is half resolution (a quarter of the fill)
+ if(!fxShL||fxShL.width!==lw||fxShL.height!==lh)fxShL=fxCanvas(lw,lh);const L=fxShL.getContext('2d'),v=G.vis[ME];
+ L.setTransform(1,0,0,1,0,0);L.clearRect(0,0,lw,lh);const m=ctx.getTransform();L.setTransform(m.a*q,m.b*q,m.c*q,m.d*q,m.e*q,m.f*q);L.imageSmoothingEnabled=true;
+ // trees: wood tiles grouped into chunks (regrouped whenever the resource list changes)
+ if(FX.tcG!==G||FX.tcN!==G.resources.length){if(FX.tcG!==G)FX.tc=new Map();FX.tcG=G;FX.tcN=G.resources.length;FX.chunks=new Map();
+  for(const r of G.resources){if(r.res!=='wood'||r.fish||r.cliff||r.carcass)continue;const k=(r.tx/FX_CH|0)*4096+(r.ty/FX_CH|0);let a=FX.chunks.get(k);if(!a)FX.chunks.set(k,a=[]);a.push(r)}}
+ const cs=[s2w(0,0),s2w(W,0),s2w(W,H),s2w(0,H)],cx0=Math.max(0,Math.floor((Math.min(...cs.map(c=>c.x))-3)/FX_CH)),cx1=Math.floor((Math.max(...cs.map(c=>c.x))+3)/FX_CH),cy0=Math.max(0,Math.floor((Math.min(...cs.map(c=>c.y))-3)/FX_CH)),cy1=Math.floor((Math.max(...cs.map(c=>c.y))+3)/FX_CH);
+ FX.tcBudget=8;
+ for(let cy=cy0;cy<=cy1;cy++)for(let cx=cx0;cx<=cx1;cx++){const key=cx*4096+cy,all=FX.chunks.get(key);if(!all)continue;const list=all.filter(r=>v[idx(r.tx,r.ty)]!==0);if(!list.length)continue;
+  const e=fxTreeChunk(key,list,list.length+'|'+all.length,L);if(e){L.drawImage(e.cv,e.x,e.y);continue}
+  for(const r of list){const[c,x,y]=fxTreeShadow(r);L.drawImage(c,x,y)}} // over this frame's build budget: draw the trees one by one (no flecks) until the chunk is cached
+ for(const r of G.resources){if(r.res==='wood'||r.fish||r.cliff||r.carcass||!PIXELS[r.res])continue;const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(!onscreen(wx,wy)||v[idx(r.tx,r.ty)]===0)continue;
+  const sp=resSprite(r.res,r.v),s=r.res==='food'?1:0.55+0.45*r.amount/r.max,sh=fxVolShadow(sp,32,68),x=wx-32*s,y=wy-68*s;L.drawImage(sh.cv,x-sh.pad*s,y-sh.pad*s,sh.cv.width*s,sh.cv.height*s)}
+ for(const b of G.buildings){if(b.type==='farm'||BUILDINGS[b.type].water)continue;const s=FX.seen.get(b.id);if(!s||!s.c||s.clip<1)continue;const wx=wpx(b.tx+b.w/2,b.ty+b.h/2),wy=wpy(b.tx+b.w/2,b.ty+b.h/2);if(!onscreen(wx,wy))continue;if(!allied(b.team,ME)&&!exploredBy(ME,b.tx+b.w/2,b.ty+b.h/2))continue;
+  const sh=fxShadowCanvas(s.c,s.an[0],s.an[1],s.w,s.h);L.drawImage(sh.cv,s.dx-sh.pad,s.dy-sh.pad)}
+ for(const u of G.units){if(u.inside)continue;const d=UNITS[u.type];if(d.naval)continue;const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);if(!onscreen(wx,wy))continue;if(!allied(u.team,ME)&&!visibleTo(ME,u.x,u.y))continue;
+  const sp=PIXELS[u.type],an=sp&&sp.anchor;fxBodyShadow(L,wx,wy,an?an[0]*2:14,an?an[1]:22)}
+ for(const r of G.relics){if(r.holder||r.temple)continue;const wx=wpx(r.x,r.y),wy=wpy(r.x,r.y);if(onscreen(wx,wy)&&exploredBy(ME,r.x,r.y))fxBodyShadow(L,wx,wy,14,12)}
+ ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=SUN.a;ctx.imageSmoothingEnabled=true;ctx.drawImage(fxShL,0,0,lw/q,lh/q);ctx.restore()}
 function fxWoodV(r){const h=(a,b)=>{let x=(a*374761393+b*668265263)|0;x=Math.imul(x^(x>>>13),1274126177);return((x^(x>>>16))>>>0)/4294967296};let sp=Math.floor(h(r.tx>>2,r.ty>>2)*3);if(h(r.tx,r.ty+99)<0.25)sp=r.v%3;return sp+(h(r.tx+7,r.ty)<0.5?0:3)}
 
 // ---- construction: pixBlit hands every building sprite to this hook while drawBuilding runs (FX.cur = the building)
@@ -33398,7 +33462,8 @@ function human(u,tc,opts){const d=UNITS[u.type];const moving=u.state!=='idle'&&u
  ctx.fillStyle='#e8c39e';ctx.beginPath();ctx.arc(0,-17.5,3.5,0,7);ctx.fill();
  if(opts.helmet){ctx.fillStyle=opts.helmet;ctx.beginPath();ctx.arc(0,-18,3.8,Math.PI,0);ctx.fill()}}
 function drawUnit(u,sel){const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);const tc=TEAM[u.team]||WILD;const d=UNITS[u.type];const r=d.naval?14:d.hp>80||d.pop>1?10:7;
- ctx.fillStyle=d.naval?'rgba(0,30,60,0.25)':'rgba(14,10,6,0.26)';ctx.beginPath();ctx.ellipse(wx+r*0.22,wy-0.5,r*1.05,r*0.45,-0.12,0,7);ctx.fill(); /* falls a little to the right, with the sun */
+ if(d.naval){ctx.fillStyle='rgba(0,30,60,0.25)';ctx.beginPath();ctx.ellipse(wx+r*0.22,wy-0.5,r*1.05,r*0.45,-0.12,0,7);ctx.fill()}
+ else{ctx.fillStyle='rgba(13,11,15,0.16)';ctx.beginPath();ctx.ellipse(wx+1,wy,r*0.95,r*0.42,0,0,7);ctx.fill();ctx.fillStyle='rgba(13,11,15,0.2)';ctx.beginPath();ctx.ellipse(wx+1,wy,r*0.62,r*0.27,0,0,7);ctx.fill()} /* contact shade at the feet, nudged with the light; the long cast shadow is the render FX's (fxShadows, one light) */
  if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(wx,wy,r+2,(r+2)*0.5,0,0,7);ctx.stroke();ctx.lineWidth=1}
  ctx.save();ctx.translate(wx,wy);ctx.scale(u.face,1);if(u.flash>0&&!PIXELS[u.type])ctx.globalAlpha=0.7;
  const swing=u.swing>0?Math.sin(u.swing/SWING*Math.PI):0;const working=(u.state==='gather'&&u.phase==='gathering')||(u.state==='build'&&!u.goal);const wph=working?Math.sin(u.anim*10):0;
@@ -33602,9 +33667,8 @@ function render(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fill
  fxRubbleGround(onscreen); // rubble, scorch and smoke of destroyed buildings (render FX)
  for(const e of G.effects){if(e.k==='rubble')continue;
   else if(e.k==='corpse'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);if(!onscreen(wx,wy))continue;if(!FX.handled.has(e)){if(!fxVis(e.x,e.y))continue;FX.handled.add(e)} /* a death is only shown if we saw it (or walk up to it) */const dsp=PIXELS[e.type];if(dsp&&dsp.frames.death){ctx.globalAlpha=Math.max(0,Math.min(1,(12-(G.time-e.t))/4));ctx.save();ctx.translate(wx,wy);ctx.scale(e.face||1,1);ctx.translate(-Math.round(Math.min(1,(G.time-e.t)/0.25)*3),0);pixDeath(ctx,dsp,e.t,TEAM[e.team]||WILD);ctx.restore();ctx.globalAlpha=1;continue}ctx.globalAlpha=Math.max(0,1-(G.time-e.t)/12)*0.8;ctx.fillStyle=TEAM[e.team].d;ctx.beginPath();ctx.ellipse(wx,wy-2,9,3.5,0,0,7);ctx.fill();ctx.fillStyle='#e8c39e';ctx.beginPath();ctx.arc(wx+9,wy-3,2.5,0,7);ctx.fill();ctx.globalAlpha=1}}
- // forest floor: one dark path over every visible wood tile, a little larger than the tile so neighbours merge (one fill, so overlaps don't stack)
- ctx.fillStyle='rgba(18,34,14,0.38)';ctx.beginPath();for(const r of G.resources){if(r.res!=='wood'||r.fish||r.cliff||r.carcass)continue;const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(!onscreen(wx,wy)||G.vis[ME][idx(r.tx,r.ty)]===0)continue;ctx.moveTo(wx+HW+6,wy);ctx.ellipse(wx,wy,HW+6,HH+4,0,0,Math.PI*2)}ctx.fill();
- fxTreeShadows(onscreen);fxGround(onscreen); // cast shadows, building aprons and foundations (render FX)
+ // building aprons and foundations, then one light: every shadow (trees and the forest floor under them, resources, buildings, units) in one pass (render FX)
+ fxGround(onscreen);fxShadows(onscreen,x0,y0,x1,y1);
  // farms first (flat)
  const items=[];
  for(const b of G.buildings){const wx=wpx(b.tx+b.w/2,b.ty+b.h/2),wy=wpy(b.tx+b.w/2,b.ty+b.h/2);if(!onscreen(wx,wy))continue;if(!allied(b.team,ME)&&!exploredBy(ME,b.tx+b.w/2,b.ty+b.h/2))continue;if(b.type==='farm'){drawBuilding(b,selSet.has(b));continue}items.push({k:b.tx+b.ty+b.w-0.01,e:b})}
@@ -33636,7 +33700,7 @@ function render(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fill
   ctx.lineWidth=1.5/z;ctx.setLineDash([7/z,5/z]);rangeRing(r,R);ctx.strokeStyle=dim?'rgba(255,220,150,0.35)':'rgba(255,214,120,0.75)';ctx.stroke();ctx.fillStyle='rgba(255,214,120,0.05)';ctx.fill();
   if(mn){ctx.setLineDash([2/z,4/z]);rangeRing(r,mn);ctx.strokeStyle='rgba(255,120,90,0.9)';ctx.stroke()}ctx.setLineDash([])}
  const fv=G.vis[ME];const fogDim=e=>e.kind==='res'?fv[idx(e.tx,e.ty)]===1:e.kind==='bld'?fv[idx(Math.floor(e.tx+e.w/2),Math.floor(e.ty+e.h/2))]===1:fv[idx(Math.floor(e.x),Math.floor(e.y))]===1;
- for(const it of items){const e=it.e;if(e.kind==='unit'){drawUnit(e,selSet.has(e));continue}if(e.kind==='fx'){fxDrawItem(e.R);continue}const fd=fogDim(e),flt=fd&&!(e.kind==='res'&&!e.fish&&!e.carcass);if(flt){ctx.save();ctx.filter='brightness(0.53)'}if(false);else if(e.kind==='bld')drawBuilding(e,selSet.has(e));else if(e.kind==='relic'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);ctx.fillStyle='rgba(0,0,0,0.25)';ctx.beginPath();ctx.ellipse(wx,wy,7,3.5,0,0,7);ctx.fill();pixRelic(wx,wy,'idle',(e.x*7+e.y*3)%5);if(selSet.has(e)){ctx.strokeStyle='#fff';ctx.beginPath();ctx.ellipse(wx,wy,9,4.5,0,0,7);ctx.stroke()}}else{drawResource(e,fd&&!flt);if(selSet.has(e)){ctx.strokeStyle='#fff';const cx=wpx(e.tx,e.ty),cy=wpy(e.tx,e.ty);const c=corners(cx,cy,1,1,0);poly([c.T,c.Rr,c.Bm,c.L],null,'#fff')}}if(flt)ctx.restore()}
+ for(const it of items){const e=it.e;if(e.kind==='unit'){drawUnit(e,selSet.has(e));continue}if(e.kind==='fx'){fxDrawItem(e.R);continue}const fd=fogDim(e),flt=fd&&!(e.kind==='res'&&!e.fish&&!e.carcass);if(flt){ctx.save();ctx.filter='brightness(0.53)'}if(false);else if(e.kind==='bld')drawBuilding(e,selSet.has(e));else if(e.kind==='relic'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);ctx.fillStyle='rgba(13,11,15,0.3)';ctx.beginPath();ctx.ellipse(wx+1,wy,5.5,2.4,0,0,7);ctx.fill();pixRelic(wx,wy,'idle',(e.x*7+e.y*3)%5);if(selSet.has(e)){ctx.strokeStyle='#fff';ctx.beginPath();ctx.ellipse(wx,wy,9,4.5,0,0,7);ctx.stroke()}}else{drawResource(e,fd&&!flt);if(selSet.has(e)){ctx.strokeStyle='#fff';const cx=wpx(e.tx,e.ty),cy=wpy(e.tx,e.ty);const c=corners(cx,cy,1,1,0);poly([c.T,c.Rr,c.Bm,c.L],null,'#fff')}}if(flt)ctx.restore()}
  xraySilhouettes(items,z);
  // projectiles
  for(const p of G.projectiles){const wx=wpx(p.x,p.y),wy=wpy(p.x,p.y);if(!onscreen(wx,wy)||!fxVis(p.x,p.y))continue; /* only what is in sight */const arc=Math.sin(Math.min(1,p.t/(Math.hypot(p.tx-p.x,p.ty-p.y)/p.speed+p.t))*Math.PI);const hgt=(p.kind==='rock'?30:12)*arc+p.z*10*(1-Math.min(1,p.t));

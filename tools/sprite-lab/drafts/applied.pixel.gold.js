@@ -38,7 +38,7 @@ function ink(g) {
   for (const [x, y, c] of add) pixSet(g, x, y, c);
 }
 function pile(rocks, seed, nuggets, veins, glints) {
-  const g = pixGrid(W, H); disc(g, AX, AY - 2, 19, 'z', 7);
+  const g = pixGrid(W, H);
   const R = rng(seed);
   for (const [dx, dy, w, h] of rocks) rock(g, AX + dx, AY + dy, w, h, R);      // back rocks first (listed higher on screen)
   for (const [x, y, n] of veins) vein(g, R, AX + x, AY + y, n);
@@ -60,7 +60,6 @@ export default {
   palette: {
     o: '#261a10', k: '#3e3020', d: '#64543e', m: '#8a7a5c', l: '#aa9a76', L: '#c8b892',   // brown-grey host rock (kept duller than the ore so the gold pops): ink, seam, shade, body, lit facet, ridge
     g: '#a87a12', G: '#e1b12c', y: '#ffe28a', w: '#ffffff',                                // gold: shade, mid, light (shared ramp), glint
-    z: 'rgba(0,0,0,0.16)',
   },
   frames: { idle: [pixText(v0), pixText(v1), pixText(v2)] },
 };

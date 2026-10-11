@@ -46,7 +46,7 @@ const inkOf = (n, x, y, litRim) => BERRY.includes(n) ? 'Q' : n === 'x' || n === 
 /** a berry: 2×2 round fruit, highlight top-left, shade bottom-right */
 function berry(g, x, y) { pixSet(g, x, y, 'R'); pixSet(g, x + 1, y, 'r'); pixSet(g, x, y + 1, 'r'); pixSet(g, x + 1, y + 1, 'q'); }
 function bush(blobs, seed, bunches, twigs) {
-  const g = pixGrid(W, H); disc(g, AX, AY - 1, 18, 'z', 6);
+  const g = pixGrid(W, H);
   crown(g, LEAF, rng(seed), blobs, AX, AY, 3);
   const R = rng(seed + 1);
   for (const [bx, by, n] of bunches) {                                  // a bunch: n berries jostled together, the front one bigger
@@ -67,7 +67,6 @@ export default {
     o: '#12301a', k: '#1c4620', d: '#2d6e2f', m: '#3b8a3c', l: '#56b055', h: '#8ccf6a',   // leaves: ink → deep → shade → mid → light → sun (cooler than the oak)
     R: '#ff9a98', r: '#d0303c', q: '#8a1a2a', Q: '#4a0e18',                               // berries: highlight, body, shade, ink
     t: '#5a3a18', x: '#2e1c0c',                                                            // twigs
-    z: 'rgba(0,0,0,0.16)',
   },
   frames: { idle: [pixText(v0), pixText(v1), pixText(v2)] },
 };
