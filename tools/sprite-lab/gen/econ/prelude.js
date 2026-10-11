@@ -68,3 +68,68 @@ function heap(gr, cx, cy, rx, ry, tones, k = 0, lumps = 2) {
   }
   for (const [x, y, l] of cells) pixSet(gr, x, y, l > 0.45 ? tones[0] : l > 0.05 ? tones[1] : l > -0.4 ? tones[2] : tones[3]);
 }
+// ---- natural lines (HOLISTIC.md, 2026-10-12): working buildings are the most organic in the town. Variation is 1 px; the iso
+// grid never breaks. Palette chars à á â (grass tufts: dark, mid, light) and ã ä (moss: lit, shade): spread NAT_PAL into it.
+const NAT_PAL = { 'à': '#3f7a2e', 'á': '#5f9a3e', 'â': '#8cc25a', 'ã': '#7a8a44', 'ä': '#56632f' };
+const TUFTS = [`.â.\nàáà`, `â.á\nàáà`, `.á\nàà`, `á..\nàâ.\n.àà`, `..â\n.áà\nàà.`];
+/** Fray the footprint's ground edge so there is no hard diamond: edge cells of ground (isG(ch)) are nibbled 1–2 px in clumps,
+ *  and grass tufts creep over the headland (o.edge density) and the foot of walls (o.feet: density, o.feetOf: the wall chars). Call before the outline pass. */
+function fray(gr, isG, seed = 0, o = {}) {
+  const H = gr.length, W = gr[0].length, at = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? gr[y][x] : '.');
+  const open = (x, y) => at(x - 1, y) === '.' || at(x + 1, y) === '.' || at(x, y - 1) === '.' || at(x, y + 1) === '.';
+  for (let pass = 0; pass < 2; pass++) { const kill = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c) || !open(x, y)) continue;
+      if (hash((x + (pass ? 2 : 0)) >> 2, y >> 1, seed + 40 + pass) < (pass ? 0.24 : 0.42)) kill.push([x, y]); }
+    for (const [x, y] of kill) gr[y][x] = '.'; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c)) continue;   // no lone crumbs
+    const n = (at(x - 1, y) !== '.') + (at(x + 1, y) !== '.') + (at(x, y - 1) !== '.') + (at(x, y + 1) !== '.'); if (n <= 1) gr[y][x] = '.'; }
+  // distance (in cells, ≤ 3) from the open edge, for the headland band
+  const dist = gr.map((r, y) => r.map((c, x) => (c === '.' ? 0 : 9)));
+  for (let k = 1; k <= 3; k++) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (dist[y][x] === 9 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => (dist[y + dy] || [])[x + dx] === k - 1)) dist[y][x] = k;
+  const used = [];
+  const place = (x, y, k) => { if (used.some(([ux, uy]) => Math.abs(ux - x) < 4 && Math.abs(uy - y) < 3)) return; used.push([x, y]);
+    const rows = TUFTS[k % TUFTS.length].split('\n'), h = rows.length;
+    rows.forEach((r, yy) => { for (let xx = 0; xx < r.length; xx++) { const ch = r[xx]; if (ch === '.') continue; const X = x - 1 + xx, Y = y - h + 1 + yy, c = at(X, Y);
+      if (c === '.' || (yy === h - 1 && !isG(c))) continue; pixSet(gr, X, Y, ch); } }); };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c)) continue;
+    const h = hash(x, y, seed + 77), k = Math.floor(hash(x, y, seed + 78) * 5);
+    if (dist[y][x] >= 1 && dist[y][x] <= 2 && h < (o.edge ?? 0.05)) place(x, y, k);
+    else if (o.feet && (o.feetOf || '').includes(at(x, y - 1)) && h < o.feet) place(x, y, k);
+  }
+}
+/** Sag a long ridge (or eave) a→b in screen cells: each column's segment from `up` rows above the line to `dn` below moves down
+ *  by round(amp·sin(πt)); with lift > 0 the last `lift` of the run rises 1 px instead (a lifted end). */
+function sag(gr, a, b, up, dn = 0, amp = 1.3, lift = 0) {
+  const H = gr.length, x0 = Math.round(Math.min(a[0], b[0])), x1 = Math.round(Math.max(a[0], b[0]));
+  for (let x = x0; x <= x1; x++) {
+    const t = (x - a[0]) / (b[0] - a[0]); if (t < 0 || t > 1) continue;
+    let d = Math.round(amp * Math.sin(Math.PI * t)); if (lift && t > 1 - lift) d = -1; if (!d) continue;
+    const yl = Math.round(a[1] + (b[1] - a[1]) * t), top = yl - up, bot = yl + dn, old = gr.map(r => r[x]);
+    const get = y => (y >= 0 && y < H ? old[y] : '.');
+    if (d > 0) { for (let y = top; y <= bot + d; y++) if (y >= 0 && y < H) gr[y][x] = get(y - d); }
+    else for (let y = top + d; y <= bot + d; y++) if (y >= 0 && y < H) gr[y][x] = get(y - d);
+  }
+}
+/** Ragged eave a→b (the eave's ink line): here and there a slipped shingle or tile hangs a pixel low, so the drip line is uneven;
+ *  the eave cell becomes roof `ch` and the ink drops onto the row below. */
+function ragEave(gr, a, b, ch, ink = 'k', p = 0.16, seed = 0) {
+  const n = Math.round(Math.abs(b[0] - a[0]));
+  for (let i = 2; i < n - 1; i++) { const x = Math.round(a[0] + (b[0] - a[0]) * i / n), y = Math.round(a[1] + (b[1] - a[1]) * i / n);
+    if (hash(x >> 1, seed, 61) < p && pixGet(gr, x, y + 1) !== '.') { pixSet(gr, x, y, ch); pixSet(gr, x, y + 1, ink); } }
+}
+/** Spill: little stones / ore / chips on the ground round (cx,cy) within rx×ry: each a 2-px pebble in tones[h] with a dark under-
+ *  side `dk`, only on ground chars isG. */
+function spill(gr, cx, cy, rx, ry, n, tones, dk, isG, seed = 0) {
+  for (let i = 0; i < n; i++) { const x = Math.round(cx + (hash(i, seed, 71) * 2 - 1) * rx), y = Math.round(cy + (hash(i, seed, 72) * 2 - 1) * ry);
+    if (!isG(pixGet(gr, x, y)) || !isG(pixGet(gr, x + 1, y)) || !isG(pixGet(gr, x, y + 1))) continue;
+    const t = tones[Math.floor(hash(i, seed, 73) * tones.length)]; pixSet(gr, x, y, t); if (hash(i, seed, 74) < 0.6) pixSet(gr, x + 1, y, t); pixSet(gr, x, y + 1, dk); }
+}
+/** Weather a wall fn(U,V,x,y): moss and lichen low on stone (chars in `stone`), rain streaks running down from the eave (`dark`
+ *  maps a stone char to its next-darker one). o.lit picks the moss tone; o.H the wall height; o.seed. */
+const weather = (fn, stone, dark, o = {}) => (U, V, x, y) => {
+  const c = fn(U, V, x, y); if (!c || !stone.includes(c)) return c;
+  const u = Math.floor(U), v = Math.floor(V), s = o.seed || 0;
+  if (v < 1 + Math.floor(hash(u >> 1, s, 81) * 3) && hash(u >> 1, v, s + 82) < 0.42) return o.lit === false ? 'ä' : (hash(u, v, s) < 0.5 ? 'ã' : 'ä');
+  if (o.H && hash(u, s, 83) < 0.07 && v > o.H * (0.3 + hash(u, s, 84) * 0.4)) return dark[c] || c;
+  return c;
+};

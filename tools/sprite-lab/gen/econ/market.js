@@ -11,6 +11,8 @@
 // Castle as tuned: a cobbled courtyard on a low stone kerb, four different stalls: each faces its own way (counter toward +c or
 // +a) under its own roof (a team-striped lean-to awning, an ochre ridged tent, a flat undyed canopy with a team valance), counters of goods (terracotta pots, bolts of cloth, fruit baskets, grain sacks), a
 // well in the middle, crates and barrels, a pennant pole at the left corner. The code flag flies from the right corner (clear of the awnings).
+// pt4: the Feudal yard's edge is frayed and weedy, its hurdle stakes of uneven height and lean; Castle/Imperial setts have
+// weeds in a few joints near the kerb and a chipped kerb stone or two (formal, so only a touch).
 // idle ×4: the awning hems flutter and the pennant waves.
 // Drawn by drafts/building.market.js: pixDraw(PIXELS.market,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ==end
@@ -34,13 +36,18 @@ flat(g, 0, 3, 0, 3, KZ, (s, t, x, y) => {
 }
 // Feudal: wattle hurdles staked along the two back edges (woven bands between rough stakes)
 if (AGE === 1) {
-  const hurdle = (gr, p0, p1, n, lit) => { for (let i = 0; i <= n; i++) { const t = i / n, x = Math.round(p0[0] + (p1[0] - p0[0]) * t), y = Math.round(p0[1] + (p1[1] - p0[1]) * t); for (let z = 0; z < 11; z++) pixSet(gr, x, y - z, z === 10 ? TW[0] : TW[2]); } };
+  const hurdle = (gr, p0, p1, n, lit) => { for (let i = 0; i <= n; i++) { const t = i / n, x = Math.round(p0[0] + (p1[0] - p0[0]) * t), y = Math.round(p0[1] + (p1[1] - p0[1]) * t), hh = hash(i, lit ? 1 : 2, 21), top = 10 + (hh < 0.3 ? 1 : hh > 0.75 ? -1 : 0), lean = hash(i, lit ? 1 : 2, 22) < 0.3 ? 1 : 0;
+    for (let z = 0; z <= top; z++) pixSet(gr, x + (z > top - 3 ? lean : 0), y - z, z === top ? TW[0] : TW[2]); } };
   // the woven panels: along a (back-right edge, lit face toward +c) and along c (back-left edge, shade face toward +a)
   wallC(g, 0.06, 0.1, 2.9, 0, 8, (U, V) => { const row = Math.floor(V / 2), u = Math.floor(U); return ((u + row * 2) % 5 < 3) ? (V % 2 ? 'w' : 'W') : 'v'; });
   wallA(g, 0.06, 2.9, 0.1, 0, 8, (U, V) => { const row = Math.floor(V / 2), u = Math.floor(U); return ((u + row * 2) % 5 < 3) ? (V % 2 ? 'W' : 'v') : TW[2]; });
   hurdle(g, iso(0.1, 0.06, 0), iso(2.9, 0.06, 0), 8, true); hurdle(g, iso(0.06, 0.1, 0), iso(0.06, 2.9, 0), 8, false);
 }
 
+// natural edges: Feudal frays its earth yard; Castle/Imperial get weeds in a few joints near the kerb, a chipped kerb stone
+if (AGE === 1) fray(g, ch => 'yYIC'.includes(ch), 13, { edge: 0.05, feet: 0.12, feetOf: 'wWv' + TW.join('') });
+else { flat(g, 0, 3, 0, 3, KZ, (s, t, x, y) => { const c = pixGet(g, x, y), e = Math.min(s, t, 1 - s, 1 - t); if (c !== 'j' || e > 0.12) return null; return hash(x, y, 31) < (AGE === 3 ? 0.12 : 0.3) ? (hash(x, y, 32) < 0.5 ? 'à' : 'á') : null; });
+  for (let i = 0; i < (AGE === 3 ? 2 : 4); i++) { const a = 0.4 + hash(i, 1, 33) * 2.2, p = iso(a, 3, KZ); pixSet(g, p[0], p[1], '.'); pixSet(g, p[0] + 1, p[1], '.'); pixSet(g, p[0], p[1] + 1, 'p'); } }
 // ---- props
 const pot = (gr, x, y) => pixStamp(gr, x, y, `
 .kkk.
@@ -359,7 +366,7 @@ export default {
     R: '#d0473a', r: '#8e2a1f', b: '#4a7fb0', B: '#7aa8d8', a: '#2a4f78', x: '#9a5a9a', X: '#c08ac0', N: '#5e3060', // cloth bolts
     F: '#e0503a', f: '#a8281e', A: '#ffc061', e: '#e08a2a',                                           // apples, oranges
     S: '#e3d2a8', s: '#c4ad7c', m: '#937c55', n: '#5f656c', z: '#2a4a66', Z: '#8ab8e0',               // sacks, hoops, well water
-    k: '#24180f',
+    k: '#24180f', ...NAT_PAL,
   },
   frames: { idle: frames },
 };

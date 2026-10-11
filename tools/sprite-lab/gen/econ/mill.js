@@ -88,6 +88,7 @@ if (AGE >= 2) {
     const blk = hash(Math.floor(arc / 7), course, 5);
     if (r === 0) return nx > 0.35 ? 'J' : 'j';
     if (Math.floor(arc / 7) !== Math.floor((arc - 1.15) / 7)) return nx > 0.35 ? 'J' : 'j';
+    if (v < (AGE === 3 ? 6 : 9) && hash(Math.floor(arc / 2), v >> 1, 31) < (AGE === 3 ? 0.12 : 0.3) * (1 - v / 10)) return nx > 0.3 ? 'ä' : 'ã';   // moss low on the stone
     return tone(nx, (r === 3 ? 1 : 0) + (blk < 0.25 ? -1 : blk > 0.8 ? 1 : 0) * (nx > 0.6 ? 0 : 1));
   };
   function onDrum(gr, dx0, dx1, v0, v1, fn) { drum(gr, v0, v1, rTower, (dx, v, nx) => (dx >= dx0 && dx <= dx1 ? fn(dx - dx0, v - v0, dx1 - dx0, v1 - v0) : null)); }
@@ -197,10 +198,10 @@ if (AGE === 0) {
   // wattle-and-daub drum: the kit's wattle texture wrapped round the wall (u = arc length), the lit side to the left
   drum(g, 0, HW, () => HR, (dx, v, nx, ph) => {
     const u = (ph + 2) * HR, face = nx > 0.3 ? 1 : 0;
-    if (dx >= -14 && dx <= -5 && v <= 10) {                                         // doorway with a team hide hung across it
-      const su = dx + 14;
-      if (v === 10) return TW[2]; if (su === 0 || su === 9) return TW[1];
-      if (su >= 7 || v < 1) return DEEP;
+    if (dx >= -15 && dx <= -3 && v <= 11) {                                         // doorway with a team hide hung across it
+      const su = dx + 15;
+      if (v === 11) return TW[2]; if (su === 0 || su === 12) return TW[1];
+      if (su >= 10 || v < 1) return DEEP;
       return su === 1 ? 'L' : (su + (v >> 2)) % 3 === 0 ? 'D' : 'T';
     }
     return AK.wallTex(u, v, face, { len: 400, H: HW + 2, pl: 1 });
@@ -210,7 +211,7 @@ if (AGE === 0) {
   cone(g, CX, capY, ER, CH, capTex(CH));
   for (let dx = -ER; dx <= ER; dx++) if (hash(dx, 7, 9) < 0.45) { const nx = dx / ER, y = Math.round(capY + (ER / 2) * Math.sqrt(Math.max(0, 1 - nx * nx))); pixSet(g, CX + dx, y + 1, RK[5]); if (hash(dx, 8, 9) < 0.3) pixSet(g, CX + dx, y + 2, RK[6]); }
   // the eave's shadow on the daub just under the fringe
-  for (let dx = -HR + 1; dx < HR; dx++) { const nx = dx / ER, y = Math.round(capY + (ER / 2) * Math.sqrt(Math.max(0, 1 - nx * nx))), y2 = y + (hash(dx, 7, 9) < 0.45 ? 2 : 1); if (dx < -14 || dx > -5) pixSet(g, CX + dx, y2, AK.P[2]); pixSet(g, CX + dx, y + 1, RK[6]); }
+  for (let dx = -HR + 1; dx < HR; dx++) { const nx = dx / ER, y = Math.round(capY + (ER / 2) * Math.sqrt(Math.max(0, 1 - nx * nx))), y2 = y + (hash(dx, 7, 9) < 0.45 ? 2 : 1); if (dx < -15 || dx > -3) pixSet(g, CX + dx, y2, AK.P[2]); pixSet(g, CX + dx, y + 1, RK[6]); }
   // smoke hole at the tip under crossed poles
   pixStamp(g, CX - 2, capY - CH - 1, `.kkk.\nkΨΨΨk`.replace(/k/g, INK));
   AK.finial(g, CX, capY - CH - 1);
@@ -289,6 +290,10 @@ if (AGE === 0) {
   pixSet(g, pole[0], pole[1] - 30, 'O');
 }
 
+// ---- the apron's edge frayed with weeds (no ruled diamond); a little spilt grain by the sacks
+{ const isG = ch => GROUND.includes(ch);
+  if (AGE >= 1) spill(g, ...iso(0.5, 1.5, 0), 9, 4, 7, ['A', 'B'], 'f', isG, 4);
+  fray(g, isG, 7, { edge: 0.06, feet: 0.2, feetOf: 'PpqQUVjJ' + AK.P.join('') + SK.join('') + 'wWvO' }); }
 // ---- idle frames
 const e = th => [Math.cos(th) * 0.89, Math.cos(th) * 0.45 - Math.sin(th)];
 function sails(fr, f) {
@@ -322,10 +327,10 @@ function hutLife(fr, f) {
   // smoke from the hole in the thatch, rising and drifting right
   for (let k = 0; k < 3; k++) { const t = ((f + k * 4 / 3) % 4) / 4, r = t < 0.3 ? 1 : 2; puff(fr, smokeAt[0] + Math.round(Math.sin(t * 5) * 1.5 + t * 8), smokeAt[1] - Math.round(2 + t * 16), r); }
   // the team pennant on the sapling
-  const x0 = pole[0] + 2, y0 = pole[1] - 29, len = 15;
+  const x0 = pole[0] + 2, y0 = pole[1] - 29, len = 18;
   for (let i = 0; i < len; i++) {
-    const wave = Math.round(Math.sin((i / len) * Math.PI * 1.6 - f * Math.PI / 2) * 1.4 * (i / len)), hgt = Math.max(1, Math.round(8 * (1 - i / len)));
-    const top = y0 + Math.round((8 - hgt) / 2) + wave;
+    const wave = Math.round(Math.sin((i / len) * Math.PI * 1.6 - f * Math.PI / 2) * 1.5 * (i / len)), hgt = Math.max(1, Math.round(10 * (1 - i / len)));
+    const top = y0 + Math.round((10 - hgt) / 2) + wave;
     for (let k = 0; k < hgt; k++) pixSet(fr, x0 + i, top + k, k === 0 ? 'L' : k === hgt - 1 ? 'D' : 'T');
   }
 }
@@ -350,7 +355,7 @@ export default {
     w: '#a07a4a', W: '#8a6a3a', v: '#5a3a18', O: '#c9a86a', k: '#24180f',                       // timber, hub, ink
     S: '#e3d2a8', s: '#c4ad7c', m: '#937c55', M: '#9aa0a6',                                      // sacks, iron
     z: '#e4e0da', h: '#c4beb8', H: '#948e88',                                                    // smoke
-    ...LIME,
+    ...LIME, ...NAT_PAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
   },
   frames: { idle: frames },

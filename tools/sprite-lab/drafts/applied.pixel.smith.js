@@ -10,6 +10,7 @@
 // Castle as tuned: coursed stone smithy under a gable roof, a stone chimney through the roof, a wide forge mouth in
 // the lit wall with the hearth glowing inside, tools hung on a rail, a team-striped awning over the work bench, an anvil on
 // its stump in the yard, a plank quench trough and a coal bin with a shovel against the wall, on cinder-strewn earth.
+// pt4: the Feudal and Castle ridges sag a pixel (Feudal's far end lifts), the eaves drop a slipped shingle/tile or two, moss at the foot of stone walls, coal spilt by the bin, the yard's edge frayed.
 // idle ×6: smoke puffs rise and drift from the chimney, the forge glow pulses (on the hearth, jambs and the ground), sparks fly off the anvil.
 // Drawn by drafts/building.smith.js: pixDraw(PIXELS.smith,'idle',b.built?Math.floor(G.time*5):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ---- local kit: iso faces with surface coordinates, structured textures, selective outline, seeded rng ----
@@ -85,6 +86,71 @@ function heap(gr, cx, cy, rx, ry, tones, k = 0, lumps = 2) {
   }
   for (const [x, y, l] of cells) pixSet(gr, x, y, l > 0.45 ? tones[0] : l > 0.05 ? tones[1] : l > -0.4 ? tones[2] : tones[3]);
 }
+// ---- natural lines (HOLISTIC.md, 2026-10-12): working buildings are the most organic in the town. Variation is 1 px; the iso
+// grid never breaks. Palette chars à á â (grass tufts: dark, mid, light) and ã ä (moss: lit, shade): spread NAT_PAL into it.
+const NAT_PAL = { 'à': '#3f7a2e', 'á': '#5f9a3e', 'â': '#8cc25a', 'ã': '#7a8a44', 'ä': '#56632f' };
+const TUFTS = [`.â.\nàáà`, `â.á\nàáà`, `.á\nàà`, `á..\nàâ.\n.àà`, `..â\n.áà\nàà.`];
+/** Fray the footprint's ground edge so there is no hard diamond: edge cells of ground (isG(ch)) are nibbled 1–2 px in clumps,
+ *  and grass tufts creep over the headland (o.edge density) and the foot of walls (o.feet: density, o.feetOf: the wall chars). Call before the outline pass. */
+function fray(gr, isG, seed = 0, o = {}) {
+  const H = gr.length, W = gr[0].length, at = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? gr[y][x] : '.');
+  const open = (x, y) => at(x - 1, y) === '.' || at(x + 1, y) === '.' || at(x, y - 1) === '.' || at(x, y + 1) === '.';
+  for (let pass = 0; pass < 2; pass++) { const kill = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c) || !open(x, y)) continue;
+      if (hash((x + (pass ? 2 : 0)) >> 2, y >> 1, seed + 40 + pass) < (pass ? 0.24 : 0.42)) kill.push([x, y]); }
+    for (const [x, y] of kill) gr[y][x] = '.'; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c)) continue;   // no lone crumbs
+    const n = (at(x - 1, y) !== '.') + (at(x + 1, y) !== '.') + (at(x, y - 1) !== '.') + (at(x, y + 1) !== '.'); if (n <= 1) gr[y][x] = '.'; }
+  // distance (in cells, ≤ 3) from the open edge, for the headland band
+  const dist = gr.map((r, y) => r.map((c, x) => (c === '.' ? 0 : 9)));
+  for (let k = 1; k <= 3; k++) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (dist[y][x] === 9 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => (dist[y + dy] || [])[x + dx] === k - 1)) dist[y][x] = k;
+  const used = [];
+  const place = (x, y, k) => { if (used.some(([ux, uy]) => Math.abs(ux - x) < 4 && Math.abs(uy - y) < 3)) return; used.push([x, y]);
+    const rows = TUFTS[k % TUFTS.length].split('\n'), h = rows.length;
+    rows.forEach((r, yy) => { for (let xx = 0; xx < r.length; xx++) { const ch = r[xx]; if (ch === '.') continue; const X = x - 1 + xx, Y = y - h + 1 + yy, c = at(X, Y);
+      if (c === '.' || (yy === h - 1 && !isG(c))) continue; pixSet(gr, X, Y, ch); } }); };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c)) continue;
+    const h = hash(x, y, seed + 77), k = Math.floor(hash(x, y, seed + 78) * 5);
+    if (dist[y][x] >= 1 && dist[y][x] <= 2 && h < (o.edge ?? 0.05)) place(x, y, k);
+    else if (o.feet && (o.feetOf || '').includes(at(x, y - 1)) && h < o.feet) place(x, y, k);
+  }
+}
+/** Sag a long ridge (or eave) a→b in screen cells: each column's segment from `up` rows above the line to `dn` below moves down
+ *  by round(amp·sin(πt)); with lift > 0 the last `lift` of the run rises 1 px instead (a lifted end). */
+function sag(gr, a, b, up, dn = 0, amp = 1.3, lift = 0) {
+  const H = gr.length, x0 = Math.round(Math.min(a[0], b[0])), x1 = Math.round(Math.max(a[0], b[0]));
+  for (let x = x0; x <= x1; x++) {
+    const t = (x - a[0]) / (b[0] - a[0]); if (t < 0 || t > 1) continue;
+    let d = Math.round(amp * Math.sin(Math.PI * t)); if (lift && t > 1 - lift) d = -1; if (!d) continue;
+    const yl = Math.round(a[1] + (b[1] - a[1]) * t), top = yl - up, bot = yl + dn, old = gr.map(r => r[x]);
+    const get = y => (y >= 0 && y < H ? old[y] : '.');
+    if (d > 0) { for (let y = top; y <= bot + d; y++) if (y >= 0 && y < H) gr[y][x] = get(y - d); }
+    else for (let y = top + d; y <= bot + d; y++) if (y >= 0 && y < H) gr[y][x] = get(y - d);
+  }
+}
+/** Ragged eave a→b (the eave's ink line): here and there a slipped shingle or tile hangs a pixel low, so the drip line is uneven;
+ *  the eave cell becomes roof `ch` and the ink drops onto the row below. */
+function ragEave(gr, a, b, ch, ink = 'k', p = 0.16, seed = 0) {
+  const n = Math.round(Math.abs(b[0] - a[0]));
+  for (let i = 2; i < n - 1; i++) { const x = Math.round(a[0] + (b[0] - a[0]) * i / n), y = Math.round(a[1] + (b[1] - a[1]) * i / n);
+    if (hash(x >> 1, seed, 61) < p && pixGet(gr, x, y + 1) !== '.') { pixSet(gr, x, y, ch); pixSet(gr, x, y + 1, ink); } }
+}
+/** Spill: little stones / ore / chips on the ground round (cx,cy) within rx×ry: each a 2-px pebble in tones[h] with a dark under-
+ *  side `dk`, only on ground chars isG. */
+function spill(gr, cx, cy, rx, ry, n, tones, dk, isG, seed = 0) {
+  for (let i = 0; i < n; i++) { const x = Math.round(cx + (hash(i, seed, 71) * 2 - 1) * rx), y = Math.round(cy + (hash(i, seed, 72) * 2 - 1) * ry);
+    if (!isG(pixGet(gr, x, y)) || !isG(pixGet(gr, x + 1, y)) || !isG(pixGet(gr, x, y + 1))) continue;
+    const t = tones[Math.floor(hash(i, seed, 73) * tones.length)]; pixSet(gr, x, y, t); if (hash(i, seed, 74) < 0.6) pixSet(gr, x + 1, y, t); pixSet(gr, x, y + 1, dk); }
+}
+/** Weather a wall fn(U,V,x,y): moss and lichen low on stone (chars in `stone`), rain streaks running down from the eave (`dark`
+ *  maps a stone char to its next-darker one). o.lit picks the moss tone; o.H the wall height; o.seed. */
+const weather = (fn, stone, dark, o = {}) => (U, V, x, y) => {
+  const c = fn(U, V, x, y); if (!c || !stone.includes(c)) return c;
+  const u = Math.floor(U), v = Math.floor(V), s = o.seed || 0;
+  if (v < 1 + Math.floor(hash(u >> 1, s, 81) * 3) && hash(u >> 1, v, s + 82) < 0.42) return o.lit === false ? 'ä' : (hash(u, v, s) < 0.5 ? 'ã' : 'ä');
+  if (o.H && hash(u, s, 83) < 0.07 && v > o.H * (0.3 + hash(u, s, 84) * 0.4)) return dark[c] || c;
+  return c;
+};
 const W = 2, H = 2, Z = 14, STACK = 16;
 const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + Z + STACK + 22 + [0, 0, 0, 14][AGE];
 const { R: RK, S: SK, Au, Fe, Gl, INK, DEEP } = AK, TW2 = AK.W[2];
@@ -96,6 +162,7 @@ const RA0 = 0.0, RA1 = 1.99, RC0 = 0.0, RC1 = 1.4, RR = 0.67;
 
 // ---- yard: dark trodden earth with cinders
 const GROUND = 'eEfx';
+const MOSS = (fn, st, lit) => weather(fn, st, {}, { lit, seed: lit ? 1 : 2 });
 flat(g, 0, 2, 0, 2, 0, (s, t, x, y) => { const h = hash(x >> 1, y >> 1, 4); return h < 0.18 ? 'f' : h < 0.26 ? 'x' : h < 0.36 ? 'E' : 'e'; });
 
 // ---- walls: stone courses, a plinth, quoins on the near corner, soot darkening under the eaves
@@ -104,15 +171,15 @@ const lit = AGE === 3 ? blocks([SK[0], SK[1], SK[2], SK[1], SK[3]], SK[5], 4, 9,
 const sh = AGE === 3 ? blocks([SK[2], SK[3], SK[4], SK[3], SK[5]], SK[5], 4, 9, 4) : AGE === 1 ? blocks([SK[2], SK[3], SK[4], SK[3], SK[5]], SK[5], 4, 7, 4) : blocks(['q', 'Q', 'U', 'Q', 'V'], 'J', 4, 9, 4);
 const LENL = (A1 - A0) * 32, LENR = (C1 - C0) * 32;
 if (AGE === 2) {
-  wallC(g, C1, A0, A1, 0, WZ, (U, V) => (V < 2 ? (Math.floor(U) % 7 === 0 ? 'J' : 'U') : V > WZ - 3 ? (hash(Math.floor(U), 0, 2) < 0.5 ? 'Q' : 'U') : lit(U, V - 2)));
-  wallA(g, A1, C1, C0, 0, WZ, (U, V) => (V < 2 ? 'V' : V > WZ - 3 ? 'V' : sh(U, V - 2)));
+  wallC(g, C1, A0, A1, 0, WZ, MOSS((U, V) => (V < 2 ? (Math.floor(U) % 7 === 0 ? 'J' : 'U') : V > WZ - 3 ? (hash(Math.floor(U), 0, 2) < 0.5 ? 'Q' : 'U') : lit(U, V - 2)), 'UJpqP', true));
+  wallA(g, A1, C1, C0, 0, WZ, MOSS((U, V) => (V < 2 ? 'V' : V > WZ - 3 ? 'V' : sh(U, V - 2)), 'VQU', false));
   { const p = iso(A1, C1, 0); for (let z = 2; z < WZ - 1; z++) { const row = Math.floor((z - 2) / 4), r = (z - 2) % 4, len = row % 2 ? 2 : 4; for (let i = 0; i < len; i++) pixSet(g, p[0] - 1 - i, p[1] - z + Math.floor((i + 1) / 2), r === 0 ? 'j' : r === 3 ? 'P' : 'p'); } }
   // shuttered window on the lit wall
   wallC(g, C1, 0.2, 0.42, 5, 11, (U, V) => { const u = Math.floor(U); if (V < 1) return 'P'; if (V >= 5) return 'w'; if (u === 0 || u >= 6) return 'w'; return u === 3 ? 'w' : V > 3 ? 'n' : 'K'; });
 } else {
   const opt = { H: WZ + 1, step: AGE === 3 ? 20 : 10 };
-  wallC(g, C1, A0, A1, 0, WZ, (U, V) => (V >= WZ - 1 ? AK.P[2] : AK.wallTex(U, V, 0, { ...opt, len: LENL })));
-  wallA(g, A1, C1, C0, 0, WZ, (U, V) => (V >= WZ - 1 ? (AGE === 3 ? SK[4] : TW2) : AK.wallTex(U, V, 1, { ...opt, len: LENR })));
+  wallC(g, C1, A0, A1, 0, WZ, MOSS((U, V) => (V >= WZ - 1 ? AK.P[2] : AK.wallTex(U, V, 0, { ...opt, len: LENL })), AGE === 3 ? '' : SK.join(''), true));
+  wallA(g, A1, C1, C0, 0, WZ, MOSS((U, V) => (V >= WZ - 1 ? (AGE === 3 ? SK[4] : TW2) : AK.wallTex(U, V, 1, { ...opt, len: LENR })), AGE === 3 ? '' : SK.join(''), false));
   // the window: Feudal shuttered casement with team shutters; Imperial a tall arched window with a gilt keystone and sill
   { const p = iso(0.31, C1, AGE === 3 ? 11 : 7); AK.windowAt(g, Math.round(p[0]), Math.round(p[1]), 0.5, 0); }
 }
@@ -159,6 +226,7 @@ if (AGE === 2) {
   for (let U = 0; U <= (RC1 - RC0) * 32; U++) { const c = RC1 - U / 32, p = iso(RA1 + 0.01, c, top(c) + 1); pixSet(g, p[0], p[1], 'k'); }
 }
 for (const ra of AGE === 2 ? [RA0 + 0.03] : [RA0 + 0.03, RA1]) { const p = iso(ra, RR, WZ + R); AK.finial(g, Math.round(p[0]), Math.round(p[1]) - 1); }
+if (AGE < 3) { ragEave(g, iso(RA0, RC1, WZ), iso(RA1, RC1, WZ), AGE === 1 ? RK[3] : RK[4], 'k', 0.15, 8); sag(g, iso(RA0 + 0.1, RR, WZ + R), iso(RA1 - 0.14, RR, WZ + R), Math.ceil(RR * 32 - R) + 5, 1, AGE === 1 ? 1.4 : 1.2, AGE === 1 ? 0.1 : 0); }
 // soot staining on the slates around the chimney
 // ---- chimney through the roof: only the part above the roof plane is painted
 const BIG = AGE === 3 ? 0.04 : 0, KA0 = 1.5 - BIG, KA1 = 1.76 + BIG, KC0 = 0.5 - BIG, KC1 = 0.78 + BIG, KZ = [0, 41, 48, 62][AGE];
@@ -216,6 +284,9 @@ inked(g, g => { const TA0 = 1.36, TA1 = 1.8, TC0 = 1.62, TC1 = 1.8, TZ = 6;
   wallC(g, TC1, TA0, TA1, 0, TZ, (U, V) => { const u = Math.floor(U); if (u === 2 || u === 11) return 'n'; if (V >= TZ - 1) return 'w'; return Math.floor(V) === 2 ? 'v' : 'W'; });
   wallA(g, TA1, TC1, TC0, 0, TZ, (U, V) => (V >= TZ - 1 ? 'W' : 'v'));
 });
+// coal spilt round the bin, cinders by the forge; the yard's edge frayed, weeds at the walls' feet
+spill(g, ...iso(1.5, 1.6, 0), 10, 4, 9, ['x', 'N', 'n'], 'F', ch => GROUND.includes(ch), 6);
+fray(g, ch => GROUND.includes(ch), 11, { edge: 0.05, feet: 0.16, feetOf: 'UVJQpqP' + SK.join('') + AK.P.join('') + AK.W.join('') });
 const NA = 1.0, NC = 1.66, NT = 13;
 const AN = iso(NA, NC, -2);
 function anvil(fr) { inked(fr, fr => {
@@ -283,7 +354,7 @@ return {
     r: '#a8401c', o: '#ff8c2a', O: '#ffb347', Y: '#ffe08a',                                     // ember → white heat
     m: '#e6eaee', M: '#9aa0a6', n: '#5f656c', N: '#3e444b', u: '#c49a5c', b: '#4a6a8a', B: '#7aa0c0',                       // steel, water
     g: '#7d7873', G: '#a29d97', H: '#c4beb8', k: '#24180f',                                     // smoke ramp, ink
-    T: 'team', D: 'teamdark', L: 'teamlight',
+    T: 'team', D: 'teamdark', L: 'teamlight', ...NAT_PAL,
   },
   frames: { idle: frames },
 };
