@@ -44,7 +44,7 @@ export function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
   let c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
   if (o && o.flash) c = pixFlash(c);
   const m = c2d.getTransform();
-  c2d.save(); c2d.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); c2d.imageSmoothingEnabled = false;
+  c2d.save(); c2d.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); c2d.imageSmoothingEnabled = Math.hypot(m.a, m.b) < 0.99; c2d.imageSmoothingQuality = "low";  // crisp at 1× and up; filtered when zoomed out so thin details average instead of dropping out
   if (o && o.alpha !== undefined) c2d.globalAlpha *= o.alpha;
   const an = (spec.anchors && spec.anchors[frame]) || spec.anchor;  // a set may have its own size/anchor (death: lying down is wider)
   const dx = Math.round(x - an[0] * sc), dy = Math.round(y - an[1] * sc);
