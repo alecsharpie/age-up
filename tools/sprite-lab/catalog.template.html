@@ -117,7 +117,12 @@ details.sheet canvas{display:block}
 .pen[aria-pressed="true"]{border-color:#fff}
 .rvm{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:0 5px;border-radius:2px;color:#15100c;vertical-align:1px}
 .rvm.love{background:var(--gold)}.rvm.good{background:var(--ok)}.rvm.work{background:var(--warn)}.rvm.redo{background:var(--bad)}.rvm.seen{background:var(--edge)}
-#rv-save{margin-left:auto}
+.marks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.marks li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center}
+.marks .num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 12px var(--mono);color:#15100c}
+.marks input{width:100%;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);border-radius:3px;font:14px var(--body);padding:3px 8px}
+.marks .x{color:var(--dim);padding:0 6px}.marks .x:hover{color:var(--bad)}
+.fb ol{margin:6px 0 0;padding-left:20px}
 .fb-sum{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;color:var(--muted);margin-bottom:12px}
 .fb-list{display:flex;flex-direction:column;gap:8px}
 .fb{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;background:var(--panel);border:1px solid var(--edge2);border-radius:3px;padding:10px;text-align:left;width:100%}
@@ -196,8 +201,9 @@ details.sheet canvas{display:block}
         <span class="chips" id="rv-pens"></span>
         <button class="btn" id="rv-undo"><kbd>Z</kbd>undo mark</button>
         <button class="btn" id="rv-clear">clear marks</button>
-        <span class="hint grow">Drawing pauses the animation; marks are kept with that frame, team and state.</span>
+        <span class="hint grow">Circle or point at a problem, then say what is wrong with it in the box that opens (Enter to keep drawing).</span>
       </div>
+      <ol class="marks" id="rv-marks"></ol>
     </div>
     <div class="facts">
       <div class="fact" id="f-truth"><h3>What the real one looks like</h3><div id="truth"></div></div>
@@ -491,7 +497,7 @@ details.sheet canvas{display:block}
 
     // ---- editing the current record
     function edit(fn,{snap=false}={}){
-      const k=key(); const r=R.data[k]||{kind:S.kind,type:S.type,name:$('#d-name').textContent,verdict:null,tags:[],note:'',marks:[],view:null,snap:null,snapUrl:null};
+      const k=key(); const r=R.data[k]?JSON.parse(JSON.stringify(R.data[k])):{kind:S.kind,type:S.type,name:$('#d-name').textContent,verdict:null,tags:[],note:'',marks:[],view:null,snap:null,snapUrl:null};
       fn(r); r.updatedAt=new Date().toISOString(); if(R.me)r.by=R.me; R.data[k]=r; lsWrite(); paintMarker(k); updatePos(); persist(k); if(snap)queueSnap(k);
     }
     function persist(k){
@@ -513,6 +519,10 @@ details.sheet canvas{display:block}
     function drawMarks(g,marks,w,h){
       g.lineCap='round'; g.lineJoin='round';
       for(const m of marks){ if(!m.pts.length)continue; g.strokeStyle=m.c; g.lineWidth=Math.max(2,m.w*w); g.beginPath(); g.moveTo(m.pts[0][0]*w,m.pts[0][1]*h); for(const [x,y] of m.pts.slice(1))g.lineTo(x*w,y*h); if(m.pts.length===1)g.lineTo(m.pts[0][0]*w+.01,m.pts[0][1]*h); g.stroke(); }
+      marks.forEach((m,i)=>{ if(!m.pts.length)return; const r=Math.max(7,w*0.022), [x,y]=m.pts[0]; const bx=x*w-r*0.9, by=y*h-r*0.9;
+        g.fillStyle=m.c; g.beginPath(); g.arc(bx,by,r,0,7); g.fill(); g.lineWidth=1.5; g.strokeStyle='#15100c'; g.stroke();
+        g.fillStyle='#15100c'; g.font=`600 ${Math.round(r*1.25)}px Menlo,monospace`; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(i+1),bx,by+0.5); });
+      g.textAlign='left'; g.textBaseline='alphabetic';
     }
     function drawInk(){ const ink=$('#ink'), g=ink.getContext('2d'); g.clearRect(0,0,ink.width,ink.height); const r=cur(); const marks=(r?r.marks:[]).concat(R.stroke?[R.stroke]:[]); drawMarks(g,marks,ink.width,ink.height); }
     function inkVisibility(){ $('#ink').hidden=S.playing&&!R.pen; }
@@ -525,7 +535,7 @@ details.sheet canvas{display:block}
       const ink=$('#ink');
       ink.addEventListener('pointerdown',ev=>{ if(!R.pen)return; ev.preventDefault(); ink.setPointerCapture(ev.pointerId); R.stroke={c:R.penCol,w:0.008,pts:[pt(ev)]}; drawInk(); });
       ink.addEventListener('pointermove',ev=>{ if(!R.stroke)return; const p=pt(ev), q=R.stroke.pts[R.stroke.pts.length-1]; if(Math.hypot(p[0]-q[0],p[1]-q[1])<0.004)return; R.stroke.pts.push(p); drawInk(); });
-      const end=()=>{ if(!R.stroke)return; const s=R.stroke; R.stroke=null; s.pts=s.pts.map(([x,y])=>[+x.toFixed(4),+y.toFixed(4)]); const v=view(); edit(r=>{ r.marks.push(s); r.view=v; },{snap:true}); drawInk(); };
+      const end=()=>{ if(!R.stroke)return; const s=R.stroke; R.stroke=null; s.pts=s.pts.map(([x,y])=>[+x.toFixed(4),+y.toFixed(4)]); const v=view(); edit(r=>{ r.marks.push(s); r.view=v; },{snap:true}); renderPanel(); const ins=$$('#rv-marks input'); if(ins.length)ins[ins.length-1].focus({preventScroll:true}); };
       ink.addEventListener('pointerup',end); ink.addEventListener('pointercancel',end);
     }
 
@@ -540,6 +550,14 @@ details.sheet canvas{display:block}
       add.onkeydown=e=>{ if(e.key==='Enter'){ const t=add.value.trim().toLowerCase(); if(t){ edit(x=>{if(!x.tags.includes(t))x.tags.push(t)}); renderPanel(); $('.tagadd').focus(); } } if(e.key==='Escape')add.blur(); };
       box.appendChild(add);
       const note=$('#rv-note'); if(document.activeElement!==note)note.value=r.note||'';
+      const ml=$('#rv-marks'); const fi=ml.contains(document.activeElement)?$$('#rv-marks input').indexOf(document.activeElement):-1; ml.innerHTML='';
+      r.marks.forEach((m,i)=>{ const li=document.createElement('li'); li.innerHTML=`<span class="num" style="background:${m.c}">${i+1}</span><input type="text" placeholder="What is wrong at ${i+1}? (Enter)" aria-label="comment for mark ${i+1}"><button class="x" aria-label="delete mark ${i+1}">✕</button>`;
+        const inp=li.querySelector('input'); inp.value=m.t||'';
+        inp.oninput=()=>{ const t=inp.value; edit(x=>{ if(x.marks[i])x.marks[i].t=t; }); };
+        inp.onkeydown=e=>{ if(e.key==='Enter'||e.key==='Escape'){ e.preventDefault(); inp.blur(); } };
+        li.querySelector('.x').onclick=()=>{ edit(x=>{x.marks.splice(i,1)},{snap:true}); renderPanel(); };
+        ml.appendChild(li); });
+      if(fi>=0&&$$('#rv-marks input')[fi])$$('#rv-marks input')[fi].focus({preventScroll:true});
       $('#rv-undo').disabled=!r.marks.length; $('#rv-clear').disabled=!r.marks.length;
       drawInk(); inkVisibility();
     }
@@ -560,15 +578,16 @@ details.sheet canvas{display:block}
       const list=$('#fb-list'); list.innerHTML=recs.length?'':'<p class="empty">Nothing reviewed yet. Open a sprite in the Catalogue tab and press 1–4.</p>';
       for(const r of recs){
         const b=document.createElement('button'); b.className='fb';
-        b.innerHTML=`<div class="th"></div><div><h4></h4><div>${r.verdict?`<span class="rvm ${r.verdict}">${VERDICTS[r.verdict]}</span>`:''}${r.marks&&r.marks.length?` <span class="hint">${r.marks.length} mark${r.marks.length>1?'s':''}</span>`:''}</div><div class="tags"></div><p></p></div>`;
+        b.innerHTML=`<div class="th"></div><div><h4></h4><div>${r.verdict?`<span class="rvm ${r.verdict}">${VERDICTS[r.verdict]}</span>`:''}${r.marks&&r.marks.length?` <span class="hint">${r.marks.length} mark${r.marks.length>1?'s':''}</span>`:''}</div><div class="tags"></div><p></p><ol></ol></div>`;
         b.querySelector('h4').textContent=r.name||r.type; b.querySelector('p').textContent=r.note||'';
         for(const t of r.tags||[]){ const s=document.createElement('span'); s.className='tag'; s.textContent=t; b.querySelector('.tags').appendChild(s); }
+        for(const m of r.marks||[]){ const li=document.createElement('li'); li.textContent=m.t||'(no comment)'; li.style.color=m.c; b.querySelector('ol').appendChild(li); }
         const th=b.querySelector('.th');
         if(r.snapUrl){ const img=new Image(); img.alt=''; img.src=r.snapUrl; img.onerror=()=>{img.remove();thumb(th,r)}; th.appendChild(img); } else thumb(th,r);
         b.onclick=()=>{ showTab('cat'); select(r.kind,r.type); };
         list.appendChild(b);
       }
-      $('#fb-json').value=JSON.stringify(recs.map(({kind,type,name,verdict,tags,note,marks,view,snap,updatedAt})=>({id:kind+'.'+type,name,verdict,tags,note,marks:(marks||[]).length,view,snap,updatedAt})),null,1);
+      $('#fb-json').value=JSON.stringify(recs.map(({kind,type,name,verdict,tags,note,marks,view,snap,updatedAt})=>({id:kind+'.'+type,name,verdict,tags,note,marks:(marks||[]).map((m,i)=>(i+1)+': '+(m.t||'')),view,snap,updatedAt})),null,1);
     }
     function thumb(th,r){ try{ const c=LAB.magnify(LAB.renderCell(r.kind,r.type,{src:'current',team:r.view?r.view.team:0,time:0.3,seed:5}),2); if(r.marks&&r.marks.length)drawMarks(c.getContext('2d'),r.marks,c.width,c.height); th.appendChild(c); }catch(e){} }
 
@@ -590,9 +609,9 @@ details.sheet canvas{display:block}
       R.assets=assets||null;
       if(!db){ setStatus('feedback stays in this browser (sign in to save it with the catalogue)'); return; }
       R.db=db; R.mode='db';
-      db.collection('reviews').onSnapshot(snap=>{
-        for(const d of snap.docs){ const v=d.data(); if(!v)continue; const mine=R.data[d.id]; if(mine&&mine.updatedAt>(v.updatedAt||''))continue; R.data[d.id]=v; paintMarker(d.id); }
-        lsWrite(); renderPanel(); updatePos(); if(S.tab==='feedback')renderFeedback();
+      db.collection('reviews').onSnapshot(snap=>{ const changed=new Set();
+        for(const d of snap.docs){ if(d.metadata&&d.metadata.hasPendingWrites)continue; const v=d.data(); if(!v)continue; const mine=R.data[d.id]; if(mine&&mine.updatedAt>=(v.updatedAt||''))continue; changed.add(d.id); R.data[d.id]=JSON.parse(JSON.stringify(v)); paintMarker(d.id); }
+        if(!changed.size)return; lsWrite(); if(changed.has(key()))renderPanel(); updatePos(); if(S.tab==='feedback')renderFeedback();
         const r=cur(); if(r&&r.marks&&r.marks.length&&R.viewApplied===key()&&S.playing){ R.viewApplied=null; select(S.kind,S.type); }
       },e=>setStatus('could not load saved feedback ('+e.code+')'));
     }
