@@ -73,6 +73,92 @@ const discOn = (g, cx, cy, R, slope, fn) => {
     const c = fn(u, v); if (c) pixSet(g, cx + x, cy + y, c); }
 };
 
+// ---- team cloth and natural edges (holistic pass): grass, moss, soot chars every civic palette merges via ...NPAL
+const NPAL = { 'ǧ': '#3e6a2a', 'ǥ': '#56883a', 'ǵ': '#78a94c', 'ɱ': '#6e7a3c', 'ɲ': '#56602e', 'ʂ': '#3c342c' };
+/** a line from a to b whose middle sags `sag` px (negative lifts it): ridges, eaves and rails that are not ruler-straight */
+const sagLine = (g, a, b, ch, sag = 1, dy = 0) => {
+  const n = Math.max(1, Math.round(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))));
+  for (let i = 0; i <= n; i++) { const t = i / n; pixSet(g, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + dy + Math.round(sag * Math.sin(Math.PI * t)), ch); }
+};
+/** grass tufts along a wall's base line a→b (screen points): 2–4 blades rising 1–3 px over the foot of the wall and its ink line,
+ *  so no footprint edge is a hard ruler line. o.n tufts per 64 px, o.seed, o.skip(x) keeps doorways clear. */
+const tufts = (g, a, b, o = {}) => {
+  const len = Math.abs(b[0] - a[0]), n = Math.round(len / 64 * (o.n ?? 4)), seed = o.seed || 0;
+  for (let k = 0; k < n; k++) {
+    const t = (k + 0.2 + hash(k + seed, 41) * 0.6) / n, x0 = Math.round(a[0] + (b[0] - a[0]) * t);
+    if (o.skip && o.skip(x0)) continue;
+    const blades = 2 + Math.floor(hash(k + seed, 43) * 3);
+    for (let j = 0; j < blades; j++) {
+      const x = x0 + j - (blades >> 1), y = Math.round(a[1] + (b[1] - a[1]) * ((x - a[0]) / (b[0] - a[0]))), hgt = 1 + Math.floor(hash(x, 44 + seed) * 3);
+      for (let d = 0; d < hgt + 1; d++) pixSet(g, x, y - d, d === hgt ? 'ǵ' : d === 0 ? 'ǧ' : 'ǥ');
+    }
+  }
+};
+/** moss/lichen and rain streaks low on a stone face: for cells of `chs` within `rows` px of the base line a→b (and streaks from
+ *  the sill/eave down), darken via map `dk` or set moss. Clustered by hash on 3×2 cells so it never reads as noise. */
+const weather = (g, a, b, chs, dk, o = {}) => {
+  const rows = o.rows ?? 5, seed = o.seed || 0;
+  for (let x = Math.ceil(a[0]); x < b[0]; x++) {
+    const base = a[1] + (b[1] - a[1]) * ((x + 0.5 - a[0]) / (b[0] - a[0]));
+    for (let h = 0; h < (o.H || 40); h++) {
+      const y = Math.floor(base - h - 0.5); if (y < 0 || y >= g.length) continue; const c = g[y][x]; if (!chs.includes(c)) continue;
+      const cl = hash((x >> 2) + seed, (h >> 1) + 7);
+      if (h < rows && cl < 0.22 - h * 0.03) { g[y][x] = hash(x, h + seed) < 0.5 ? 'ɱ' : 'ɲ'; continue; }      // moss at the foot
+      if (h < rows + 2 && cl > 0.82 && dk[c]) { g[y][x] = dk[c]; continue; }                             // damp splash
+      if (o.streaks && hash(x + seed, 13) < o.streaks && h < (o.H || 40) - 2 && dk[c] && hash(x + seed, Math.floor(h / 5) + 3) < 0.55) g[y][x] = dk[c];   // rain streak
+    }
+  }
+};
+/** a rag pennant / small team pennant tied to a pole top at (x,y), streaming right (the way the smoke drifts); frame i ripples it.
+ *  len cells long, hgt cells deep at the hoist, ragged tail; D on the lower edge, ink outline. */
+const pennant = (f, x, y, len, hgt, i, rag = true) => {
+  for (let c = 0; c < len; c++) {
+    const t = c / len, wav = Math.round(Math.sin(t * 5 - i * 1.6) * 1.1 * t), depth = Math.max(1, Math.round(hgt * (1 - t * (rag ? 0.45 : 0.8))));
+    const y0 = y + wav + (rag ? 0 : Math.round(t * hgt * 0.4));
+    if (rag && c === len - 1 && (i % 2)) continue;
+    pixSet(f, x + 1 + c, y0 - 1, 'k');
+    for (let r = 0; r < depth; r++) pixSet(f, x + 1 + c, y0 + r, r === depth - 1 ? 'D' : (r === 0 && c < len - 2) ? 'L' : 'T');
+    pixSet(f, x + 1 + c, y0 + depth, 'k');
+    if (rag && c > len * 0.5 && hash(c, i) < 0.3) pixSet(f, x + 1 + c, y0 + depth - 1, 'k');                 // a torn notch
+  }
+  pixSet(f, x + 1 + len, y + Math.round(Math.sin(5 - i * 1.6) * 1.1), 'k');
+};
+/** a pole from (x,y) foot up h cells, 1 px lean every `lean` rows (0: plumb), lit/dark timber chars a/b; returns its top */
+const pole = (g, x, y, h, a, b, lean = 0) => {
+  let px = x; const wd = b ? 2 : 1; for (let k = 0; k < h; k++) { if (lean && k && k % lean === 0) px += Math.sign(lean); pixSet(g, px - 1, y - k, 'k'); pixSet(g, px, y - k, a); if (b) pixSet(g, px + 1, y - k, b); pixSet(g, px + wd, y - k, 'k'); }
+  for (let d = 0; d < wd; d++) pixSet(g, px + d, y - h, 'k'); return [px + wd - 2, y - h];
+};
+/** A team banner laid flat on a wall of eave slope `slope` (+0.5 lit, -0.5 shade): top-left (x,y), w×h cells. Rod by age (Dark/
+ *  Feudal timber, Castle iron, Imperial gilt), ink sides so it parts from a same-hue wall or roof, lit left hem L, shaded right
+ *  hem D, a pale charge (o.charge: 'cross' | 'chevron' | 'disc' | 'none'), hem by age: Dark ragged, Feudal square, Castle
+ *  swallowtail, Imperial gilt fringe and gilt side borders. Returns the cells it covers (for counting). */
+const teamBanner = (g, x, y, slope, w, h, o = {}) => {
+  const A = AK.age, cx = (w - 1) / 2, charge = o.charge || (A >= 3 ? 'disc' : A === 2 ? 'cross' : 'none');
+  const at = (c, r) => [x + c, y + r + Math.round(slope * (c - cx) + 1e-9)];
+  const rod = A === 3 ? AK.Au[1] : A === 2 ? AK.Fe[1] : AK.W[2];
+  for (let c = -1; c <= w; c++) { const [px, py] = at(c, -1); pixSet(g, px, py, c === -1 || c === w ? 'k' : rod); if (A === 3 && (c === -1 || c === w)) pixSet(g, px, py, AK.Au[0]); }
+  for (let c = 0; c < w; c++) {
+    let hh = h; const mid = Math.abs(c - cx);
+    if (A === 2) hh = h - (mid < w / 4 ? 2 : 0);                                   // swallowtail notch
+    if (A === 1) hh = h;
+    if (A === 0) hh = h - Math.floor(hash(x + c, 9) * 3);                          // ragged
+    if (A === 3) hh = h - (mid < 0.6 ? 0 : Math.round(mid * 0.5));                  // pointed hem with a fringe
+    for (let r = 0; r < hh; r++) {
+      let ch = 'T';
+      if (c === 0) ch = 'k'; else if (c === w - 1) ch = 'k';
+      else if (c === 1) ch = A === 3 ? AK.Au[0] : 'L'; else if (c === w - 2) ch = A === 3 ? AK.Au[2] : 'D';
+      if (r === hh - 1) ch = A === 3 ? AK.Au[1] : 'k'; else if (r === hh - 2 && c > 0 && c < w - 1) ch = A === 3 ? AK.Au[1] : 'D';
+      if (r === 0 && c > 0 && c < w - 1 && ch === 'T') ch = 'D';                   // shade under the rod
+      const inner = c >= 2 && c <= w - 3 && r >= 2 && r < hh - 2, rr = r - Math.floor(h * 0.42);
+      if (inner && ch === 'T') {
+        if (charge === 'cross' && ((Math.abs(c - cx) < 0.6 && r >= 2 && r < hh - 3) || (rr === 0))) ch = 'L';
+        if (charge === 'chevron' && Math.abs(rr - (2 - Math.abs(c - cx))) < 0.6) ch = 'L';
+        if (charge === 'disc' && Math.hypot(c - cx, rr * 1.1) < Math.max(1.2, (w - 4) / 2.2)) ch = Math.hypot(c - cx, rr * 1.1) < 0.9 ? AK.Au[0] : AK.Au[1];
+      }
+      const [px, py] = at(c, r); pixSet(g, px, py, ch);
+    }
+  }
+};
 
 // Age variants (AGE, AK = pixAgeKit(AGE) come from gen/ages/wrap.mjs). The Castle variant (AGE 2) is the tuned art, kept as it was.
 //   Dark     a rough log jetty on unbarked piles; a wattle-and-daub fish hut under a steep golden thatch with a smoke hole and
@@ -126,6 +212,11 @@ if (AGE === 3) { // ashlar kerb: block joints along both faces of the quay edge
 for (let n = 1; n * 2 < 32; n++) { const p = [pL[0] + 4 * n, pL[1] + 2 * n]; pixSet(g, p[0], p[1] + 1, 'V'); pixSet(g, p[0], p[1] + 2, 'V'); }
 for (let k = 1; k < 16; k++) { const q = lerp(pB, pR, k / 16); pixSet(g, q[0], q[1] + 1, AGE === 0 ? 'V' : 'k'); }
 }
+// a few piles run on up through the deck edge as mooring posts, of uneven height, one leaning a pixel (timber ages)
+if (AGE !== 3) for (const k of [3, 7]) { const [x, y] = PILES[k], hgt = 3 + Math.floor(hash(k, 31) * 3), yt = y - Z;
+  for (let d = 1; d <= hgt; d++) { const lx = k === 7 && d > hgt - 2 ? 1 : 0; pixSet(g, x - 1 + lx, yt - d, 'k'); pixSet(g, x + lx, yt - d, 'w'); pixSet(g, x + 1 + lx, yt - d, 'v'); pixSet(g, x + 2 + lx, yt - d, 'k'); }
+  const lx = k === 7 ? 1 : 0; pixSet(g, x + lx, yt - hgt - 1, 'k'); pixSet(g, x + 1 + lx, yt - hgt - 1, 'k');
+  if (k === 3) { pixSet(g, x - 1, yt - 2, 'R'); pixSet(g, x + 2, yt - 2, 'r'); } }   // a rope hitched round one
 // ---- boathouse on the back tile: vertical boards, open boat bay with a prow, tile roof in courses, team awning
 const hb = [bx + 2, by - 32 - Z - 2];
 const top = pixIsoBox(g, hb[0], hb[1], 0.9, 0.9, HOUSE, 1, { left: '2', right: '3' });
@@ -184,9 +275,11 @@ line(g, R.L, R.Bm, 'e'); line(g, R.Bm, R.Rr, 'e'); line(g, R.L, ap, 'h'); line(g
   paint(g, '8', (x, y) => AK.roofXY(x, y, -0.5, 1, { off: offM(R.Bm) }));
   paint(g, '6', (x, y) => AK.roofXY(x, y, -0.5, 2, { off: offM(R.L), flip: true }));
   paint(g, '5', (x, y) => AK.roofXY(x, y, 0.5, 3, { off: offP(R.Rr), flip: true }));
-  line(g, R.L, R.Bm, RK[6]); line(g, R.Bm, R.Rr, RK[6]); line(g, R.L, ap, RK[AGE === 0 ? 3 : 1]); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], RK[AGE === 0 ? 3 : 1]);
-  if (AGE === 0) for (let x = Math.ceil(R.L[0]); x <= R.Rr[0]; x++) if (hash(x, 77) < 0.45) {
-    const ey = x <= R.Bm[0] ? R.L[1] + (x - R.L[0]) * 0.5 : R.Bm[1] - (x - R.Bm[0]) * 0.5; pixSet(g, x, Math.round(ey) + 1, RK[hash(x, 78) < 0.5 ? 4 : 5]); }
+  sagLine(g, R.L, R.Bm, RK[6], AGE <= 1 ? 1 : 0); sagLine(g, R.Bm, R.Rr, RK[6], AGE <= 1 ? 1 : 0); line(g, R.L, ap, RK[AGE === 0 ? 3 : 1]); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], RK[AGE === 0 ? 3 : 1]);
+  if (AGE === 0) for (let x = Math.ceil(R.L[0]) + 1; x < R.Rr[0]; x++) { const cl = hash(x >> 1, 76); if (cl < 0.3) continue;   // ragged straw clumps
+    const t = x <= R.Bm[0] ? (x - R.L[0]) / (R.Bm[0] - R.L[0]) : (x - R.Bm[0]) / (R.Rr[0] - R.Bm[0]);
+    const ey = (x <= R.Bm[0] ? R.L[1] + (x - R.L[0]) * 0.5 : R.Bm[1] - (x - R.Bm[0]) * 0.5) + Math.round(Math.sin(Math.PI * t)), n = 1 + Math.floor(hash(x, 77) * (cl > 0.8 ? 3 : 2));
+    for (let d = 0; d < n; d++) pixSet(g, x, Math.round(ey) + 1 + d, d === n - 1 ? RK[6] : RK[hash(x, 78) < 0.5 ? 4 : 5]); }
   if (AGE === 3) { AK.trim(g, [R.L[0] + 1, R.L[1]], R.Bm, -1); AK.trim(g, R.Bm, [R.Rr[0] - 1, R.Rr[1]], -1); AK.crest(g, lerp(R.Bm, ap, 0.2), lerp(R.Bm, ap, 0.85)); }
 }
 // Feudal: a stone chimney stack on the shaded slope, its foot cut along the roof (smoke from it in idle)
@@ -319,8 +412,10 @@ return {
     F: '#d8ecf4', S: '#8ec0dc',                                             // water foam / ripple
     z: '#e4e0da', Z: '#c4beb8', X: '#948e88',                               // smoke
     ...(AGE === 0 ? { Y: '#a08a62', p: '#8e7650', P: '#7a6444', q: '#4a3620' } : {}),   // weathered split logs
+    ...NPAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
   },
+  ...(C ? { roofChars: 'ghbcade' } : {}),
   frames: { idle: frames },
 };
 };

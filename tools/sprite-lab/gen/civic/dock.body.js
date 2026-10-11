@@ -50,6 +50,11 @@ if (AGE === 3) { // ashlar kerb: block joints along both faces of the quay edge
 for (let n = 1; n * 2 < 32; n++) { const p = [pL[0] + 4 * n, pL[1] + 2 * n]; pixSet(g, p[0], p[1] + 1, 'V'); pixSet(g, p[0], p[1] + 2, 'V'); }
 for (let k = 1; k < 16; k++) { const q = lerp(pB, pR, k / 16); pixSet(g, q[0], q[1] + 1, AGE === 0 ? 'V' : 'k'); }
 }
+// a few piles run on up through the deck edge as mooring posts, of uneven height, one leaning a pixel (timber ages)
+if (AGE !== 3) for (const k of [3, 7]) { const [x, y] = PILES[k], hgt = 3 + Math.floor(hash(k, 31) * 3), yt = y - Z;
+  for (let d = 1; d <= hgt; d++) { const lx = k === 7 && d > hgt - 2 ? 1 : 0; pixSet(g, x - 1 + lx, yt - d, 'k'); pixSet(g, x + lx, yt - d, 'w'); pixSet(g, x + 1 + lx, yt - d, 'v'); pixSet(g, x + 2 + lx, yt - d, 'k'); }
+  const lx = k === 7 ? 1 : 0; pixSet(g, x + lx, yt - hgt - 1, 'k'); pixSet(g, x + 1 + lx, yt - hgt - 1, 'k');
+  if (k === 3) { pixSet(g, x - 1, yt - 2, 'R'); pixSet(g, x + 2, yt - 2, 'r'); } }   // a rope hitched round one
 // ---- boathouse on the back tile: vertical boards, open boat bay with a prow, tile roof in courses, team awning
 const hb = [bx + 2, by - 32 - Z - 2];
 const top = pixIsoBox(g, hb[0], hb[1], 0.9, 0.9, HOUSE, 1, { left: '2', right: '3' });
@@ -108,9 +113,11 @@ line(g, R.L, R.Bm, 'e'); line(g, R.Bm, R.Rr, 'e'); line(g, R.L, ap, 'h'); line(g
   paint(g, '8', (x, y) => AK.roofXY(x, y, -0.5, 1, { off: offM(R.Bm) }));
   paint(g, '6', (x, y) => AK.roofXY(x, y, -0.5, 2, { off: offM(R.L), flip: true }));
   paint(g, '5', (x, y) => AK.roofXY(x, y, 0.5, 3, { off: offP(R.Rr), flip: true }));
-  line(g, R.L, R.Bm, RK[6]); line(g, R.Bm, R.Rr, RK[6]); line(g, R.L, ap, RK[AGE === 0 ? 3 : 1]); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], RK[AGE === 0 ? 3 : 1]);
-  if (AGE === 0) for (let x = Math.ceil(R.L[0]); x <= R.Rr[0]; x++) if (hash(x, 77) < 0.45) {
-    const ey = x <= R.Bm[0] ? R.L[1] + (x - R.L[0]) * 0.5 : R.Bm[1] - (x - R.Bm[0]) * 0.5; pixSet(g, x, Math.round(ey) + 1, RK[hash(x, 78) < 0.5 ? 4 : 5]); }
+  sagLine(g, R.L, R.Bm, RK[6], AGE <= 1 ? 1 : 0); sagLine(g, R.Bm, R.Rr, RK[6], AGE <= 1 ? 1 : 0); line(g, R.L, ap, RK[AGE === 0 ? 3 : 1]); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], RK[AGE === 0 ? 3 : 1]);
+  if (AGE === 0) for (let x = Math.ceil(R.L[0]) + 1; x < R.Rr[0]; x++) { const cl = hash(x >> 1, 76); if (cl < 0.3) continue;   // ragged straw clumps
+    const t = x <= R.Bm[0] ? (x - R.L[0]) / (R.Bm[0] - R.L[0]) : (x - R.Bm[0]) / (R.Rr[0] - R.Bm[0]);
+    const ey = (x <= R.Bm[0] ? R.L[1] + (x - R.L[0]) * 0.5 : R.Bm[1] - (x - R.Bm[0]) * 0.5) + Math.round(Math.sin(Math.PI * t)), n = 1 + Math.floor(hash(x, 77) * (cl > 0.8 ? 3 : 2));
+    for (let d = 0; d < n; d++) pixSet(g, x, Math.round(ey) + 1 + d, d === n - 1 ? RK[6] : RK[hash(x, 78) < 0.5 ? 4 : 5]); }
   if (AGE === 3) { AK.trim(g, [R.L[0] + 1, R.L[1]], R.Bm, -1); AK.trim(g, R.Bm, [R.Rr[0] - 1, R.Rr[1]], -1); AK.crest(g, lerp(R.Bm, ap, 0.2), lerp(R.Bm, ap, 0.85)); }
 }
 // Feudal: a stone chimney stack on the shaded slope, its foot cut along the roof (smoke from it in idle)
@@ -243,7 +250,9 @@ export default {
     F: '#d8ecf4', S: '#8ec0dc',                                             // water foam / ripple
     z: '#e4e0da', Z: '#c4beb8', X: '#948e88',                               // smoke
     ...(AGE === 0 ? { Y: '#a08a62', p: '#8e7650', P: '#7a6444', q: '#4a3620' } : {}),   // weathered split logs
+    ...NPAL,
     T: 'team', D: 'teamdark', L: 'teamlight',
   },
+  ...(C ? { roofChars: 'ghbcade' } : {}),
   frames: { idle: frames },
 };
