@@ -72,10 +72,11 @@ LLTTTD
 function howdah(cv, o = {}) {
   // caparison: team cloth over the back and upper flank, gold border, red tassels
   cv.withRing('ink', t => { t.T = cv.T.map(r => r.slice());
-    t.poly([[6.6, 10.2], [17.2, 10.2], [17.8, 16.8], [6.0, 16.8]], 'cloth');
-    t.rect(6.0, 16.0, 11.8, 1.0, 'gold:m');
+    t.poly([[6.4, 10.2], [17.4, 10.2], [18.4, 19.8], [5.4, 19.8]], 'cloth');   // drapes low down the flank so the owner reads from afar
+    t.rect(5.4, 18.0, 13.0, 1.0, 'team:s');                                       // team-dark band above the gold hem
+    t.rect(5.4, 19.0, 13.0, 1.0, 'gold:m');
   });
-  for (let x = 7; x <= 17; x += 2) cv.px(x, 17.0, 'tassel');
+  for (let x = 6; x <= 18; x += 2) cv.px(x, 20.0, 'tassel');
   // rider: head + shoulders above the box
   // the box floor hides whatever sinks below it: drop the rows that would poke out under the box when the rider dips (ry > 0)
   const ry = o.ry || 0, rows = RIDER.replace(/^\n+|\n+$/g, '').split('\n');

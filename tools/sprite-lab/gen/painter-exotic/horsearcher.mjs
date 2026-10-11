@@ -9,7 +9,7 @@ const MATS = {
   mane: { l: 'm', m: 'n', s: 'n', o: 'n', noLeftLight: true },
   eye: { raw: 'o' }, nostril: { raw: 'F' }, blaze: { raw: 'c' },
   hoof: { raw: 'v' }, sock: { l: 'y', m: 'c', s: 'C', o: 'C' },
-  team: { l: 'L', m: 'T', s: 'D', o: 'D' }, cloth: { l: 'T', m: 'D', s: 'D', o: 'D', d: 'L' }, teamraw: { raw: 'T' },
+  team: { l: 'L', m: 'T', s: 'D', o: 'D' }, cloth: { l: 'L', m: 'T', s: 'D', o: 'D', d: 'D' }, teamraw: { raw: 'T' },
   leather: { l: 'w', m: 'q', s: 'Q', o: 'Q' },
   boot: { l: 'Q', m: 'z', s: 'z', o: 'z' },
   trou: { l: 'p', m: 'p', s: 'P', o: 'P' },
@@ -72,7 +72,7 @@ function horse(cv, pose) {
   cv.withRing('ink', t => { t.T = cv.T.map(r => r.slice());
     body(t, pose);
     // saddle cloth (team) with a leather saddle
-    t.poly([[8.8, 13.2], [16.0, 13.2], [16.4, 19.8], [8.4, 19.8]], 'cloth'); t.rect(8.4, 19, 8.2, 1, 'cloth:d');
+    t.poly([[7.4, 12.8], [16.4, 12.8], [17.0, 20.8], [7.0, 20.8]], 'cloth'); t.rect(7.0, 20, 10.0, 1, 'cloth:d');   // big team saddle cloth, team-dark hem
     for (const k of ['nf', 'nh']) leg(t, HIPS[k], feet[k].foot, k[1], 'horse', 'hoof', k === 'nh' ? null : null);
   });
   // fringe at the bottom of the cloth, saddle

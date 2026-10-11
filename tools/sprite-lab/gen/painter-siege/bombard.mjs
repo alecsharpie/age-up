@@ -1,11 +1,11 @@
 import { G, deg, emit, WOOD, STEEL } from './kit.mjs';
 const W = 30, H = 20;
-const CHEEK = ['W', 'w', 'T', 'D'], BARREL = ['m', 'n', 'n', 'n', 'z'];
+const CHEEK = ['W', 'L', 'T', 'T', 'D'], BARREL = ['m', 'n', 'n', 'n', 'z'];
 // cannon at offset (ox, oy); rec = recoil px (back), lift = muzzle kick up, th = wheel angle
 function cannon(g, { ox = 0, oy = 0, rec = 0, lift = 0, th = 0 } = {}) {
   const X = x => x + ox - rec, Y = y => y + oy;
-  g.layer(l => l.beam(X(2), Y(17), X(21), Y(11), 4, CHEEK), true, 'q');                      // carriage cheek (team-painted)
-  g.layer(l => { l.rect(X(1), Y(18), 3, 2, 'w'); l.rect(X(1), Y(19), 3, 1, 'd'); }, true, 'q');  // trail end on the ground
+  g.layer(l => l.beam(X(2), Y(16), X(18), Y(12), 5, CHEEK), true, 'q');                      // carriage cheek (team-painted, wood top edge, team-dark underside)
+  g.layer(l => { l.rect(X(1), Y(17), 3, 3, 'T'); l.set(X(1), Y(17), 'L'); l.rect(X(1), Y(19), 3, 1, 'D'); }, true, 'q');  // trail end on the ground (team-painted)
   g.layer(l => { l.rect(X(6), Y(11), 4, 2, 'W'); l.rect(X(6), Y(12), 4, 1, 'd'); }, true, 'q');  // quoin under the breech
   g.layer(l => {                                                                                // barrel: hooped iron staves
     l.beam(X(6), Y(8), X(24), Y(7) - lift, 5, BARREL);
