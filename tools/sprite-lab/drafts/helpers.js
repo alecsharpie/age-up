@@ -35,6 +35,7 @@ export function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
   const an = (spec.anchors && spec.anchors[frame]) || spec.anchor;  // a set may have its own size/anchor (death: lying down is wider)
   const dx = Math.round(x - an[0] * sc), dy = Math.round(y - an[1] * sc);
   const clip = o && o.clip !== undefined ? Math.max(0, Math.min(1, o.clip)) : 1;
+  if (pixBlit.hook && pixBlit.hook(c2d, c, dx, dy, clip, [an[0] * sc, an[1] * sc])) { c2d.restore(); return; }  // game-side render FX (construction, shadows)
   if (clip < 1) { const sh = Math.round(c.height * clip); if (sh > 0) c2d.drawImage(c, 0, c.height - sh, c.width, sh, dx, dy + c.height - sh, c.width, sh); }
   else c2d.drawImage(c, dx, dy);
   c2d.restore();
