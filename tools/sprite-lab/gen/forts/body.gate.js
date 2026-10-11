@@ -147,11 +147,15 @@ function gatehouse(axis){
   }
   // joints: the wall segment behind (−x in set x, −y in set y) covers this edge up to its parapet, so no ink there
   const cover=pixGrid(GW,GH);pixIsoBox(cover,bx+(lit?-32:32),by-16,1,1,C.wall,1,{left:'#',right:'#',top:'#'});
-  inkOutline(g,null,(x,y)=>pixGet(cover,x,y)==='#');
+  const solid=(x,y)=>pixGet(cover,x,y)==='#';
+  inkOutline(g,null,solid);
+  // natural lines: worn merlons and crowns, the odd proud block, moss and grass at the foot
+  {const ST=feu?new RegExp('['+AS.join('')+']'):STONE;wear(g,ST,{p:imp?0.3:0.45,notch:0.05,bump:0.06,seed:31,solid});
+    moss(g,ST,{h:imp?4:6,split:bx,dens:imp?0.35:0.55,seed:32});tufts(g,{p:0.45,maxY:by,split:bx,rubble:0.05,seed:33})}
   const frames=[];
   for(let k=0;k<4;k++){const f=cloneG(g);
     TW.forEach((t,i)=>{const [a,b]=lit?[t.base.L,t.base.Bm]:[t.base.Bm,t.base.Rr],p=lerpP(a,b,0.5);
-      if(imp)giltBanner(f,Math.round(p[0])-3,Math.round(p[1])-TZ+24,6,18,k+i*2,sl);else banner(f,Math.round(p[0])-3,Math.round(p[1])-TZ+10,6,16,k+i*2,{sl})});
+      if(imp)giltBanner(f,Math.round(p[0])-3,Math.round(p[1])-TZ+24,6,21,k+i*2,sl);else banner(f,Math.round(p[0])-3,Math.round(p[1])-TZ+10,6,16,k+i*2,{sl})});
     if(room){const [a,b]=lit?[room.base.L,room.base.Bm]:[room.base.Bm,room.base.Rr];
       const [c,d]=lit?[top.base.L,top.base.Bm]:[top.base.Bm,top.base.Rr];
       for(const [fr,ph] of [[0.15,0],[0.85,2]]){const p=lerpP(c,d,fr);banner(f,Math.round(p[0])-2,Math.round(p[1])-Z+1,5,11,k+ph,{sl,charge:false})}}

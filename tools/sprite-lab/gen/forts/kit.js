@@ -149,6 +149,61 @@ function flagpole(g,x,y,h,ph,o={}){
     for(let r=0;r<len;r++){const tone=s>0.45?'L':s<-0.45?'D':'T';
       pixSet(g,x+c*dir,y0+r+d,r===len-1?'D':r===0&&tone==='T'?'L':tone)}}
 }
+// ---- natural lines (HOLISTIC.md): 1-px variation on formal stone; never a broken iso grid ----
+const NAT={g1:'ǥ',g2:'ǧ',g3:'ǩ',m1:'ʍ',m2:'ɯ',m3:'ɰ',r1:'ʀ',r2:'ʁ'};
+const INKC=c=>c==='k'||c==='K';
+/** Bottom-most opaque cell of every column (-1 if empty). */
+function bottoms(g){const out=[];for(let x=0;x<g[0].length;x++){let y=g.length-1;while(y>=0&&g[y][x]==='.')y--;out.push(y)}return out}
+/** Moss and lichen creeping up the foot of stone faces: clustered, thinning with height. stone = regex of stone chars;
+ *  o.h rows, o.split = the lit/shaded corner x, o.dens 0..1, o.ok(x,y) to skip cells. */
+function moss(g,stone,o={}){
+  const Hh=o.h||6,seed=o.seed||1,dens=o.dens??0.55,bot=bottoms(g),split=o.split??g[0].length/2;
+  for(let x=0;x<g[0].length;x++){const yb=bot[x];if(yb<0)continue;
+    for(let d=0;d<Hh;d++){const y=yb-d,c=g[y]&&g[y][x];if(!c||!stone.test(c)||(o.ok&&!o.ok(x,y)))continue;
+      const n=hash3(x>>1,(y+((x>>2)&1))>>1,seed),thr=dens*(1-d/Hh)*(0.6+0.8*hash3(x>>3,seed,5));
+      if(n<thr){const lit=x<split;g[y][x]=n<thr*0.35?(lit?NAT.m1:NAT.m2):(lit?NAT.m2:NAT.m3)}}}
+}
+/** Grass tufts over the foot of the building (they hide the hard bottom ink line in clumps) and a few rubble chips.
+ *  o.p clump density, o.maxY = lowest row allowed (the anchor row), o.ok(x,y) to skip columns, o.rubble chance. */
+function tufts(g,o={}){
+  const seed=o.seed||2,p=o.p??0.35,bot=bottoms(g),maxY=o.maxY??g.length-1,split=o.split??g[0].length/2;
+  const near=(x,yb)=>yb>=maxY-Math.abs(x-split)*0.5-(o.tol??3);   // only columns that stand on the ground (not an eave or a flag)
+  for(let x=0;x<g[0].length;x++){const yb=bot[x];if(yb<0||!near(x,yb)||(o.ok&&!o.ok(x,yb)))continue;
+    const cl=Math.floor((x+Math.floor(hash3(seed,9,1)*4))/4);if(hash3(cl,seed,77)>=p)continue;
+    const h=1+Math.floor(hash3(x,seed,78)*(x%2?2.5:4)),lit=x<split;
+    for(let d=0;d<h;d++){const y=yb-d;if(y<0)break;g[y][x]=d===0?NAT.g1:d===h-1?(lit?NAT.g3:NAT.g2):NAT.g2}
+    // blades spill a pixel past the foot where the ground beside it is open (never below the anchor row)
+    for(const dx of [-1,1]){const xx=x+dx;if(xx<0||xx>=g[0].length||g[yb][xx]!=='.'||hash3(xx,seed,80)<0.4)continue;
+      const hh=1+Math.floor(hash3(xx,seed,81)*2);for(let d=0;d<hh;d++)if(g[yb-d]&&g[yb-d][xx]==='.')g[yb-d][xx]=d===0?NAT.g1:(lit?NAT.g3:NAT.g2)}}
+  if(o.rubble)for(let x=1;x<g[0].length-2;x++){const yb=bot[x];if(yb<0||yb+1>maxY-1||!near(x,yb)||(o.ok&&!o.ok(x,yb)))continue;
+    if(hash3(x,seed,79)<o.rubble&&g[yb+1][x]==='.'&&g[yb+1][x+1]==='.'&&bot[x+1]>=0&&Math.abs(bot[x+1]-yb)<=1){g[yb+1][x]=NAT.r1;g[yb+1][x+1]=NAT.r2;x+=3}}
+}
+/** Wear on stone silhouettes: chipped corners on merlons and quoins, the odd notch along a top edge, the odd block standing proud
+ *  of a side edge by 1 px. Call after inkOutline. stone = regex of stone chars; o.solid(x,y) marks cells a neighbour covers. */
+function wear(g,stone,o={}){
+  const seed=o.seed||3,p=o.p??0.45,notch=o.notch??0.05,bump=o.bump??0.08,solid=o.solid,Hh=g.length,Ww=g[0].length;
+  const E=(x,y)=>(x<0||y<0||x>=Ww||y>=Hh||g[y][x]==='.')&&!(solid&&solid(x,y));
+  const inkAt=(x,y)=>E(x+1,y)||E(x,y+1)?'k':'K',acts=[];
+  for(let y=1;y<Hh-2;y++)for(let x=1;x<Ww-1;x++){const c=g[y][x];if(!INKC(c))continue;
+    if(E(x,y-1)&&stone.test(g[y+1][x])&&stone.test(g[y+2][x])){const cl=E(x-1,y),cr=E(x+1,y);
+      if((cl||cr)&&!(cl&&cr)&&hash3(x,y,seed)<p)acts.push(['c',x,y]);
+      else if(!cl&&!cr&&hash3(x>>1,y,seed+1)<notch&&!E(x-1,y+1)&&!E(x+1,y+1))acts.push(['c',x,y]);}
+    else if(bump&&y%4===1&&!E(x,y-1)&&!E(x,y+1)){const sl=E(x-1,y)&&stone.test(g[y][x+1]),sr=E(x+1,y)&&stone.test(g[y][x-1]);
+      if((sl||sr)&&hash3(x,y>>2,seed+2)<bump&&E(sl?x-1:x+1,y+1)&&E(sl?x-1:x+1,y-1))acts.push(['b',x,y,sl?-1:1]);}}
+  for(const [t,x,y,dir] of acts){
+    if(t==='c'){g[y][x]='.';if(stone.test(g[y+1][x]))g[y+1][x]=inkAt(x,y+1)}
+    else{const inner=g[y][x-dir];for(const yy of [y,y+1]){if(!INKC(g[yy][x]))continue;g[yy][x]=inner;g[yy][x+dir]='k'}}}
+}
+/** An uneven eave along the ink eave line A→B (call after the line is drawn): at chance p a cell drops 1 px — the roof colour above
+ *  it carries down and the ink moves below, so tiles / shingles get an uneven drip line. o.hang(x) may return a strand char to
+ *  hang a second pixel (thatch). */
+function eaveRag(g,A,B,p,seed,o={}){
+  for(let x=Math.ceil(A[0])+2;x<=Math.floor(B[0])-2;x++){const y=Math.round(A[1]+(x-A[0])*(B[1]-A[1])/(B[0]-A[0]));
+    if(hash3(x>>(o.pair?1:0),seed,31)>=p||!INKC(pixGet(g,x,y))||pixGet(g,x,y+1)==='.'||pixGet(g,x,y-1)==='.')continue;
+    const roof=o.fill?o.fill(x):pixGet(g,x,y-1);pixSet(g,x,y,roof);
+    const h=o.hang&&hash3(x,seed,32)<0.5&&pixGet(g,x,y+2)!=='.'?o.hang(x):null;
+    if(h){pixSet(g,x,y+1,h);pixSet(g,x,y+2,'k')}else pixSet(g,x,y+1,'k')}
+}
 const FORT_PAL={
   k:'#24180f',K:'#43382e',e:'#140d08',
   h:'#c4bba9',a:'#a69e8f',A:'#988f81',f:'#b0a798',m:'#6a6257',q:'#cfc6b3',p:'#7d7569',     // lit stone
@@ -159,5 +214,6 @@ const FORT_PAL={
   o:'#e1b12c',O:'#ffe28a',F:'#ffe9a8',Y:'#ffc84a',R:'#d9542a',g:'#cbb08a',G:'#dcc29a',       // gold, flame, torch glow
   r:'#8a95a1',s:'#6f7a87',t:'#59636f',u:'#434b56',z:'#2f353e',                            // slate roof
   T:'team',D:'teamdark',L:'teamlight',
+  'ǥ':'#355e24','ǧ':'#4f8030','ǩ':'#8cbc52','ʍ':'#808c4c','ɯ':'#62723a','ɰ':'#48572f','ʀ':'#a49c8e','ʁ':'#5e574d',   // grass, moss, rubble
 };
 // ---- end kit ----

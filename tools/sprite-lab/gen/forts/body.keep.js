@@ -101,6 +101,9 @@ kTTToTTD
 `)}
 if(IMP){giltCourse(g,top.base.L,top.base.Bm,Z,5,true);giltCourse(g,top.base.Bm,top.base.Rr,Z,5,false)}
 inkOutline(g);
+// natural lines (formal, so lightly): worn merlons, the odd proud block, moss and grass at the foot, a little rubble
+wear(g,STONE,{p:0.35,notch:0.04,bump:0.04,seed:41});
+moss(g,STONE,{h:IMP?5:6,split:bx,dens:IMP?0.4:0.5,seed:42});tufts(g,{p:0.35,maxY:by,split:bx,rubble:0.05,seed:43});
 // ---- idle: banners on the donjon ripple, gate torches flicker
 const BW=10,BL=24,BAN=[[0.3,0],[0.7,2]];
 const FLAGS=[...(IMP?[]:[[don.T,0,-2,0]]),[don.L,2,-3,1],[don.Rr,-2,-3,3],[don.Bm,0,-4,2]];
