@@ -5,6 +5,9 @@
 // a slate-capped stair turret in the middle whose apex carries the code-drawn flag. One long team banner hangs centred on each face.
 // Frames: idle 4 — the deck guns smoke, the banners ripple.
 // ---- fortification kit (local to this draft): ashlar faces, flagstones, shingles, parapets, ink outline, banners, flames ----
+// Age variants (gen/ages/wrap.mjs): the generator runs per age; AGE 0 Dark … 3 Imperial, AK = pixAgeKit(AGE).
+const make = (AGE) => {
+const AK = pixAgeKit(AGE);
 function hash3(a,b,c){let h=(Math.imul(a|0,374761393)+Math.imul(b|0,668265263)+Math.imul(c|0,1442695041))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
 const cloneG=g=>g.map(r=>r.slice());
 const LIT={m:'m',h:'h',t:['a','A','f'],q:'q',p:'p',j:'K'}, SHD={m:'M',h:'H',t:['b','B','n'],q:'Q',p:'P',j:'M'};
@@ -239,8 +242,10 @@ for(let k=0;k<4;k++){const f=cloneG(g);
   {const p=lerpP(sh.base.Bm,sh.base.Rr,0.5);banner(f,Math.round(p[0])-BW/2,Math.round(p[1])-ZS+3,BW,BL,k+2,{sl:-0.5})}
   MZ.forEach(([mx,my,dir],gi)=>{const sm=SMOKE[(k+gi*2)%4];sm.forEach(([dx,dy],i)=>{const x=mx+dir*dx,y=my+dy,big=i<sm.length-1;pixSet(f,x,y,'X');pixSet(f,x+1,y,'X');pixSet(f,x,y-1,'V');if(big){pixSet(f,x+1,y-1,'V');pixSet(f,x-1,y,'X');pixSet(f,x,y+1,'X')}})});
   frames.push(pixText(f));}
-export default {
+return {
   id:'btower',kind:'building',footprint:[W,H],anchor:[bx,by],
   palette:Object.assign({},FORT_PAL,{V:'#d8d4cc',X:'#aaa69e'}),
   frames:{idle:frames},
 };
+};
+export default pixAged(make, 3);

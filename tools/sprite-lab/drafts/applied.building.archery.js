@@ -1,6 +1,7 @@
 // @sprite building archery
-// Painted Archery Range (PIXELS.archery) rising with construction; idle set at 5 fps (awning valance flutters).
-// No pole flag: the team-striped awning carries the team colour (feedback round 1 asked for the extra flag to go).
+// Painted archery (PIXELS.archery); pixAge picks the variant for the owner's age (Dark … Imperial). Flags are code-drawn so they wave;
+// a variant that moves its flag mount says so in spec.flags ([[dx,dy,h]] from the footprint's bottom corner), read by pixFlags.
 export default function archery(b,{d,cx,cy,w,h,p,tc,bm,z}){
-  pixDraw(PIXELS.archery,'idle',Math.floor(G.time*5),tc,bm.Bm[0],bm.Bm[1],{clip:p});
+  const S=pixAge(PIXELS.archery,b);
+  pixDraw(S,'idle',Math.floor(G.time*5),tc,bm.Bm[0],bm.Bm[1],{clip:p})
 }

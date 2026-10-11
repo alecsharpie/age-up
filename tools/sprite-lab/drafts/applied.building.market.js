@@ -1,6 +1,8 @@
 // @sprite building market
-// Painted Market (PIXELS.market) rising with construction; once built the awning hems flutter and the pennant waves (4 fps). Flag on the right corner.
+// Painted market (PIXELS.market); pixAge picks the variant for the owner's age (Dark … Imperial). Flags are code-drawn so they wave;
+// a variant that moves its flag mount says so in spec.flags ([[dx,dy,h]] from the footprint's bottom corner), read by pixFlags.
 export default function market(b,{d,cx,cy,w,h,p,tc,bm,z}){
-  pixDraw(PIXELS.market,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
-  if(b.built)flag(bm.Rr[0]-6,bm.Rr[1]-3,b.team,16);   // on the kerb at the right corner: the back corner sits behind the back stall's awning
+  const S=pixAge(PIXELS.market,b);
+  pixDraw(S,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
+  pixFlags(S,b,bm,[[90,-51,16]]);
 }

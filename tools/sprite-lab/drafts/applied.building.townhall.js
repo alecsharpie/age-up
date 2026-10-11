@@ -1,6 +1,8 @@
 // @sprite building townhall
-// Painted Town Hall (PIXELS.townhall, 6 idle frames: hearth flicker + glow, chimney smoke) rising with construction; the flag waves from the tower apex.
+// Painted townhall (PIXELS.townhall); pixAge picks the variant for the owner's age (Dark … Imperial). Flags are code-drawn so they wave;
+// a variant that moves its flag mount says so in spec.flags ([[dx,dy,h]] from the footprint's bottom corner), read by pixFlags.
 export default function townhall(b,{d,cx,cy,w,h,p,tc,bm,z}){
-  pixDraw(PIXELS.townhall,'idle',b.built?Math.floor(G.time*5):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
-  if(b.built)flag(bm.Bm[0]+64,bm.Bm[1]-4-32-64-12,b.team,16);
+  const S=pixAge(PIXELS.townhall,b);
+  pixDraw(S,'idle',b.built?Math.floor(G.time*5):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
+  pixFlags(S,b,bm,[[64,-112,16]]);
 }

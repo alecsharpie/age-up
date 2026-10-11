@@ -1,7 +1,8 @@
 // @sprite building stable
-// Painted Stable (PIXELS.stable) rising with construction; idle set at 3 fps (horses bob heads, swish a tail).
-// Flag on the left end of the roof ridge.
+// Painted stable (PIXELS.stable); pixAge picks the variant for the owner's age (Dark … Imperial). Flags are code-drawn so they wave;
+// a variant that moves its flag mount says so in spec.flags ([[dx,dy,h]] from the footprint's bottom corner), read by pixFlags.
 export default function stable(b,{d,cx,cy,w,h,p,tc,bm,z}){
-  pixDraw(PIXELS.stable,'idle',Math.floor(G.time*3),tc,bm.Bm[0],bm.Bm[1],{clip:p});
-  if(b.built)flag(bm.Bm[0]-7,bm.Bm[1]-116,b.team,14);
+  const S=pixAge(PIXELS.stable,b);
+  pixDraw(S,'idle',Math.floor(G.time*3),tc,bm.Bm[0],bm.Bm[1],{clip:p});
+  pixFlags(S,b,bm,[[-7,-116,14]]);
 }

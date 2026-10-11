@@ -125,3 +125,6 @@ Buildings are *generated* pixel drafts (code before `export default` builds the 
 - **Construction** uses `{clip:p}` plus the game's code scaffolding. Do not paint stages.
 - **Footprint**: nothing outside the footprint sideways beyond 6 px (eaves, flags), nothing below the bottom corner.
 - Fire on damaged buildings is the engine's (`PIXELS.fire` at 75/50/25 % hp); keep roofs readable under it.
+- **Ages**: one variant per age the building can stand in (README "Age variants"). Roof material alone tells the age (thatch,
+  shingle, tile, slate+gilt) and the silhouette changes too (height, chimneys, turrets, crenels, spires, palisades); footprint,
+  anchor and team-colour budget hold in every age. `lab.mjs aaa` checks each variant.

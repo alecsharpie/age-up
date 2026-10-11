@@ -1,6 +1,8 @@
 // @sprite building dock
-// Painted dock (PIXELS.dock, 4 idle frames: water lapping around the piles, crane crate swinging) rising with construction; the flag stays code-drawn so it waves.
+// Painted dock (PIXELS.dock); pixAge picks the variant for the owner's age (Dark … Imperial). Flags are code-drawn so they wave;
+// a variant that moves its flag mount says so in spec.flags ([[dx,dy,h]] from the footprint's bottom corner), read by pixFlags.
 export default function dock(b,{d,cx,cy,w,h,p,tc,bm,z}){
-  pixDraw(PIXELS.dock,'idle',b.built?Math.floor(G.time*3):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
-  if(b.built){const t=corners(cx,cy,w,h,6);flag(t.Rr[0]-6,t.Rr[1]-1,b.team,19)}
+  const S=pixAge(PIXELS.dock,b);
+  pixDraw(S,'idle',b.built?Math.floor(G.time*3):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
+  pixFlags(S,b,bm,[[58,-39,19]]);
 }

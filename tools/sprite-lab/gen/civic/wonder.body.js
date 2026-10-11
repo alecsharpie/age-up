@@ -86,7 +86,8 @@ const nroof = gableX(nave, 24);
 // west front: deep portal in team colour, rose window, corner pinnacles
 { const B = nave.base; const m = lerp(B.Bm, B.Rr, 0.5);
   rose(m[0], m[1] - 27, 7, -0.5);
-  stampOn(g, Math.round(m[0]) - 6, Math.round(m[1]) - 19, `
+  // the portal stands on the wall's foot (its sill row is the bottom course), with a stone step out onto the paving
+  stampOn(g, Math.round(m[0]) - 6, Math.round(m[1]) - 14, `
 ....kkkkk....
 ...kqqqqqk...
 ..kqkkkkkqk..
@@ -101,6 +102,10 @@ kqkTLTTTTDkqk
 kqkTLTTTTDkqk
 kqkDDDDDDDkqk
 kjjjjjjjjjjjk
+`, -0.5);
+  stampOn(g, Math.round(m[0]) - 6, Math.round(m[1]), `
+krrrrrrrrrrrrk
+.kkkkkkkkkkkkkk
 `, -0.5);
   for (const f of [0.18, 0.82]) { const a = lerp(B.Bm, B.Rr, f); lancet(a[0], a[1] - 26, LANCETR); } }
 
@@ -129,7 +134,8 @@ const trF = block(2.0, 3.45, 1.5, 0.95, 34);
 const troof = gableY(trF, 18);
 { const B = trF.base; const m = lerp(B.L, B.Bm, 0.5);
   rose(m[0], m[1] - 30, 8, 0.5);
-  stampOn(g, Math.round(m[0]) - 6, Math.round(m[1]) - 17, `
+  // the portal stands on the wall's foot (its sill row is the bottom course), with a stone step out onto the paving
+  stampOn(g, Math.round(m[0]) - 6, Math.round(m[1]) - 12, `
 ....kkkkk....
 ...kmmmmmk...
 ..kmkkkkkmk..
@@ -142,6 +148,10 @@ kmkTLTTTTDkmk
 kmkTLTTTTDkmk
 kmkDDDDDDDkmk
 kQQQQQQQQQQQk
+`, 0.5);
+  stampOn(g, Math.round(m[0]) - 7, Math.round(m[1]), `
+kllllllllllllk
+kkkkkkkkkkkkkk.
 `, 0.5);
   for (const f of [0.12, 0.88]) { const a = lerp(B.L, B.Bm, f); pinnacle(a[0], a[1] - 32, 14); }
   const a = lerp(B.Bm, B.Rr, 0.12); lancet(a[0], a[1] - 28, LANCETR); }   // clear of the aisle roof

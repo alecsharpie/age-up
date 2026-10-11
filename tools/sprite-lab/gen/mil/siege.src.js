@@ -5,9 +5,16 @@
 // spoked wheels stacked and one leaning on the shed, a log pile under a team-colour tarp, a sawhorse in wood chips.
 // Generated (code before export); anchor = footprint bottom corner. idle: 4 frames — the crane hook and its load sway,
 // the brazier flickers.
+//   Castle   (as above) the timber workshop under brown shingles with the sheer-leg crane.
+//   Imperial a taller limestone workshop: an arcade of limestone piers and round arches across the open bay with a gilt
+//            string course, a limestone end wall with pilasters and an arched, iron-banded double door under a gilt keystone,
+//            an oculus in the gable, a blue slate roof with gilt cresting and an orb finial, a gilt-fringed banner; in the
+//            yard a big timber-and-iron gantry crane (two braced trestles, an iron-strapped beam, a trolley whose hook and
+//            load sway) with gilt caps.
 const W = 3, H = 3;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 56;
-const bx = W * 32 + 2, by = GH - 4;
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 56 + (AGE === 3 ? 12 : 0);
+const bx = W * 32 + 2, by = GH - 4, OY = by - 148;               // OY: extra headroom of the taller age (fixed coordinates shift by it)
+const IMP = AGE === 3, { R: AR, S: AS, Au, Fe, Gl, DEEP } = AK;
 //@KIT
 const g = pixGrid(GW, GH);
 const iso = (tx, ty) => [bx + (tx - ty) * 32, by - 98 + (tx + ty) * 16];          // ground point (top of the plinth)
@@ -16,7 +23,7 @@ const { T, L, Rr, Bm } = top;
 
 // ---- yard: packed earth with sawdust drifts and wood chips in clusters
 for (const [x, y] of cells([T, Rr, Bm, L])) { const n = vnoise(x, y, 7, 5), s = vnoise(x, y, 4, 13); g[y][x] = n < 0.32 ? 'Y' : n > 0.74 ? 'j' : (s > 0.78 ? 'd' : 'y'); }
-for (const [x, y] of [[150, 96], [153, 98], [147, 99], [120, 126], [123, 128], [90, 118], [172, 106], [60, 124]]) { g[y][x] = 'e'; g[y][x + 1] = 'E'; }
+for (const [x, y0] of [[150, 96], [153, 98], [147, 99], [120, 126], [123, 128], [90, 118], [172, 106], [60, 124]]) { const y = y0 + OY; g[y][x] = 'e'; g[y][x + 1] = 'E'; }
 
 // ---- spoked wheel, seen at an angle (ellipse): iron tyre, felloe, 8 spokes, hub
 function wheel(t, cx, cy, R, sq = 0.72) {
@@ -62,26 +69,44 @@ const barkCol = (s, b) => b > 0.45 ? 'W' : b < -0.35 ? 't' : 'w';
 const endCol = r => r > 0.8 ? 't' : r < 0.32 ? 'E' : 'e';           // bark rim, sapwood, pith
 
 // ---- the workshop
-const sh = pixIsoBox(g, 44, 119, 1.3, 3, 22, 1, {});
+const SZ = IMP ? 26 : 22;
+const sh = pixIsoBox(g, 44, 119 + OY, 1.3, 3, SZ, 1, {});
 const sb = sh.base;
-const mT = lerp(sh.T, sh.Rr, 0.5), mB = lerp(sh.L, sh.Bm, 0.5), RISE = 20;
+const mT = lerp(sh.T, sh.Rr, 0.5), mB = lerp(sh.L, sh.Bm, 0.5), RISE = IMP ? 22 : 20;
 const r1 = P(mB, 0, -RISE), r2 = P(mT, 0, -RISE);
 const GLOW = lerp(sh.Bm, sh.Rr, 0.78);   // brazier spot in the bay, clear of the mangonel in front of it
 inked(g, t => {
   // open bay: back wall planks in shadow, tools hanging, workbench, floor
-  wall(t, sh.Bm, sh.Rr, 22, (a, v) => v < 3 ? 'I' : v >= 20 ? 'Y' : v % 4 === 3 ? 'I' : 'i');
-  for (let k = 0; k < 5; k++) { const p = lerp(sh.Bm, sh.Rr, 0.1 + k * 0.08); const x = Math.round(p[0]), y = Math.round(p[1]) + 5; pixLine(t, x, y, x, y + 5, 'w'); pixSet(t, x, y, 'S'); if (k % 2) pixSet(t, x + 1, y, 'S'); }
-  { const a = lerp(sh.Bm, sh.Rr, 0.08), b = lerp(sh.Bm, sh.Rr, 0.46); pixLine(t, a[0], a[1] + 14, b[0], b[1] + 14, 'W'); pixLine(t, a[0], a[1] + 15, b[0], b[1] + 15, 't');
+  wall(t, sh.Bm, sh.Rr, SZ, (a, v) => v < 3 ? 'I' : v >= SZ - 2 ? 'Y' : v % 4 === 3 ? 'I' : 'i');
+  for (let k = 0; k < 5; k++) { const p = lerp(sh.Bm, sh.Rr, 0.1 + k * 0.08); const x = Math.round(p[0]), y = Math.round(p[1]) + 5 + SZ - 22; pixLine(t, x, y, x, y + 5, 'w'); pixSet(t, x, y, 'S'); if (k % 2) pixSet(t, x + 1, y, 'S'); }
+  { const a = P(lerp(sh.Bm, sh.Rr, 0.08), 0, SZ - 22), b = P(lerp(sh.Bm, sh.Rr, 0.46), 0, SZ - 22); pixLine(t, a[0], a[1] + 14, b[0], b[1] + 14, 'W'); pixLine(t, a[0], a[1] + 15, b[0], b[1] + 15, 't');
     for (const k of [0, 1]) { const p = lerp(a, b, k ? 0.92 : 0.08); pixLine(t, p[0], p[1] + 16, p[0], p[1] + 19, 't'); } }
   // posts across the opening
+  if (!IMP) {
   for (let k = 0; k <= 6; k++) { const p = lerp(sb.Bm, sb.Rr, k / 6); const x = Math.round(p[0]), y = Math.round(p[1]); pixRect(t, x - 1, y - 23, 1, 23, 'W'); pixRect(t, x, y - 23, 1, 23, 't'); }
   pixLine(t, sh.Bm[0], sh.Bm[1] + 1, sh.Rr[0], sh.Rr[1] + 1, 'W'); pixLine(t, sh.Bm[0], sh.Bm[1] + 2, sh.Rr[0], sh.Rr[1] + 2, 't');  // lintel beam
+  } else wall(t, sh.Bm, sh.Rr, SZ, (a, v) => {                                             // limestone arcade across the bay
+    const k = Math.floor(a / 16), j = a - k * 16, h = SZ - 1 - v;
+    if (v <= 3) return v === 0 ? AS[1] : v === 2 ? Au[2] : AS[2];                          // entablature with a gilt string course
+    if (j <= 2 || a >= 94) return j === 0 ? AS[1] : j === 1 ? AS[2] : AS[3];                // piers
+    if (h <= 0) return AS[3];
+    const c = 9.5, r = 6.5, dh = h - (SZ - 4 - 1 - r); if (dh > 0 && Math.hypot(j - c, dh * 1.2) > r) return Math.hypot(j - c, dh * 1.2) < r + 1.2 ? (j === 9 || j === 10 ? Au[1] : AS[3]) : AS[2];
+    return null;
+  });
   // lit end wall, timber-framed: corner posts, a wall plate at the eave, a sill on the plinth, board-and-batten cladding
   // (boards vary in tone, weather darker near the ground), a braced double barn door (darker planks) under a header
   const EA = x => x - Math.floor(sh.L[0]), EW = Math.round(sh.Bm[0] - sh.L[0]);
   const board = (a, v) => { const k = (((a + 2) % 4) + 4) % 4; return k === 3 ? 't' : k === 0 ? 'W' : 'w'; };
   const DL = 9, DR = 29, DM = 19, DT = 6;                                      // door jambs, centre seam, head
-  wall(t, sh.L, sh.Bm, 22, (a, v) => {
+  if (IMP) wall(t, sh.L, sh.Bm, SZ, (a, v) => {                                          // limestone end wall, arched iron-banded doors
+    const h = SZ - 1 - v, su = a - 9, n = 20, top = 17;
+    if (su >= 0 && su <= n && h <= top) { const c = n / 2, dh = h - (top - c); if (!(dh > 0 && Math.hypot(su - c, dh * 1.4) > c + 0.3)) {
+      if (su === 0 || su === n || (dh > 0 && Math.hypot(su - c, (dh + 1.5) * 1.4) > c + 0.3)) return su === c ? Au[0] : (su + h) % 3 ? AS[1] : AS[2];
+      if (su === c) return 'u'; if (h === 4 || h === 11) return Fe[1]; if ((su === 3 || su === n - 3) && (h === 5 || h === 12)) return Fe[0];
+      return (su % 3 === 2) ? 'u' : su < c ? 'w' : 't'; } }
+    return AK.wallTex(a, h, 0, { len: EW, H: SZ, step: 21 });
+  });
+  else wall(t, sh.L, sh.Bm, 22, (a, v) => {
     if (a <= 1) return a === 0 ? 'W' : 'w';                                   // lit corner post
     if (a >= EW - 2) return a === EW - 1 ? 'u' : 't';                         // shaded corner post
     if (v <= 1) return v === 0 ? 'W' : 't';                                   // wall plate
@@ -101,9 +126,19 @@ inked(g, t => {
   // gable over the end wall: the same boards up to the barge boards, a louvred vent under the ridge
   for (const [x, y] of cells([sh.L, sh.Bm, r1])) {
     const a = EA(x), d = Math.floor(sh.L[1] + (x + 0.5 - sh.L[0]) / (sh.Bm[0] - sh.L[0]) * (sh.Bm[1] - sh.L[1]) - y - 0.5), c = Math.abs(a - EW / 2 + 0.5);
+    if (IMP) { const oc = Math.hypot(c, (d - 8) * 1.1); t[y][x] = oc < 2.2 ? (d > 8 ? Gl[0] : Gl[1]) : oc < 3.4 ? (oc < 2.8 && d > 7 && c < 1 ? Au[1] : AS[2]) : AS[d % 4 === 3 ? 1 : 0]; continue; }
     t[y][x] = (d >= 5 && d <= 9 && c <= 3.5) ? (d === 5 || d === 9 || c > 3 ? 'u' : d % 2 ? 'I' : 't') : board(a, 0);
   }
-  pixLine(t, sh.L[0], sh.L[1], sh.Bm[0], sh.Bm[1], 'W');
+  pixLine(t, sh.L[0], sh.L[1], sh.Bm[0], sh.Bm[1], IMP ? Au[1] : 'W');
+  if (IMP) {
+    plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 2, { flip: true }), true);
+    plane(t, [r1, r2, P(sh.Rr, 1, 1), P(sh.Bm, 0, 1)], P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 1));
+    pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k');
+    pixLine(t, sh.L[0], sh.L[1], r1[0], r1[1], AR[5]); pixLine(t, sh.Bm[0], sh.Bm[1] + 1, r1[0], r1[1], AR[6]);
+    AK.trim(t, P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), 0); AK.trim(t, sh.L, r1, -1); AK.trim(t, P(sh.Bm, 0, 1), r1, 0);
+    AK.crest(t, r1, r2);
+    pixLine(t, sh.Bm[0], sh.Bm[1], sh.Bm[0], sh.Bm[1] + SZ - 1, AS[4]);
+  } else {
   // the back slope faces away: its eave L→T sits above the ridge on screen, so its courses lap upward (flip)
   plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 41 }), true);
   plane(t, [r1, r2, P(sh.Rr, 1, 1), P(sh.Bm, 0, 1)], P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), (a, d) => tiles({ t: d > 14 ? ['Q', 'q', 'P'] : ['q', 'P', 'p', 'R'], ch: 3, tw: 5, s: 42 })(a, d));
@@ -111,18 +146,21 @@ inked(g, t => {
   pixLine(t, sh.L[0], sh.L[1], r1[0], r1[1], 'u'); pixLine(t, sh.Bm[0], sh.Bm[1] + 1, r1[0], r1[1], 'u');
   pixLine(t, sh.Bm[0], sh.Bm[1] + 1, sh.Rr[0] + 1, sh.Rr[1] + 1, 'p');
   pixLine(t, sh.Bm[0], sh.Bm[1], sh.Bm[0], sh.Bm[1] + 21, 'u');
+  }
 });
+if (IMP) inked(g, t => AK.finial(t, Math.round(r1[0]), Math.round(r1[1]) - 1));
 // team banner hung on the gable end
-inked(g, t => wall(t, sh.L, sh.Bm, 22, (a, v) => {
-  const i = a - 31; if (i < 0 || i > 8 || v < 1) return null; if (v === 1) return i === 0 || i === 8 ? 'h' : 't';
-  const end = 15 - (Math.abs(i - 4) < 2 ? 2 : 0); if (v > end) return null; if (v === end) return 'D';
+inked(g, t => wall(t, sh.L, sh.Bm, SZ, (a, v) => {
+  const i = a - 31, vo = IMP ? 2 : 0; v -= vo; if (i < 0 || i > 8 || v < 1) return null; if (v === 1) return i === 0 || i === 8 ? 'h' : IMP ? Au[1] : 't';
+  const end = 15 - (Math.abs(i - 4) < 2 ? 2 : 0); if (v > end) return null; if (v === end) return IMP ? Au[i % 2] : 'D';
+  if (IMP && (i === 0 || i === 8)) return Au[i === 0 ? 0 : 2];
   if (v >= 5 && v <= 9 && ((i === 4) || (v === 7 && i >= 2 && i <= 6))) return 'L';
   return i === 0 ? 'L' : i === 8 ? 'D' : 'T';
 }));
 // the shed as painted so far: the brazier inside the bay may only show where nothing in the yard was drawn over it
 const gShed = copy(g);
 // a wheel leaning on the corner post of the open bay (the end wall stands on the plinth edge, so there is no ground in front of it)
-inked(g, t => wheel(t, 50, 112, 6));
+inked(g, t => wheel(t, 50, 112 + OY, 6));
 
 // ---- stacked wheels and a spare axle (front-left of the yard)
 inked(g, t => { const p = iso(1.55, 2.55); wheel(t, p[0] - 6, p[1] - 6, 6); wheel(t, p[0] + 4, p[1] - 6, 6); wheel(t, p[0] - 1, p[1] - 12, 6); });
@@ -204,24 +242,48 @@ function craneFront(t) {
   pixRect(t, CAP[0] - 1, CAP[1], 3, 2, 'B'); pixSet(t, CAP[0], CAP[1] + 2, 'G');       // lashing and pulley
 }
 function brazier(t, f) {
-  const x = Math.round(GLOW[0]), y = Math.round(GLOW[1]) + 15;   // legs end on the bay floor (v 20)
+  const x = Math.round(GLOW[0]), y = Math.round(GLOW[1]) + 15 + SZ - 22;   // legs end on the bay floor (v 20)
   stampL(t, x - 2, y, ['\n.ogo.\nGogoG\n.GGG.\n..t..\n.t.t.\n', '\n..o..\nGgogG\n.GGG.\n..t..\n.t.t.\n', '\n.o.o.\nGogoG\n.GGG.\n..t..\n.t.t.\n', '\n..g..\nGoooG\n.GGG.\n..t..\n.t.t.\n'][f]);
   if (f % 2 === 0) { pixSet(t, x - 3, y + 1, 'r'); pixSet(t, x + 3, y + 1, 'r'); }
+}
+// Imperial: a gantry crane over the yard — two braced trestles (legs splayed along ty) joined by a beam along tx, iron straps
+// and gilt caps; a trolley on the beam, its hook and a slung beam swaying below
+const GT = [iso(1.95, 0.42), iso(2.85, 0.42)], GH0 = 44;
+function gantryBack(t, f) {
+  const sw = [0, 1, 0, -1][f];
+  for (const p of GT) { const top = P(p, 0, -GH0); pixLine(t, p[0] + 6, p[1] - 3, top[0] + 1, top[1], 't'); pixLine(t, p[0] + 7, p[1] - 3, top[0] + 2, top[1], 'u'); }   // back legs
+  const tr = lerp(P(GT[0], 0, -GH0), P(GT[1], 0, -GH0), 0.45), hk = [Math.round(tr[0]) + sw, Math.round(tr[1]) + 17];
+  pixLine(t, tr[0], tr[1] + 2, hk[0], hk[1], 'B'); pixSet(t, hk[0], hk[1] + 1, Fe[1]); pixSet(t, hk[0] - 1, hk[1] + 2, Fe[1]); pixSet(t, hk[0], hk[1] + 3, Fe[1]);
+  const bc = [hk[0] + sw, hk[1] + 9];
+  pixLine(t, hk[0], hk[1] + 3, bc[0] - 6, bc[1] - 5, 'B'); pixLine(t, hk[0], hk[1] + 3, bc[0] + 6, bc[1], 'B');
+  for (let i = -9; i <= 9; i++) { const x = bc[0] + i, y = Math.round(bc[1] + i / 2); put(t, x, y - 2, 'W'); put(t, x, y - 1, 'w'); put(t, x, y, 't'); if (i === -5 || i === 5) { put(t, x, y - 2, Fe[0]); put(t, x, y - 1, Fe[1]); put(t, x, y, Fe[1]); } }
+}
+function gantryFront(t) {
+  for (const p of GT) { const top = P(p, 0, -GH0);
+    pixLine(t, p[0] - 6, p[1] + 3, top[0] - 1, top[1], 'W'); pixLine(t, p[0] - 5, p[1] + 3, top[0], top[1], 't');                       // front legs
+    pixLine(t, p[0] - 4, p[1] - 8, p[0] + 5, p[1] - 12, 'w');                                                                       // brace
+    pixRect(t, top[0] - 1, top[1] - 1, 3, 2, Fe[1]); pixSet(t, top[0], top[1] - 2, Au[1]); pixSet(t, top[0], top[1] - 3, Au[0]); }
+  const a = P(GT[0], -4, -GH0 - 1), b = P(GT[1], 4, -GH0 - 1);
+  for (let i = 0; i <= 3; i++) pixLine(t, a[0], a[1] - 2 + i, b[0], b[1] - 2 + i, ['W', 'w', 'w', 't'][i]);                           // the beam
+  for (const k of [0.15, 0.5, 0.85]) { const p = lerp(a, b, k); pixLine(t, p[0], p[1] - 2, p[0], p[1] + 1, Fe[1]); }                       // iron straps
+  const tr = lerp(P(GT[0], 0, -GH0), P(GT[1], 0, -GH0), 0.45); pixRect(t, tr[0] - 2, tr[1] + 1, 5, 2, Fe[1]); pixSet(t, tr[0] - 1, tr[1] + 1, Fe[0]);   // trolley
 }
 const frames = [];
 for (let f = 0; f < 4; f++) {
   const q = copy(g);
   // the brazier stands inside the bay: paint it on a layer and keep only the cells where the shed is still on top
   { const b = pixGrid(GW, GH); brazier(b, f); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (b[y][x] !== '.' && g[y][x] === gShed[y][x]) q[y][x] = b[y][x]; }
-  inked(q, t => craneBack(t, f));
-  inked(q, t => craneFront(t), 'k', 'K', 'B');
+  if (IMP) { inked(q, t => gantryBack(t, f)); inked(q, t => gantryFront(t), 'k', 'K', 'B'); }
+  else { inked(q, t => craneBack(t, f)); inked(q, t => craneFront(t), 'k', 'K', 'B'); }
   outline(q, 'k', 'K');
   frames.push(pixText(q));
 }
 
 export default {
   id: 'siege', kind: 'building', footprint: [W, H], anchor: [bx, by],
+  ...(IMP ? { flags: [[Math.round(sh.Bm[0]) - bx, Math.round(sh.Bm[1]) - by, 14]] } : {}),
   palette: {
+    ...AK.pal,
     k: '#24180f', K: '#4a3520',                                                      // ink
     y: '#a0824f', Y: '#8a6d3e', j: '#b8955a', d: '#c9a24a', z: '#7d6236', x: '#5e4a28', // earth, sawdust, plinth
     t: '#5a3a18', w: '#8a6a3a', W: '#a07a4a', u: '#3b2614', i: '#3a2c1f', I: '#241a12', // timber, bay interior

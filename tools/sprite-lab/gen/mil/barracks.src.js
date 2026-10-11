@@ -1,97 +1,172 @@
 // @pixel barracks
-// Barracks (3×3): a fortified stone yard. Coursed ashlar curtain walls with quoins, a plinth and a coping, crenellated
-// parapets, four crenellated corner turrets with arrow slits and team pennants, an arched gate with team-colour doors,
-// a long team banner on the front-left wall; inside, a tiled sleeping hall, a spear-and-shield rack and a straw
-// training dummy in a worn sparring ring. Generated (code before export) + hand-painted stamps; anchor = footprint
-// bottom corner. idle: 4 frames — banners ripple, the dummy wobbles.
-const W = 3, H = 3, Z = 20, TZ = 14;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + Z + TZ + 30;
+// Barracks (3×3): a walled training yard that grows with its owner's age. Thick curtain walls with a walk along their
+// top (a parapet on the outer edge) meet full-height corner towers about halfway across; a gate with team-colour doors
+// on the front-right wall, a long team banner on the front-left wall; inside, a sleeping hall, a spear-and-shield rack
+// and a straw training dummy in a worn sparring ring.
+//   Dark     a palisade of sharpened stakes with a plank fighting-walk behind it, no towers; a hide-hung gate between tall
+//            gateposts; a low wattle longhouse under steep golden thatch with crossed gable poles and a smoking smoke hole.
+//   Feudal   the palisade on a rubble-stone footing; four timber corner towers from the ground with overhanging shingle
+//            pyramid roofs and knob finials; a timber gatehouse with a shingle roof; a plank hall under brown shingles.
+//   Castle   dressed ashlar walls with a crenellated walk, crenellated stone towers, an arched gate; a red-tiled plank hall.
+//   Imperial pale limestone, taller walls and towers with a gilt string course, slate spires with gilt orb finials,
+//            gilt-fringed banners, a limestone hall under slate with gilt cresting, a gilt keystone over the gate.
+// Generated (code before export) + hand-painted stamps; anchor = footprint bottom corner. idle: 4 frames — banners ripple,
+// the dummy wobbles (Dark: smoke curls from the longhouse).
+const W = 3, H = 3;
+const Z = [14, 18, 20, 22][AGE], TZ = [0, 12, 14, 18][AGE];          // curtain height; towers rise TZ above it
+const TW = [0.22, 0.3, 0.42, 0.44][AGE], TB = AGE >= 2 ? 0.8 : 0.7;                    // wall thickness, tower size (tiles)
+const PZ = AGE <= 1 ? 6 : 5;                                          // parapet / stake tips above the walk
+const CAP = [8, 16, 0, 26][AGE];                                      // headroom for roofs and spires over the towers
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + Z + TZ + 30 + CAP;
 const bx = W * 32 + 2, by = GH - 4;
 //@KIT
 const g = pixGrid(GW, GH);
+const STONE = AGE >= 2;
 const top = pixIsoBox(g, bx, by, W, H, Z, 1, {});
 const { T, L, Rr, Bm } = top;
-const LEN = 96;
-
-// ---- curtain walls: coping, ashlar courses (3 tones per face), quoins at the corners, a plinth course
-const ashL = stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 9, s: 1, q: ['q', 'b'], qL: true, qR: true, len: LEN, ao: 14 });
-const ashR = stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 9, s: 2, q: ['Q', 'e'], qL: true, qR: true, len: LEN, ao: 14 });
-const plL = stone({ t: ['c', 'p', 'p'], m: 'n', ch: 4, bw: 12, s: 3 }), plR = stone({ t: ['f', 'P', 'P'], m: 'k', ch: 4, bw: 12, s: 4 });
-const face = (ash, pl, cop, sh, ledge) => (a, v, u) => v === 0 ? cop : v === 1 ? sh : v === Z - 5 ? ledge : v > Z - 5 ? pl(a, v - (Z - 4)) : ash(a, v - 2, u);
-wall(g, L, Bm, Z, face(ashL, plL, 'o', 'm', 'o'));
-wall(g, Bm, Rr, Z, face(ashR, plR, 'O', 'n', 'O'));
-pixLine(g, Bm[0], Bm[1], Bm[0], Bm[1] + Z - 1, 'n');            // the front arris, in shade
-
-// ---- yard: sunk at ground level inside the curtain walls. Looking down through the open top, a cell either lands on the
-// wall-walk (coping), on the inner face of one of the two back walls (stone courses running down to the yard), or on the
-// packed-earth floor 20 px lower; the front walls hide the floor's front strip. The back-left inner face turns away from
-// the light (shade ashlar), the back-right one catches it; the floor darkens in the shadow of the left walls and gets a
-// contact line at every wall foot.
-const TW = 0.14, IN = 3 - TW, S0 = Z / 32;                        // wall thickness (tiles); a ray drops Z/32 tiles back
 const gp = (u, v, z = 0) => [bx + 32 * (v - u), by - 16 * (u + v) - z];   // footprint (u along the left edge, v along the right) → screen
 const uvAt = (x, y, z) => { const dx = x + 0.5 - bx, dy = y + 0.5 - (by - z); return [(-dx / 32 - dy / 16) / 2, (dx / 32 - dy / 16) / 2]; };
-const DUM = [122, 104];                                           // training dummy foot (ground)
-const inU = stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 9, s: 21, ao: 10 });   // back-left wall, inner face (shade)
-const inV = stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 9, s: 22, ao: 10 });   // back-right wall, inner face (lit)
-const AU = gp(IN, TW, Z), AV = gp(IN, IN, Z);
-for (const [x, y] of cells([T, Rr, Bm, L])) {
-  const [u, v] = uvAt(x, y, Z);
-  let ch;
-  if (u > IN || v > IN || u < TW || v < TW) {                     // the wall-walk, flagged coping with joints across it
-    const along = (u < TW || u > IN) ? v : u;
-    ch = (Math.floor(along * 32) % 7 === 0) ? 'O' : 'o';
-  } else {
-    const u0 = u + S0, v0 = v + S0;
-    if (u0 <= IN && v0 <= IN) {
-      const n = vnoise(x, y, 7, 3); ch = n < 0.33 ? 'Y' : n > 0.72 ? 'j' : 'y';
-      const ex = (x - DUM[0]) / 17, ey = (y - DUM[1] + 1) / 8.5, e = ex * ex + ey * ey; if (e < 1) ch = e > 0.82 ? 'Y' : 'j';
-      const shade = IN - u0 < 0.32 || v0 < TW + S0 + 0.22;         // shadow of the back-left and front-left walls
-      if (shade) ch = ch === 'j' ? 'y' : n < 0.4 ? 'J' : 'Y';
-      if (IN - u0 < 0.06 || IN - v0 < 0.06 || v0 < TW + S0 + 0.04 || u0 < TW + S0 + 0.04) ch = 'J';   // wall feet
-    } else {
-      const zU = Z - 32 * (IN - u), zV = Z - 32 * (IN - v);
-      if (zU >= zV) { const r = Math.floor(Z - zU); ch = r === 0 ? 'O' : r === 1 ? 'n' : r >= Z - 1 ? 'f' : inU(x - Math.floor(AU[0]), r - 2); }
-      else { const r = Math.floor(Z - zV); ch = r === 0 ? 'o' : r === 1 ? 'm' : r >= Z - 1 ? 'c' : inV(x - Math.floor(AV[0]), r - 2); }
-    }
-  }
+const merlon = (a, per, w) => ((a % per) + per) % per < w;
+const { R: AR, Au, Gl, DEEP } = AK;
+
+// ---- materials (letters a..Q are stone: Castle ashlar; the palette re-tones them to the kit's stone in other ages)
+const ashL = stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 9, s: 1, q: ['q', 'b'], qL: true, qR: true, len: 96, ao: 14 });
+const ashR = stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 9, s: 2, q: ['Q', 'e'], qL: true, qR: true, len: 96, ao: 14 });
+const plL = stone({ t: ['c', 'p', 'p'], m: 'n', ch: 4, bw: 12, s: 3 }), plR = stone({ t: ['f', 'P', 'P'], m: 'k', ch: 4, bw: 12, s: 4 });
+const gilt = (lit) => Au[lit ? 1 : 2];
+// outer stone face: a shadow row under the walk, (Imperial: a gilt string course), ashlar, a ledge and the plinth
+const stoneFace = (lit, ah) => (a, v) => {
+  if (v === 0) return lit ? 'm' : 'n';
+  if (v === 1 && AGE === 3) return gilt(lit);
+  if (v === ah - 5) return lit ? 'o' : 'O';
+  if (v > ah - 5) return (lit ? plL : plR)(a, v - (ah - 4));
+  return (lit ? ashL : ashR)(a, v - 1);
+};
+// palisade logs: 3-px stakes with a dark seam, two withy bands; Feudal: a rubble footing under them
+const FOOT = AGE === 1 ? 5 : 0;
+const logs = (lit, s, ah) => (a, v) => {
+  if (v >= ah - FOOT) return stone({ t: lit ? ['a', 'b', 'c'] : ['d', 'e', 'f'], m: lit ? 'm' : 'n', ch: 3, bw: 6, s: s + 50 })(a, v - (ah - FOOT));
+  const k = ((a % 4) + 4) % 4, n = Math.floor(a / 4), h = hash(n, 3, s);
+  if (k === 3) return lit ? 't' : 'u';
+  if (v === 3 || v === ah - FOOT - 4) return lit ? 'u' : 'z';
+  if (v === ah - FOOT - 1 && FOOT === 0) return lit ? 't' : 'u';                         // foot darkened with earth
+  return lit ? (k === 0 ? 'W' : k === 2 ? 't' : h < 0.3 ? 'W' : 'w') : (k === 0 ? 'w' : h < 0.35 ? 'w' : 't');
+};
+// stake tips (palisade parapet): pointed 3-px stakes with gaps between the points
+const tips = (lit) => (a, v) => {
+  const k = ((a % 4) + 4) % 4; if (k === 3) return v >= PZ - 2 ? (lit ? 't' : 'u') : null;
+  if (v === 0) return k === 1 ? (lit ? 'W' : 'w') : null;
+  if (v === 1) return k <= 1 ? (lit ? 'W' : 'w') : null;
+  return lit ? (k === 0 ? 'W' : k === 2 ? 't' : 'w') : (k === 0 ? 'w' : 't');
+};
+const merlons = (lit, s, cd = 3) => (a, v) => !merlon(a, 8, 5) && v < cd ? null : v === 0 || (v === cd && !merlon(a, 8, 5)) ? (lit ? 'q' : 'o') : stone({ t: lit ? ['a', 'b', 'c'] : ['d', 'e', 'f'], m: lit ? 'm' : 'n', ch: 3, bw: 6, s })(a, v);
+const outerFace = (lit, s, ah) => STONE ? stoneFace(lit, ah) : logs(lit, s, ah);
+const parapet = (lit, s, cd) => STONE ? merlons(lit, s, cd) : tips(lit);
+// the walk on top of a wall: flagstones with joints across it (stone), boards across it (timber)
+const walkCell = (along) => { const k = Math.floor(along * 32); return STONE ? (k % 7 === 0 ? 'e' : k % 7 === 1 ? 'o' : 'O') : (k % 3 === 0 ? 't' : k % 9 === 1 ? 'W' : 'w'); };
+// a wall's inner face seen from the yard (back walls): stone courses, or the walk's planking over posts and knee braces
+// with the palisade's back in shadow under it
+const inStone = (lit, s) => stone({ t: lit ? ['a', 'b', 'c'] : ['d', 'e', 'f'], m: lit ? 'm' : 'n', ch: 4, bw: 9, s, ao: 10 });
+const innerFace = (lit, s) => (a, v) => {
+  if (v === 0) return lit ? 'o' : 'O';
+  if (STONE) { if (v === 1) return lit ? 'm' : 'n'; if (v === Z - 1) return lit ? 'c' : 'f'; return inStone(lit, s)(a, v - 2); }
+  if (v === 1) return lit ? 'W' : 'w';
+  if (v === 2) return 'u';
+  const k = ((a % 12) + 12) % 12;
+  if (k <= 1) return k === 0 ? (lit ? 'W' : 'w') : 't';                                  // walk posts
+  if (v === Z - 1) return 'J';
+  if (v - 3 === k - 2 && v < 10) return 't';                                              // knee braces
+  return ((a % 4) + 4) % 4 === 3 ? 'M' : 'N';
+};
+
+// ---- a box on the footprint (u0..u1 along the left edge, v0..v1 along the right), base z0, hgt tall; fl/fr/ftop paint
+// its lit left face, its shaded right face and its top
+function box(t, u0, v0, u1, v1, z0, hgt, fl, fr, ftop) {
+  const BmB = gp(u0, v0, z0 + hgt), LB = gp(u1, v0, z0 + hgt), RB = gp(u0, v1, z0 + hgt), TB_ = gp(u1, v1, z0 + hgt);
+  if (fl) wall(t, LB, BmB, hgt, fl);
+  if (fr) wall(t, BmB, RB, hgt, fr);
+  if (ftop) for (const [x, y] of cells([TB_, RB, BmB, LB])) { const [u, v] = uvAt(x, y, z0 + hgt); put(t, x, y, ftop(u, v, x, y)); }
+  return { T: TB_, L: LB, Rr: RB, Bm: BmB };
+}
+const swapTemp = (t, map) => { for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { const f = map[t[y][x]]; if (f) t[y][x] = f(x, y); } };
+
+// ---- yard floor: packed earth at ground level, a sparring ring round the dummy, darker under the back-left wall and at the wall feet
+const DUM = gp(1.1, 1.62).map(Math.round);                                               // training dummy foot (ground)
+for (const [x, y] of cells([gp(3, 3), gp(0, 3), gp(0, 0), gp(3, 0)])) {
+  const [u, v] = uvAt(x, y, 0);
+  const n = vnoise(x, y, 7, 3); let ch = n < 0.33 ? 'Y' : n > 0.72 ? 'j' : 'y';
+  const ex = (x - DUM[0]) / 17, ey = (y - DUM[1] + 1) / 8.5, e = ex * ex + ey * ey; if (e < 1) ch = e > 0.82 ? 'Y' : 'j';
+  if (u > 3 - TW - 0.3) ch = ch === 'j' ? 'y' : n < 0.4 ? 'J' : 'Y';                      // in the back-left wall's shadow
+  if (u > 3 - TW - 0.05 || v > 3 - TW - 0.04) ch = 'J';                                    // wall feet
   g[y][x] = ch;
 }
-// the inner corner where the two back walls meet, in shade
-{ const c = gp(IN, IN, Z); pixLine(g, Math.round(c[0]) - 1, Math.round(c[1]) + 1, Math.round(c[0]) - 1, Math.round(c[1]) + Z - 1, 'f'); }
 // a worn track of cobbles and ruts from the gate to the hall door (clusters, not noise)
-for (let i = 0; i < 22; i++) { const t = (i + 0.5) / 22; const p = lerp([118, 121], [90, 106], t); const x = Math.round(p[0]) + (i % 3) - 1, y = Math.round(p[1]) + (i % 2); if ('yYj'.includes(g[y][x]) && 'yYj'.includes(g[y][x + 1])) { g[y][x] = 'Y'; g[y][x + 1] = 'J'; } }
+{ const a = gp(TW + 0.1, 1.45), b = gp(1.6, 1.3); for (let i = 0; i < 20; i++) { const p = lerp(a, b, (i + 0.5) / 20); const x = Math.round(p[0]) + (i % 3) - 1, y = Math.round(p[1]) + (i % 2); if ('yYj'.includes(g[y][x]) && 'yYj'.includes(g[y][x + 1])) { g[y][x] = 'Y'; g[y][x + 1] = 'J'; } } }
 
-// ---- back parapets (their inner faces look at us): low wall + merlons, coping on top
-const merlon = (a, per, w) => ((a % per) + per) % per < w;
-inked(g, t => {
-  wall(t, P(T, 0, -7), P(L, 0, -7), 7, (a, v) => (v < 3 && !merlon(a, 8, 5)) ? null : v === 0 || v === 3 && !merlon(a, 8, 5) ? 'O' : stone({ t: ['d', 'e', 'f'], m: 'n', ch: 3, bw: 6, s: 5 })(a, v));
-  wall(t, P(T, 0, -7), P(Rr, 0, -7), 7, (a, v) => (v < 3 && !merlon(a, 8, 5)) ? null : v === 0 || v === 3 && !merlon(a, 8, 5) ? 'o' : stone({ t: ['a', 'b', 'c'], m: 'm', ch: 3, bw: 6, s: 6 })(a, v));
-});
-
-// ---- corner turrets: ashlar, coping, crenellated tops, arrow slits; pennants on the two side turrets
-const TB = 0.7, TH = 22.4, TV = 11.2;
-function turret(t, c, slitL, slitR) {
-  const q = pixIsoBox(t, c[0], c[1], TB, TB, TZ, 1, {});
-  wall(t, q.L, q.Bm, TZ, (a, v) => v === 0 ? 'o' : v === 1 ? 'm' : stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 7, s: 7, q: ['q', 'b'], qR: true, len: 22 })(a, v - 2));
-  wall(t, q.Bm, q.Rr, TZ, (a, v) => v === 0 ? 'O' : v === 1 ? 'n' : stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 7, s: 8, q: ['Q', 'e'], qL: true, len: 22 })(a, v - 2));
-  pixLine(t, q.Bm[0], q.Bm[1], q.Bm[0], q.Bm[1] + TZ - 1, 'n');
-  for (const [x, y] of cells([q.T, q.Rr, q.Bm, q.L])) t[y][x] = y < q.T[1] + 5 ? 'f' : ((x + 2 * y) % 14 === 0 ? 'f' : 'e');
-  // merlons: back pair first (inner faces), then the front pair
-  wall(t, P(q.T, 0, -3), P(q.L, 0, -3), 3, (a, v) => merlon(a, 9, 4) || a <= -20 ? (v === 0 ? 'O' : 'e') : null);
-  wall(t, P(q.T, 0, -3), P(q.Rr, 0, -3), 3, (a, v) => merlon(a, 9, 4) || a >= 19 ? (v === 0 ? 'o' : 'b') : null);
-  wall(t, P(q.L, 0, -3), P(q.Bm, 0, -3), 3, (a, v) => merlon(a, 9, 4) || a >= 19 ? (v === 0 ? 'o' : 'b') : null);
-  wall(t, P(q.Bm, 0, -3), P(q.Rr, 0, -3), 3, (a, v) => merlon(a, 9, 4) || a >= 19 ? (v === 0 ? 'O' : 'e') : null);
-  const slit = (A, B, sill) => wall(t, A, B, TZ, (a, v) => a >= 10 && a <= 11 && v >= 4 && v <= 8 ? 'z' : a >= 9 && a <= 12 && v === 9 ? sill : null);
-  if (slitL) slit(q.L, q.Bm, 'q'); if (slitR) slit(q.Bm, q.Rr, 'o');
+// ---- towers: full height from the ground (TB tiles square); the curtain walls run into them about halfway across
+const TH = Z + TZ;
+function hipRoof(t, RF, rise, mat) {   // pyramid roof over RF in the age's roof material; returns the apex
+  const ap = pixIsoRoof(t, RF, rise, 1, { back: '1', left: '2', front: '3', right: '4' });
+  swapTemp(t, { 1: (x, y) => AK.roofXY(x, y, 0.5, 3, { flip: true }), 2: (x, y) => AK.roofXY(x, y, -0.5, 2, { flip: true }), 3: (x, y) => AK.roofXY(x, y, 0.5, 0), 4: (x, y) => AK.roofXY(x, y, -0.5, 1) });
+  pixLine(t, RF.L[0], RF.L[1], RF.Bm[0], RF.Bm[1], AR[3]); pixLine(t, RF.Bm[0], RF.Bm[1], RF.Rr[0], RF.Rr[1], AR[5]);
+  pixLine(t, RF.L[0], RF.L[1] + 1, RF.Bm[0], RF.Bm[1] + 1, AR[6]); pixLine(t, RF.Bm[0], RF.Bm[1] + 1, RF.Rr[0], RF.Rr[1] + 1, AR[6]);
+  pixLine(t, RF.Bm[0], RF.Bm[1], ap[0], ap[1], AR[1]); pixLine(t, RF.Bm[0] + 1, RF.Bm[1], ap[0] + 1, ap[1], AR[5]);
+  return ap;
+}
+function towerTop(t, q, front) {
+  if (AGE === 2) {                                                                         // flat stone top behind crenellations
+    for (const [x, y] of cells([q.T, q.Rr, q.Bm, q.L])) t[y][x] = y < q.T[1] + 5 ? 'f' : ((x + 2 * y) % 14 === 0 ? 'f' : 'e');
+    inked(t, m => {                                                                        // merlons inked on their own so they read
+      wall(m, P(q.T, 0, -4), P(q.L, 0, -4), 4, (a, v) => merlon(a, 9, 4) || a <= -24 ? (v === 0 ? 'O' : 'e') : null);
+      wall(m, P(q.T, 0, -4), P(q.Rr, 0, -4), 4, (a, v) => merlon(a, 9, 4) || a >= 23 ? (v === 0 ? 'o' : 'b') : null);
+    });
+    inked(t, m => {
+      wall(m, P(q.L, 0, -4), P(q.Bm, 0, -4), 4, (a, v) => merlon(a, 9, 4) || a >= 23 ? (v === 0 ? 'q' : 'b') : null);
+      wall(m, P(q.Bm, 0, -4), P(q.Rr, 0, -4), 4, (a, v) => merlon(a, 9, 4) || a >= 23 ? (v === 0 ? 'o' : 'e') : null);
+    });
+    return [q.Bm[0], q.Bm[1] - 13];
+  }
+  // Feudal: an overhanging shingle pyramid; Imperial: a steep slate spire with gilt eaves and hips
+  const o = AGE === 3 ? 1 : 3, rise = AGE === 3 ? 23 : 13;
+  const RF = { L: [q.L[0] - o, q.L[1] + o * 0.5 + 1], Bm: [q.Bm[0], q.Bm[1] + o * 0.5 + 2], Rr: [q.Rr[0] + o, q.Rr[1] + o * 0.5 + 1], T: [q.T[0], q.T[1] - o * 0.5] };
+  const ap = hipRoof(t, RF, rise);
+  if (AGE === 3) { AK.trim(t, [RF.L[0] + 1, RF.L[1]], RF.Bm, 0); AK.trim(t, RF.Bm, [RF.Rr[0] - 1, RF.Rr[1]], 0); AK.crest(t, lerp(RF.Bm, ap, 0.25), lerp(RF.Bm, ap, 0.9)); }
+  if (!front) AK.finial(t, Math.round(ap[0]), Math.round(ap[1]) - 1);
+  return ap;
+}
+function tower(t, u0, v0, slitL, slitR, front) {
+  let q;
+  if (STONE) q = box(t, u0, v0, u0 + TB, v0 + TB, 0, TH,
+    (a, v) => v === 0 ? 'o' : v === 1 ? 'm' : v === 2 && AGE === 3 ? gilt(true) : v === TZ + 1 ? 'o' : v >= TH - 4 ? plL(a, v - (TH - 4)) : stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 7, s: 7, q: ['q', 'b'], qR: true, len: 22 })(a, v - 2),
+    (a, v) => v === 0 ? 'O' : v === 1 ? 'n' : v === 2 && AGE === 3 ? gilt(false) : v === TZ + 1 ? 'O' : v >= TH - 4 ? plR(a, v - (TH - 4)) : stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 7, s: 8, q: ['Q', 'e'], qL: true, len: 22 })(a, v - 2));
+  else q = box(t, u0, v0, u0 + TB, v0 + TB, 0, TH,                                         // Feudal: half-timbered tower on a stone footing
+    (a, v) => AK.wallTex(a, TH - 1 - v, 0, { len: 22, H: TH, step: 11, pl: 5 }),
+    (a, v) => AK.wallTex(a, TH - 1 - v, 1, { len: 22, H: TH, step: 11, pl: 5 }));
+  pixLine(t, q.Bm[0], q.Bm[1], q.Bm[0], q.Bm[1] + TH - 1, STONE ? 'n' : 'u');
+  const slit = (A, B, sill, s0) => wall(t, A, B, TH, (a, v) => a >= 10 && a <= 11 && v >= s0 && v <= s0 + 4 ? 'z' : a >= 9 && a <= 12 && v === s0 + 5 ? sill : null);
+  for (const s0 of [AGE === 3 ? 5 : 4, TZ + 5]) { if (slitL) slit(q.L, q.Bm, STONE ? 'q' : 'W', s0); if (slitR) slit(q.Bm, q.Rr, STONE ? 'o' : 'w', s0); }
+  q.ap = towerTop(t, q, front);
   return q;
 }
-const tBack = [T[0], T[1] + 2 * TV], tLeft = [L[0] + TH, L[1] + TV], tRight = [Rr[0] - TH, Rr[1] + TV], tFront = Bm;
-inked(g, t => turret(t, tBack, true, true));
 
-// ---- weapon rack on the yard floor against the back-right wall (behind the hall, so painted first): spears with steel heads, team shields hung on the rail.
+// ---- back tower, back walls (inner faces toward us) and their parapets on the outer edge
+const DK = AGE === 0;
+if (!DK) inked(g, t => tower(t, 3 - TB, 3 - TB, true, true, false));
+inked(g, t => {
+  const b0 = DK ? 0 : TB / 2, b1 = DK ? 3 : 3 - TB, c1 = DK ? 3 - TW : 3 - TB;
+  box(t, 3 - TW, b0, 3, b1, 0, Z, null, innerFace(false, 21), (u, v) => walkCell(v));      // back-left wall
+  box(t, b0, 3 - TW, c1, 3, 0, Z, innerFace(true, 22), null, (u, v) => walkCell(u));       // back-right wall
+});
+inked(g, t => {
+  const b0 = DK ? 0 : TB / 2, b1 = DK ? 3 : 3 - TB, c1 = DK ? 3 - TW : 3 - TB;
+  wall(t, gp(3, b0, Z + PZ), gp(3, b1, Z + PZ), PZ, parapet(false, 5));
+  wall(t, gp(DK ? 3 : c1, 3, Z + PZ), gp(b0, 3, Z + PZ), PZ, parapet(true, 6));
+});
+
+// ---- weapon rack on the yard floor against the back-right wall: spears with steel heads, team shields hung on the rail.
 // The spear shafts and heads carry their own edge (no ink halo), so the wall stays visible between them behind the rack.
 inked(g, t => {
-  const p0 = gp(2.45, 2.68), p1 = gp(1.45, 2.68);
+  const vv = 3 - TW - 0.12, p0 = gp(2.2, vv), p1 = gp(1.25, vv);
   for (let i = 0; i < 7; i++) { const p = lerp(p0, p1, (i + 0.5) / 7); const x = Math.round(p[0]), y = Math.round(p[1]); pixLine(t, x, y, x + 1, y - 13, 'w'); pixSet(t, x + 1, y - 14, 'S'); pixSet(t, x + 1, y - 15, 's'); pixSet(t, x + 2, y - 14, 'G'); }
   for (const k of [0, 1]) { const p = k ? p1 : p0; pixLine(t, Math.round(p[0]), Math.round(p[1]), Math.round(p[0]), Math.round(p[1]) - 9, 't'); }
   pixLine(t, p0[0], p0[1] - 8, p1[0], p1[1] - 8, 't'); pixLine(t, p0[0], p0[1] - 3, p1[0], p1[1] - 3, 'u');
@@ -103,68 +178,131 @@ DTTTD
 .DDD.
 `); }
 }, 'k', 'K', 'wsSG');
-// ---- the sleeping hall on the yard floor along the back-left wall: plank walls, team door + shutters, red tile gable
-// roof. It stands on the ground (u 1.78..2.58, v 0.79..2.25), so it rises inside the walls and stops short of the back turret.
+
+// ---- the sleeping hall on the yard floor along the back-left wall. Dark: a low wattle longhouse under steep thatch;
+// Feudal: planks under shingles; Castle: planks under red tiles; Imperial: limestone under slate with gilt cresting.
+const HZ = [9, 14, 14, 16][AGE], HRISE = [16, 10, 10, 12][AGE];
+const HALL = { u0: 1.72, v0: 0.82, du: 3 - TW - 0.08 - 1.72, dv: 1.42 };
+let smokeAt = null;
 {
-  const HZ = 14, hb = gp(1.78, 0.79);
+  const hb = gp(HALL.u0, HALL.v0);
   inked(g, t => {
-    const q = pixIsoBox(t, hb[0], hb[1], 0.8, 1.46, HZ, 1, {});
-    const m1 = lerp(q.L, q.Bm, 0.5), m2 = lerp(q.T, q.Rr, 0.5), r1 = P(m1, 0, -10), r2 = P(m2, 0, -10);
-    wall(t, q.L, q.Bm, HZ, (a, v) => v < 2 ? 't' : v === HZ - 1 ? 'u' : planks({ t: ['W', 'w', 't'], ph: 3, s: 9, nail: 'u' })(a, v));
-    wall(t, q.Bm, q.Rr, HZ, (a, v) => v < 2 ? 'u' : v === HZ - 1 ? 'z' : planks({ t: ['w', 't', 'u'], ph: 3, s: 10 })(a, v));
-    for (const k of [0, 1 / 3, 2 / 3]) { const p = lerp(q.Bm, q.Rr, k); pixLine(t, Math.round(p[0]), Math.round(p[1]) + 2, Math.round(p[0]), Math.round(p[1]) + HZ - 1, 'u'); }
-    // door (team planks) and two shuttered windows on the long face
+    const q = pixIsoBox(t, hb[0], hb[1], HALL.du, HALL.dv, HZ, 1, {});
+    const m1 = lerp(q.L, q.Bm, 0.5), m2 = lerp(q.T, q.Rr, 0.5), r1 = P(m1, 0, -HRISE), r2 = P(m2, 0, -HRISE);
+    const lenL = Math.round(q.Bm[0] - q.L[0]), lenR = Math.round(q.Rr[0] - q.Bm[0]);
+    if (AGE === 2) {
+      wall(t, q.L, q.Bm, HZ, (a, v) => v < 2 ? 't' : v === HZ - 1 ? 'u' : planks({ t: ['W', 'w', 't'], ph: 3, s: 9, nail: 'u' })(a, v));
+      wall(t, q.Bm, q.Rr, HZ, (a, v) => v < 2 ? 'u' : v === HZ - 1 ? 'z' : planks({ t: ['w', 't', 'u'], ph: 3, s: 10 })(a, v));
+      for (const k of [0, 1 / 3, 2 / 3]) { const p = lerp(q.Bm, q.Rr, k); pixLine(t, Math.round(p[0]), Math.round(p[1]) + 2, Math.round(p[0]), Math.round(p[1]) + HZ - 1, 'u'); }
+    } else {
+      wall(t, q.L, q.Bm, HZ, (a, v) => AK.wallTex(a, HZ - 1 - v, 0, { len: lenL, H: HZ, step: 12 }));
+      wall(t, q.Bm, q.Rr, HZ, (a, v) => AK.wallTex(a, HZ - 1 - v, 1, { len: lenR, H: HZ, step: 12 }));
+    }
+    // door (team planks; Dark: a team hide in a low doorway) and two shuttered windows on the long face
+    const dTop = AGE === 0 ? 1 : AGE === 3 ? 5 : 4;
     wall(t, q.Bm, q.Rr, HZ, (a, v) => {
-      if (a >= 20 && a <= 26 && v >= 4 && v <= HZ - 1) return v === 4 ? 'u' : a === 20 ? 'z' : a === 26 ? 'D' : (a - 21) % 2 ? 'T' : (v === 7 || v === 11 ? 'G' : 'L');
-      for (const w0 of [5, 34]) if (a >= w0 && a <= w0 + 7 && v >= 4 && v <= 8) return v === 8 ? 'W' : (a === w0 || a === w0 + 7) ? 'T' : (a === w0 + 1 || a === w0 + 6) ? 'D' : v === 4 ? 'u' : 'z';
+      if (a >= 20 && a <= 26 && v >= dTop && v <= HZ - 1) {
+        if (AGE === 0) return v === dTop ? 'u' : a === 20 || a === 26 ? 't' : a === 25 ? 'z' : (a + Math.floor(v / 3)) % 4 === 0 ? 'D' : a === 21 ? 'L' : 'T';
+        if (AGE === 3 && v === dTop) return a === 23 ? Au[0] : 'o';
+        if (v === dTop) return 'u';
+        return a === 20 ? 'z' : a === 26 ? 'D' : (a - 21) % 2 ? 'T' : (v === 7 || v === 11 ? 'G' : 'L');
+      }
+      if (AGE === 0) return a >= 35 && a <= 39 && v >= 2 && v <= 4 ? (v === 2 ? 'u' : a === 35 ? 'T' : 'z') : null;
+      const w1 = AGE === 3 ? 9 : 8;
+      for (const w0 of [5, 34]) if (a >= w0 && a <= w0 + 7 && v >= 4 && v <= w1) return v === w1 ? (AGE === 3 ? Au[1] : 'W') : (a === w0 || a === w0 + 7) ? 'T' : (a === w0 + 1 || a === w0 + 6) ? 'D' : v === 4 ? 'u' : AGE === 3 ? (v === 6 && a === w0 + 3 ? Gl[1] : Gl[0]) : 'z';
       return null;
     });
-    // gable end over the lit wall (vertical boards), then the two roof planes
-    for (const [x, y] of cells([q.L, q.Bm, r1])) t[y][x] = (x % 3 === 0) ? 'w' : 'W';
-    plane(t, [q.L, q.T, r2, r1], q.L, q.T, tiles({ t: ['r', 'R', 'x'], ch: 3, tw: 4, s: 11 }));
-    plane(t, [r1, r2, P(q.Rr, 1, 1), P(q.Bm, 0, 1)], P(q.Bm, 0, 1), P(q.Rr, 1, 1), tiles({ t: ['R', 'x', 'X', 'r'], ch: 3, tw: 4, s: 12 }));
-    pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] - 1, r2[0], r2[1] - 1, 'r');
+    // gable end over the lit wall, then the two roof planes
+    for (const [x, y] of cells([q.L, q.Bm, r1])) t[y][x] = AGE === 3 ? AK.wallTex(x - Math.floor(q.L[0]), HZ + 6, 0, { len: lenL, H: HZ + 40 }) : (x % 3 === 0) ? (AGE === 0 ? 't' : 'w') : AGE === 0 ? 'w' : 'W';
+    if (AGE === 2) {
+      plane(t, [q.L, q.T, r2, r1], q.L, q.T, tiles({ t: ['r', 'R', 'x'], ch: 3, tw: 4, s: 11 }));
+      plane(t, [r1, r2, P(q.Rr, 1, 1), P(q.Bm, 0, 1)], P(q.Bm, 0, 1), P(q.Rr, 1, 1), tiles({ t: ['R', 'x', 'X', 'r'], ch: 3, tw: 4, s: 12 }));
+      pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] - 1, r2[0], r2[1] - 1, 'r');
+      pixLine(t, q.Bm[0], q.Bm[1] + 1, q.Rr[0] + 1, q.Rr[1] + 1, 'X');
+    } else {
+      const ov = AGE === 0 ? 3 : 1;                                                       // thatch hangs deeper over the walls
+      plane(t, [q.L, q.T, r2, r1], q.L, q.T, (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 2));
+      plane(t, [r1, r2, P(q.Rr, ov, ov), P(q.Bm, 0, ov)], P(q.Bm, 0, ov), P(q.Rr, ov, ov), (a, d, u, x, y) => AK.roofXY(x, y, -0.5, 1));
+      pixLine(t, q.Bm[0], q.Bm[1] + ov, q.Rr[0] + ov, q.Rr[1] + ov, AR[6]);
+      pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k');
+      AK.crest(t, r1, r2);
+      if (AGE === 0) {                                                                     // a ragged thatch fringe and the smoke hole
+        for (let i = 0; i <= 48; i++) { const p = lerp(P(q.Bm, 0, ov), P(q.Rr, ov, ov), i / 48); if (hash(i, 41) < 0.4) put(t, Math.round(p[0]), Math.round(p[1]) + 1, AR[6]); }
+        const sm = lerp(r1, r2, 0.55); pixRect(t, Math.round(sm[0]) - 1, Math.round(sm[1]) + 1, 3, 2, DEEP); smokeAt = [Math.round(sm[0]), Math.round(sm[1])];
+      }
+    }
     pixLine(t, q.L[0], q.L[1], r1[0], r1[1], 'k'); pixLine(t, q.Bm[0], q.Bm[1] + 1, r1[0], r1[1], 'k');
-    pixLine(t, q.Bm[0], q.Bm[1] + 1, q.Rr[0] + 1, q.Rr[1] + 1, 'X');
+    if (AGE !== 2) AK.finial(t, Math.round(r1[0]), Math.round(r1[1]) - 1);
   });
 }
 
-// ---- the side turrets (with pennant faces) and the front merlons
-inked(g, t => turret(t, tLeft, false, true));
-inked(g, t => turret(t, tRight, true, false));
+// ---- the side towers, then the front walls (thick, a walk on top behind a parapet on the outer edge), then the front tower
+const gBack = copy(g);                                                                     // everything behind the front works (the dummy goes in here per frame)
+let qL = null, qR = null, qF = null;
+if (!DK) { inked(g, t => { qL = tower(t, 3 - TB, 0, false, true, false); }); inked(g, t => { qR = tower(t, 0, 3 - TB, true, false, false); }); }
 inked(g, t => {
-  wall(t, P(L, 0, -4), P(Bm, 0, -4), 4, (a, v) => a > 22 && a < 74 && merlon(a, 8, 4) ? (v === 0 ? 'o' : stone({ t: ['a', 'b', 'c'], m: 'm', ch: 4, bw: 4, s: 13 })(a, v)) : null);
-  wall(t, P(Bm, 0, -4), P(Rr, 0, -4), 4, (a, v) => a > 22 && a < 74 && merlon(a, 8, 4) ? (v === 0 ? 'O' : stone({ t: ['d', 'e', 'f'], m: 'n', ch: 4, bw: 4, s: 14 })(a, v)) : null);
+  const e0 = DK ? 0 : TB / 2, e1 = DK ? 3 : 3 - TB;
+  box(t, e0, 0, e1, TW, 0, Z, outerFace(true, 31, Z), null, (u, v) => walkCell(u));          // front-left wall
+  box(t, 0, e0, TW, e1, 0, Z, null, outerFace(false, 32, Z), (u, v) => walkCell(v));         // front-right wall
+  if (DK) pixLine(t, Bm[0], Bm[1], Bm[0], Bm[1] + Z - 1, 'u');                              // the front arris, in shade
 });
-inked(g, t => turret(t, tFront, true, true));
+inked(g, t => {                                                                            // the front parapets, inked on their own so each merlon reads
+  const e0 = DK ? 0 : TB / 2, e1 = DK ? 3 : 3 - TB;
+  wall(t, gp(e1, 0, Z + PZ), gp(e0, 0, Z + PZ), PZ, parapet(true, 13, 4));                // deep crenels: the walk shows through
+  wall(t, gp(0, e0, Z + PZ), gp(0, e1, Z + PZ), PZ, parapet(false, 14, 4));
+}, 'k', 'K', STONE ? '' : 'wWtu');
 
-// ---- the gate on the right wall: voussoir arch, recess, iron-banded team doors standing open on a dark passage
-wall(g, Bm, Rr, Z, (a, v) => {
-  const ac = 43, dx = a - ac, hw = 7.5; if (Math.abs(dx) > hw + 2) return null;
+// ---- the gate on the front-right wall (a = px along its outer face from the front corner)
+const GA = AGE === 1 ? 50 : 43;
+if (STONE) inked(g, t => wall(t, Bm, Rr, Z, (a, v) => {                                       // voussoir arch, iron-banded team doors open on a dark passage
+  const dx = a - GA, hw = 7.5; if (Math.abs(dx) > hw + 2) return null;
   const arch = 6 + Math.round(hw - Math.sqrt(Math.max(0, hw * hw - dx * dx))) * 0.6;
   if (v < arch - 2) return null;
-  if (Math.abs(dx) > hw) return v < arch ? null : (v === Z - 1 ? 'P' : Math.abs(dx) > hw + 1 ? 'Q' : 'f');   // jambs
-  if (v < arch) return (a % 3 === 0) ? 'n' : 'Q';                                                             // voussoirs
-  if (v === Z - 1) return 'O';                                                                                 // threshold
-  if (v === Math.ceil(arch) || Math.abs(dx) > hw - 1) return 'z';                                              // recess depth
-  if (dx >= -1 && dx <= 1) return 'z';                                                                         // passage
-  const leaf = dx < 0 ? dx + 7 : 7 - dx;                                                                        // 1..6 across a leaf
+  if (Math.abs(dx) > hw) return v < arch ? null : (v === Z - 1 ? 'P' : Math.abs(dx) > hw + 1 ? 'Q' : 'f');
+  if (v < arch) return AGE === 3 && Math.abs(dx) < 1 ? Au[0] : (a % 3 === 0) ? 'n' : 'Q';
+  if (v === Z - 1) return 'O';
+  if (v === Math.ceil(arch) || Math.abs(dx) > hw - 1) return 'z';
+  if (dx >= -1 && dx <= 1) return 'z';
+  const leaf = dx < 0 ? dx + 7 : 7 - dx;
   if (v === 10 || v === 15) return 'G';
   return leaf === 1 ? 'D' : leaf % 2 ? 'T' : (dx < 0 ? 'L' : 'T');
+}), 'k', 'K', 'zQnfPOGDTL' + Au[0]);
+if (DK) inked(g, t => wall(t, P(Bm, 0, -12), P(Rr, 0, -12), Z + 12, (a, v) => {             // tall gateposts, a log lintel, a team hide across the gap
+  const dx = a - GA; if (Math.abs(dx) > 9) return null;
+  if (Math.abs(dx) >= 8) return Math.abs(dx) === 8 ? 'w' : 'u';
+  if (v >= 4 && v <= 6) return v === 4 ? 'W' : v === 5 ? 'w' : 't';
+  if (v < 7) return null;
+  if (v <= 18 - (Math.abs(dx) > 4 ? 0 : 2) + (hash(a, 5) < 0.4 ? 1 : 0)) return dx === -7 ? 'L' : dx === 7 ? 'D' : (a + Math.floor(v / 4)) % 5 === 0 ? 'D' : 'T';
+  return 'z';
+}), 'k', 'K', 'z');
+if (AGE === 1) inked(g, t => {                                                               // timber gatehouse astride the wall
+  const u0 = -0.04, u1 = TW + 0.14, v0 = GA / 32 - 0.3, v1 = GA / 32 + 0.3, gh = Z + 8;
+  const q = box(t, u0, v0, u1, v1, 0, gh,
+    (a, v) => AK.wallTex(a, gh - 1 - v, 0, { len: 16, H: gh, step: 8, pl: 5 }),
+    (a, v) => {
+      if (v >= 10 && a >= 3 && a <= 16) { if (a === 3 || a === 16 || v === 10) return 'u'; if (a >= 9 && a <= 10) return 'z'; return v === 14 || v === gh - 3 ? 'G' : (a % 2 ? 'T' : a < 9 ? 'L' : 'D'); }
+      if (v >= 3 && v <= 6 && a >= 6 && a <= 13) return v === 6 ? 'w' : v === 3 ? 'u' : a === 6 || a === 13 ? 'T' : 'z';
+      return AK.wallTex(a, gh - 1 - v, 1, { len: 16, H: gh, step: 8, pl: 5 });
+    }, () => 'w');
+  pixLine(t, q.Bm[0], q.Bm[1], q.Bm[0], q.Bm[1] + gh - 1, 'u');
+  const ap = hipRoof(t, { L: [q.L[0] - 2, q.L[1] + 2], Bm: [q.Bm[0], q.Bm[1] + 3], Rr: [q.Rr[0] + 2, q.Rr[1] + 2], T: [q.T[0], q.T[1]] }, 12);
+  AK.finial(t, Math.round(ap[0]), Math.round(ap[1]) - 1);
 });
+if (!DK) inked(g, t => { qF = tower(t, 0, 0, true, true, true); });
 
-// ---- animated: banners (ripple) and the dummy (wobble)
+// ---- animated: banners (ripple), the dummy (wobble), Dark: smoke from the longhouse
 function banner(t, A, B, a0, wdt, v0, len, f, emblem) {
   wall(t, A, B, Z + 40, (a, v) => {
     const i = a - a0; if (i < -1 || i > wdt) return null;
-    if (v === v0) return i === -1 || i === wdt ? 'h' : 't';                                // rod with gilt ends
+    if (v === v0) return i === -1 || i === wdt ? (AGE >= 2 ? 'h' : 'u') : 't';             // rod (gilt ends from the Castle Age)
     if (i < 0 || i >= wdt) return null;
     const notch = Math.abs(i - (wdt - 1) / 2), wave = ((i + f) % 4 < 2) ? 0 : 1;
     const end = v0 + len - Math.round(notch < 1.5 ? 2 : 0) + wave;
     if (v <= v0 || v > end) return null;
-    if (v === end) return 'D';
-    const fold = (i + f) % 4;                                                                // folds travel along the cloth
-    if (emblem && v >= v0 + 3 && v <= v0 + 8) { const ex = i - Math.floor(wdt / 2), ey = v - v0 - 3; if ((ex === ey - 2 || ex === 2 - ey) || (ey === 3 && Math.abs(ex) <= 2)) return 'L'; }
+    if (v === end) return AGE === 3 ? (i % 2 ? Au[1] : Au[0]) : 'D';
+    if (AGE === 3 && (i === 0 || i === wdt - 1)) return Au[i === 0 ? 0 : 2];
+    const fold = (i + f) % 4;
+    if (emblem && v >= v0 + 3 && v <= v0 + 8) { const ex = i - Math.floor(wdt / 2), ey = v - v0 - 3; if ((ex === ey - 2 || ex === 2 - ey) || (ey === 3 && Math.abs(ex) <= 2)) return AGE === 3 ? Au[0] : 'L'; }
     if (i === 0) return 'L'; if (i === wdt - 1) return 'D';
     return fold === 0 ? 'L' : fold === 2 ? 'D' : 'T';
   });
@@ -193,28 +331,43 @@ h..TLTD..h
 `);
   pixSet(t, x + s, y - 9, 't');
 }
+function smoke(t, f) {
+  if (!smokeAt) return;
+  for (let k = 0; k < 3; k++) { const ph = (f + k * 4) / 12, x = smokeAt[0] + Math.round(Math.sin(ph * 6.28 + k) * 1.5 + ph * 4), y = smokeAt[1] - 2 - Math.round(ph * 16);
+    const r = k === 0 ? 1 : 2; for (let yy = -r + 1; yy < r; yy++) for (let xx = -r + 1; xx < r; xx++) put(t, x + xx, y + yy, yy < 0 || xx < 0 ? 'V' : 'v'); }
+}
+const BLEN = [11, 13, 17, 19][AGE];
 const frames = [];
 for (let f = 0; f < 4; f++) {
-  const q = copy(g);
-  inked(q, t => banner(t, L, Bm, 39, 15, 2, 17, f, true));
-  inked(q, t => banner(t, pixIsoBox(t, tLeft[0], tLeft[1], TB, TB, TZ, 1, {}).L, pixIsoBox(t, tLeft[0], tLeft[1], TB, TB, TZ, 1, {}).Bm, 8, 7, 1, 10, f + 1, false));
-  inked(q, t => banner(t, pixIsoBox(t, tRight[0], tRight[1], TB, TB, TZ, 1, {}).Bm, pixIsoBox(t, tRight[0], tRight[1], TB, TB, TZ, 1, {}).Rr, 7, 7, 1, 10, f + 2, false));
+  const q = copy(gBack);
   inked(q, t => dummy(t, f));
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== gBack[y][x]) q[y][x] = g[y][x];
+  inked(q, t => banner(t, L, Bm, 39, 15, 2, BLEN, f, AGE >= 1));
+  if (qL) inked(q, t => banner(t, qL.L, qL.Bm, 8, 7, 1 + (AGE === 3 ? 2 : 0), 10, f + 1, false));
+  if (qR) inked(q, t => banner(t, qR.Bm, qR.Rr, 7, 7, 1 + (AGE === 3 ? 2 : 0), 10, f + 2, false));
   outline(q, 'k', 'K');
+  smoke(q, f);
   frames.push(pixText(q));
 }
 
+// palette: Castle's ashlar; other ages re-tone the stone letters to the age kit's stone (Imperial limestone, footings earlier)
+const SC = AK.S.map(c => AK.pal[c]);
+const stonePal = AGE === 2
+  ? { a: '#c8bca6', b: '#b3a692', c: '#9a8b78', m: '#7a6d60', d: '#8d8478', e: '#7d7468', f: '#6a6258', n: '#4f4840', q: '#ddd2bc', Q: '#a39b8e', p: '#857868', P: '#5a524a', o: '#d6cbb5', O: '#a89e90' }
+  : { a: SC[0], b: SC[1], c: SC[2], m: SC[3], d: SC[2], e: SC[3], f: SC[4], n: SC[5], q: SC[0], Q: SC[3], p: SC[3], P: SC[4], o: SC[0], O: SC[2] };
+// code-drawn flag: on the front tower (crenellated top / roof apex), or on the front corner stake in the Dark Age
+const FLAGS = DK ? [[0, -(Z + PZ - 1), 18]] : [[Math.round(qF.ap[0]) - bx, Math.round(qF.ap[1]) - by + (AGE === 2 ? 0 : 1), AGE === 3 ? 14 : 16]];
 export default {
-  id: 'barracks', kind: 'building', footprint: [W, H], anchor: [bx, by],
+  id: 'barracks', kind: 'building', footprint: [W, H], anchor: [bx, by], flags: FLAGS,
   palette: {
+    ...AK.pal,
     k: '#24180f', K: '#4a3520',                                                  // ink (lit side softer)
-    a: '#c8bca6', b: '#b3a692', c: '#9a8b78', m: '#7a6d60',                      // ashlar, lit face + mortar
-    d: '#8d8478', e: '#7d7468', f: '#6a6258', n: '#4f4840',                      // ashlar, shade face + mortar
-    q: '#ddd2bc', Q: '#a39b8e', p: '#857868', P: '#5a524a', o: '#d6cbb5', O: '#a89e90', // quoins, plinth, coping
+    ...stonePal,                                                                 // stone faces, mortar, quoins, plinth, coping
     y: '#a0824f', Y: '#8a6d3e', j: '#b8955a', J: '#6f5730',                      // packed earth
     t: '#5a3a18', w: '#8a6a3a', W: '#a07a4a', u: '#3b2614', z: '#1e1610',        // timber, recess
-    r: '#d0603a', R: '#a0482e', x: '#7e3424', X: '#5a2418',                      // roof tiles
-    h: '#e6c272', H: '#d8ab4f', i: '#a87a32',                                    // straw / gilt
+    N: '#3a2c1f', M: '#2a2018',                                                  // under the walk (timber ages)
+    r: '#d0603a', R: '#a0482e', x: '#7e3424', X: '#5a2418',                      // roof tiles (Castle hall)
+    h: '#e6c272', H: '#d8ab4f', i: '#a87a32', v: '#b8b0a4', V: '#dcd6cc',        // straw / gilt; smoke
     s: '#e6eaee', S: '#9aa0a6', G: '#5f656c',                                    // steel / iron
     T: 'team', D: 'teamdark', L: 'teamlight',
   },

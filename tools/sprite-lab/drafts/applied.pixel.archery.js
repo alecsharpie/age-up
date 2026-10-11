@@ -4,9 +4,20 @@
 // Worn shooting lanes lead to three straw butts on A-frame stands (red/white rings, gold centre) with arrows stuck
 // in them; a rail fence with a gap and an arrow barrel at the shooting line. Generated (code before export); anchor = footprint
 // bottom corner. idle: 4 frames — the awning valance flutters.
+//   Feudal   (as above) the striped team awning over an open timber shed.
+//   Castle   the shed becomes a range house: a dressed-stone ground storey opening on the range through round arches (bows
+//            racked inside), a timber-framed upper band, a hipped red-tile roof with ridge tiles and an iron finial, team
+//            banners on the piers and the end wall; an arched team door.
+//   Imperial a limestone gallery: taller arcade with gilt keystones and pilasters, round windows above, a hipped slate roof
+//            with gilt cresting and orb finials, a lantern cupola over the middle, gilt-fringed banners; a low limestone
+//            balustrade replaces the rail fence.
+//   (Castle/Imperial idle: the banners ripple.)
+// Age variants (gen/ages/wrap.mjs): the generator runs per age; AGE 0 Dark … 3 Imperial, AK = pixAgeKit(AGE).
+const make = (AGE) => {
+const AK = pixAgeKit(AGE);
 const W = 3, H = 3, Z = 2;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 44;
-const bx = W * 32 + 2, by = GH - 4;
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 44 + [0, 0, 14, 34][AGE];
+const bx = W * 32 + 2, by = GH - 4, OY = by - 136;          // OY: extra headroom of the taller ages (fixed coordinates below shift by it)
 // ---- local texture kit (needs GW, GH, by) ----
 const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const P = (p, dx = 0, dy = 0) => [p[0] + dx, p[1] + dy];
@@ -83,7 +94,7 @@ for (let ty = 0; ty < 3; ty++) {
   for (const [x, y] of cells([P(a, -4, -2), P(b, -4, -2), P(b, 4, 2), P(a, 4, 2)])) { const n = vnoise(x, y, 4, 7 + ty); if (g[y][x] !== '.') g[y][x] = n > 0.45 ? 'j' : 'y'; }
 }
 { const a = tile(0.62, 0.15), b = tile(0.62, 2.55); for (let k = 0; k <= 40; k++) if (k % 4 < 3) { const p = lerp(a, b, k / 40), x = Math.round(p[0]), y = Math.round(p[1]); if ('yYj'.includes(g[y][x])) g[y][x] = 'B'; } }   // chalk only on the range floor, not past the plinth edge
-for (const [x, y] of [[120, 70], [64, 112], [150, 100], [92, 92], [176, 90]]) { g[y][x] = 'J'; g[y][x + 1] = 'Y'; }
+for (const [x, y0] of [[120, 70], [64, 112], [150, 100], [92, 92], [176, 90]]) { const y = y0 + OY; g[y][x] = 'J'; g[y][x + 1] = 'Y'; }
 
 // ---- straw butts: a disc in the plane that faces the shed (sheared ellipse), bale thickness behind, A-frame stand
 // Clean concentric rings (straw rim, white, red, white, red, gold), a splayed A-frame with a crossbar and a back prop, a
@@ -109,7 +120,7 @@ for (const [p, ar] of butts) { const c = P(p, 0, -12); inked(g, t => butt(t, c))
 
 // ---- an arrow barrel at the shooting line by the shed's open end (iron-hooped staves, a sheaf of fletched arrows)
 inked(g, t => {
-  stampL(t, 52, 100, `
+  stampL(t, 52, 100 + OY, `
 .A..T..A.
 .AA.T.AA.
 ..W.W.W..
@@ -126,7 +137,7 @@ WGGGGGGGt
 });
 
 // ---- the shooting shed: lean-to awning on posts, plank end wall, open front onto the range
-const SB = [34, 102];
+const SB = [34, 102 + OY];
 const sh = pixIsoBox(g, SB[0], SB[1], 1, 3, 14, 1, {});
 const LR = P(sh.L, 0, -6), TR = P(sh.T, 0, -6);                   // raised back edge of the awning
 const NS = 12;
@@ -134,7 +145,7 @@ const stripeAt = (x, y) => {                                      // which strip
   const ex = sh.Rr[0] - sh.Bm[0], ey = sh.Rr[1] - sh.Bm[1], dx = LR[0] - sh.L[0] + (sh.L[0] - sh.Bm[0]), dy = LR[1] - sh.L[1] + (sh.L[1] - sh.Bm[1]);
   const px = x + 0.5 - sh.Bm[0], py = y + 0.5 - sh.Bm[1], det = ex * dy - ey * dx; const s = (px * dy - py * dx) / det; return Math.max(0, Math.min(NS - 1, Math.floor(s * NS)));
 };
-inked(g, t => {
+if (AGE === 1) inked(g, t => {
   // interior seen through the open front: the back wall's planks in shadow, floor strip
   wall(t, sh.Bm, sh.Rr, 14, (a, v) => v < 3 ? 'I' : v >= 12 ? 'Y' : v % 3 === 2 ? 'I' : 'i');
   // bows and quivers hanging on the back wall
@@ -156,8 +167,126 @@ inked(g, t => {
   pixLine(t, LR[0], LR[1], sh.Bm[0], sh.Bm[1], 'D');
 });
 
-// ---- rail fence along the two front edges (a gap in the left run for the archers)
-{
+// ---- Castle / Imperial: the range house on the same plot as the shed
+const RH = { Z: [0, 0, 20, 24][AGE], RISE: [0, 0, 13, 18][AGE] };
+const { R: AR, S: AS, Au, Fe, Gl, DEEP } = AK;
+const hs = (u, v, z) => [SB[0] + 32 * (v - u), SB[1] - 16 * (u + v) - z];           // house space: u 0..1 deep, v 0..3 long
+const BAYS = 6, BW = 16;
+const opening = (a, h) => {                                                            // arcade openings on the long face: [su, n, top] or null
+  const k = Math.floor(a / BW), su = a - k * BW - 4, n = 9, top = AGE === 3 ? 14 : 11;
+  if (k < 0 || k >= BAYS || su < 0 || su > n || h > top) return null;
+  const c = n / 2, r = n / 2, dh = h - (top - r); if (dh > 0 && Math.hypot(su - c, dh * 1.15) > r + 0.3) return null;
+  return [su, n, top, k];
+};
+const bannerAt = AGE >= 2 ? [[1, 'R'], [3, 'R'], [-1, 'L']] : [];                       // pier after bay k on the long face; -1 = end wall
+function houseWall(lit, len) {
+  return (a, v) => {
+    const h = RH.Z - 1 - v;
+    if (!lit) {
+      const op = opening(a, h);
+      if (op) {
+        const [su, n, top, k] = op, edge = su === 0 || su === n || h >= top - 1 || !opening(a, h + 1);
+        if (edge) return AGE === 3 && su === Math.round(n / 2) && h >= top - 1 ? Au[0] : su === 0 ? AS[3] : AS[1];
+        if (h === 0) return AS[2];                                                     // sill / step
+        if (su === 1 || h === top - 2) return DEEP;
+        if (h === 1) return 'Y';                                                       // the floor inside
+        if ((k === 1 || k === 4) && su >= 3 && su <= 6) { const bow = Math.round(3.5 + Math.abs(h - 5) * 0.35); if (su === bow + 1) return 'W'; if (su === 6 && h >= 2 && h <= 8) return 'B'; }
+        if (k === 2 && su >= 3 && su <= 5 && h >= 2 && h <= 7) return su === 4 ? 'T' : su === 3 ? 'D' : 'D';   // a quiver
+        return h > top - 4 ? DEEP : 'I';
+      }
+      if (AGE === 3 && h >= 17 && h <= 20) {                                            // round windows above each pier... between bays
+        const k = Math.floor(a / BW), c = k * BW + 8.5, d = Math.hypot(a + 0.5 - c, (h - 18.5) * 1.2);
+        if (d < 1.4) return h >= 19 ? Gl[1] : Gl[0]; if (d < 2.4) return AS[1];
+      }
+    }
+    if (lit) {                                                                           // the end wall: an arched team door
+      const su = a - 11, n = 10, top = AGE === 3 ? 15 : 12;
+      if (su >= 0 && su <= n && h <= top) {
+        const c = n / 2, dh = h - (top - c);
+        if (!(dh > 0 && Math.hypot(su - c, dh * 1.15) > c + 0.3)) {
+          if (su === 0 || su === n || (dh > 0 && Math.hypot(su - c, (dh + 1) * 1.15) > c + 0.3)) return AGE === 3 && su === 5 ? Au[0] : AS[0];
+          if (h === 3 || h === top - 4) return Fe[1];
+          return su === 1 ? 'L' : su === n - 1 ? 'D' : su === 5 ? 'D' : 'T';
+        }
+      }
+    }
+    if (AGE === 2 && h >= 13) {                                                          // timber-framed upper band over the stone storey
+      const step = 8; if (h === 13 || h === RH.Z - 1) return AK.W[lit ? 0 : 1]; if (a % step < 2 || a <= 1 || a >= len - 2) return AK.W[(a % step) === 1 || !lit ? 2 : 1];
+      if (h === 16 && (a % step) >= 2) return AK.W[lit ? 1 : 2];
+      return AK.P[lit ? 0 : 1];
+    }
+    return AK.wallTex(a, h, lit ? 0 : 1, { len, H: AGE === 2 ? 13 : RH.Z, step: 16, pl: 2 });
+  };
+}
+let RIDGE = null;
+if (AGE >= 2) {
+  inked(g, t => {
+    const E = { Bm: hs(0, 0, RH.Z), L: hs(1, 0, RH.Z), Rr: hs(0, 3, RH.Z), T: hs(1, 3, RH.Z) };
+    wall(t, hs(1, 0, RH.Z), hs(0, 0, RH.Z), RH.Z, houseWall(true, 32));
+    wall(t, hs(0, 0, RH.Z), hs(0, 3, RH.Z), RH.Z, houseWall(false, 96));
+    pixLine(t, E.Bm[0], E.Bm[1], E.Bm[0], E.Bm[1] + RH.Z - 1, AS[4]);
+    if (AGE === 3) { AK.trim(t, E.L, E.Bm, 2); AK.trim(t, E.Bm, E.Rr, 2); }
+    // hipped roof overhanging 2 px: back slope and far hip first (they slope away: flip), then the near hip and the front slope
+    const o = 2, r1 = hs(0.5, 0.5, RH.Z + RH.RISE), r2 = hs(0.5, 2.5, RH.Z + RH.RISE);
+    const OE = { Bm: [E.Bm[0], E.Bm[1] + o], L: [E.L[0] - 2 * o, E.L[1]], Rr: [E.Rr[0] + 2 * o, E.Rr[1]], T: [E.T[0], E.T[1] - o] };
+    pixPoly(t, [OE.L, OE.T, r2, r1], '1'); pixPoly(t, [OE.T, OE.Rr, r2], '2'); pixPoly(t, [OE.L, OE.Bm, r1], '3'); pixPoly(t, [OE.Bm, OE.Rr, r2, r1], '4');
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { const c = t[y][x];
+      if (c === '1') t[y][x] = AK.roofXY(x, y, -0.5, 2, { flip: true }); else if (c === '2') t[y][x] = AK.roofXY(x, y, 0.5, 3, { flip: true });
+      else if (c === '3') t[y][x] = AK.roofXY(x, y, 0.5, 0); else if (c === '4') t[y][x] = AK.roofXY(x, y, -0.5, 1); }
+    pixLine(t, OE.L[0], OE.L[1], OE.Bm[0], OE.Bm[1], AR[3]); pixLine(t, OE.L[0], OE.L[1] + 1, OE.Bm[0], OE.Bm[1] + 1, AR[6]);
+    pixLine(t, OE.Bm[0], OE.Bm[1], OE.Rr[0], OE.Rr[1], AR[5]); pixLine(t, OE.Bm[0], OE.Bm[1] + 1, OE.Rr[0], OE.Rr[1] + 1, AR[6]);
+    pixLine(t, OE.Bm[0], OE.Bm[1], r1[0], r1[1], AR[1]); pixLine(t, OE.Bm[0] + 1, OE.Bm[1], r1[0] + 1, r1[1], AR[5]);
+    pixLine(t, OE.L[0], OE.L[1], r1[0], r1[1], AR[2]);
+    if (AGE === 3) { AK.trim(t, [OE.L[0] + 1, OE.L[1]], OE.Bm, -1); AK.trim(t, OE.Bm, [OE.Rr[0] - 1, OE.Rr[1]], -1); }
+    AK.crest(t, r1, r2); AK.crest(t, lerp(OE.Bm, r1, 0.15), r1);
+    RIDGE = [r1, r2];
+  });
+  // finials at the hip ends; Imperial: a lantern cupola astride the middle of the ridge
+  inked(g, t => {
+    AK.finial(t, Math.round(RIDGE[0][0]), Math.round(RIDGE[0][1]) - 2);
+    AK.finial(t, Math.round(RIDGE[1][0]), Math.round(RIDGE[1][1]) - 2);
+    if (AGE === 3) {
+      const m = lerp(RIDGE[0], RIDGE[1], 0.5), cb = [Math.round(m[0]) + 0, Math.round(m[1]) + 5];
+      const q = pixIsoBox(t, cb[0], cb[1], 0.28, 0.28, 13, 1, {});
+      wall(t, q.L, q.Bm, 13, (a, v) => a >= 3 && a <= 5 && v >= 3 && v <= 9 ? (v === 3 ? AS[2] : Gl[v < 6 ? 1 : 0]) : v === 0 ? Au[1] : AS[a < 1 ? 1 : 0]);
+      wall(t, q.Bm, q.Rr, 13, (a, v) => a >= 3 && a <= 5 && v >= 3 && v <= 9 ? (v === 3 ? AS[3] : Gl[0]) : v === 0 ? Au[2] : AS[2]);
+      const RF = { L: [q.L[0] - 1, q.L[1] + 1], Bm: [q.Bm[0], q.Bm[1] + 2], Rr: [q.Rr[0] + 1, q.Rr[1] + 1], T: q.T };
+      const ap = pixIsoRoof(t, RF, 9, 1, { back: '1', left: '2', front: '3', right: '4' });
+      for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) { const c = t[y][x]; if ('34'.includes(c)) t[y][x] = c === '3' ? AR[1] : AR[4]; else if ('12'.includes(c)) t[y][x] = AR[2]; }
+      pixLine(t, RF.Bm[0], RF.Bm[1], ap[0], ap[1], Au[1]); pixLine(t, RF.L[0], RF.L[1], RF.Bm[0], RF.Bm[1], Au[1]); pixLine(t, RF.Bm[0], RF.Bm[1], RF.Rr[0], RF.Rr[1], Au[2]);
+      AK.finial(t, Math.round(ap[0]), Math.round(ap[1]) - 1);
+    }
+  });
+}
+// banners on the piers of the long face and on the end wall, rippling (Castle: iron rod; Imperial: gilt rod, edges and fringe)
+function rangeBanner(t, f) {
+  for (const [k] of bannerAt) {
+    const lit = k < 0, A = lit ? hs(1, 0, RH.Z) : hs(0, 0, RH.Z), B = lit ? hs(0, 0, RH.Z) : hs(0, 3, RH.Z), a0 = lit ? 25 : (k + 1) * BW - 2, wdt = lit ? 5 : 4;
+    const v0 = AGE === 3 ? 4 : 2, len = AGE === 3 ? 10 : 9;
+    wall(t, A, B, RH.Z + 30, (a, v) => {
+      const i = a - a0; if (i < -1 || i > wdt) return null;
+      if (v === v0) return AGE === 3 ? Au[i === -1 || i === wdt ? 2 : 1] : Fe[1];
+      if (i < 0 || i >= wdt || v <= v0) return null;
+      const wave = ((i + f + k) % 4 < 2) ? 0 : 1, end = v0 + len - (Math.abs(i - (wdt - 1) / 2) < 1 ? 1 : 0) + wave;
+      if (v > end) return null;
+      if (v === end) return AGE === 3 ? Au[i % 2] : 'D';
+      if (AGE === 3 && (i === 0 || i === wdt - 1)) return Au[i === 0 ? 0 : 2];
+      if (v === v0 + 4 && i === Math.floor(wdt / 2)) return AGE === 3 ? Au[0] : 'L';
+      const fold = (i + f) % 4; return i === 0 ? 'L' : i === wdt - 1 ? 'D' : fold === 0 ? 'L' : fold === 2 ? 'D' : 'T';
+    });
+  }
+}
+
+// ---- rail fence along the two front edges (a gap in the left run for the archers); Imperial: a low limestone balustrade
+if (AGE === 3) inked(g, t => {
+  for (const [a, b, k0, gap, lit] of [[L, Bm, 3, true, true], [Bm, Rr, 0, false, false]]) {
+    const A = lerp(a, b, k0 / 9);
+    wall(t, P(A, 0, -5), P(b, 0, -5), 5, (aa, v) => { const k = (aa + (A[0] - a[0])) / 96 * 9; if (gap && k > 5 && k < 6.1) return null;
+      if (v === 0) return lit ? AS[0] : AS[1]; if (v === 4) return AS[3];
+      const bal = ((aa % 4) + 4) % 4; return (aa % 12 === 0) ? (lit ? AS[1] : AS[2]) : v === 1 ? AS[4] : bal === 1 || bal === 2 ? (lit ? AS[1] : AS[2]) : AS[4]; });
+  }
+});
+else {
   const t = g;
   for (const [a, b, k0, gap] of [[L, Bm, 3, true], [Bm, Rr, 0, false]]) {
     for (let k = k0; k <= 9; k++) { if (gap && (k === 5 || k === 6)) continue; const p = lerp(a, b, k / 9); const x = Math.round(p[0]), y = Math.round(p[1]); pixRect(t, x, y - 7, 1, 7, 'u'); pixSet(t, x, y - 8, 'w'); }
@@ -179,14 +308,15 @@ function valance(t, f) {
 const frames = [];
 for (let f = 0; f < 4; f++) {
   const q = copy(g);
-  inked(q, t => valance(t, f));
+  if (AGE === 1) inked(q, t => valance(t, f)); else inked(q, t => rangeBanner(t, f));
   outline(q, 'k', 'K');
   frames.push(pixText(q));
 }
 
-export default {
+return {
   id: 'archery', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
+    ...AK.pal,
     k: '#24180f', K: '#4a3520',                                          // ink
     y: '#a0824f', Y: '#8a6d3e', j: '#b8955a', J: '#6f5730', z: '#7d6236', x: '#5e4a28', // earth, plinth faces
     t: '#5a3a18', w: '#8a6a3a', W: '#a07a4a', u: '#3b2614', i: '#3a2c1f', I: '#2a2018', // timber, shed interior
@@ -197,3 +327,5 @@ export default {
   },
   frames: { idle: frames },
 };
+};
+export default pixAged(make, 1);
