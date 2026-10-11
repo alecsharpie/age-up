@@ -67,7 +67,8 @@ hHhhHhhHhh.
   // corner post at the front arris
   pixLine(t, st.Bm[0], st.Bm[1], st.Bm[0], st.Bm[1] + 17, 'u');
   // roof: back plane, lit hip, front plane, shaded hip; shingles in courses with a lit butt and a shadow line
-  plane(t, [st.T, st.Rr, r2, r1], st.T, st.Rr, tiles({ t: ['P', 'R', 'p'], ch: 3, tw: 5, s: 22 }));
+  // the back plane slopes away: its eave T→Rr sits above the ridge on screen, so its courses lap upward (flip)
+  plane(t, [st.T, st.Rr, r2, r1], st.T, st.Rr, tiles({ t: ['P', 'R', 'p'], ch: 3, tw: 5, s: 22 }), true);
   plane(t, [st.L, st.T, r1], st.L, st.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 23 }));
   { const hi = tiles({ t: ['V', 'O', 'Q'], ch: 3, tw: 5, s: 24 }), mid = tiles({ t: ['O', 'Q', 'q', 'P'], ch: 3, tw: 5, s: 24 }), lo = tiles({ t: ['Q', 'q', 'P'], ch: 3, tw: 5, s: 24 });
     plane(t, [st.L, st.Bm, r2, r1], st.L, st.Bm, (a, d, u) => d >= 21 ? hi(a, d) : d < 6 ? lo(a, d) : mid(a, d)); }
@@ -80,7 +81,8 @@ hHhhHhhHhh.
 
 // ---- hay bales stacked at the left end, a hay pile and a pitchfork at the front corner
 inked(g, t => {
-  stampL(t, 46, 52, `
+  // the top bale rests on the two below it
+  stampL(t, 46, 55, `
 ...hhhhhhh...
 ..hHhhhhhHhE.
 .hhhhhhhhhhEe

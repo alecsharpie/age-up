@@ -183,7 +183,11 @@ crenels(g,don,2,2,{th:0.06,n:[4,4],ml:0.125,f0:0.125,lo:3,hi:7,tex:TEX(don)})();
 for(const f of [0.2,0.8]){const p=lerpP(don.base.L,don.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-DZ+12,5,true);const q=lerpP(don.base.Bm,don.base.Rr,f);slit(g,Math.round(q[0]),Math.round(q[1])-DZ+12,5,true)}
 for(const f of [0.35,0.65]){const p=lerpP(don.base.L,don.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-12,4,false);const q=lerpP(don.base.Bm,don.base.Rr,f);slit(g,Math.round(q[0]),Math.round(q[1])-12,4,false)}
 front();
+// the front towers are in front of the donjon: record the cells they cover so the per-frame donjon banners stay behind them
+const preFrontTowers=cloneG(g);for(const r of g)r.fill('.');
 tower(0,3);tower(3,0);tower(3,3);
+const frontTowers=g.map(r=>r.map(c=>c!=='.'));
+for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(!frontTowers[y][x])g[y][x]=preFrontTowers[y][x];
 // ---- curtain openings: cross slits at two heights, the gate near the front corner of the lit face
 for(const f of [0.1,0.3,0.5]){const p=lerpP(top.base.L,top.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-Z+10,5,true);slit(g,Math.round(p[0])+4,Math.round(p[1])-Z+24,4,false)}
 for(const f of [0.2,0.42,0.64,0.86]){const p=lerpP(top.base.Bm,top.base.Rr,f);slit(g,Math.round(p[0]),Math.round(p[1])-Z+10,5,true);slit(g,Math.round(p[0])-5,Math.round(p[1])-Z+24,4,false)}
@@ -208,6 +212,7 @@ const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
   for(const [fr,ph] of [[0.28,0],[0.62,1]]){const p=lerpP(don.base.L,don.base.Bm,fr);banner(f,Math.round(p[0])-6,Math.round(p[1])-DZ+5,12,26,k+ph,{sl:0.5})}
   {const p=lerpP(don.base.Bm,don.base.Rr,0.45);banner(f,Math.round(p[0])-6,Math.round(p[1])-DZ+5,12,26,k+2,{sl:-0.5})}
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(frontTowers[y][x])f[y][x]=g[y][x];   // the front towers hide the banners' tails
   for(const [dx,ph] of [[-5,0],[20,1]]){const x=GX+dx,y=GY+Math.floor((dx+0.5)*0.5)-12;glow(f,x,y-3,(k+ph)%2?3:4);torch(f,x,y,(k+ph*2)%4)}
   frames.push(pixText(f));}
 export default {

@@ -30,10 +30,12 @@ function wall(g, A, B, z, fn) {
   const a0 = Math.floor(A[0]);
   for (const [x, y] of cells([A, B, P(B, 0, z), P(A, 0, z)])) { const u = Math.max(0, Math.min(1, (x + 0.5 - A[0]) / (B[0] - A[0]))); const ty = A[1] + u * (B[1] - A[1]); put(g, x, y, fn(x - a0, Math.max(0, Math.floor(y + 0.5 - ty)), u, x, y)); }
 }
-/** sloped plane (roof): fn(a, d, u, x, y) with d = rows above the eave line E0→E1, a = columns from E0. */
-function plane(g, pts, E0, E1, fn) {
+/** sloped plane (roof): fn(a, d, u, x, y) with d = rows above the eave line E0→E1, a = columns from E0.
+ *  flip: the plane slopes away from the viewer (a back roof slope whose eave sits above its ridge on screen), so downhill is
+ *  up the screen and d counts rows *below* the eave instead; course helpers like tiles() then lap the right way. */
+function plane(g, pts, E0, E1, fn, flip = false) {
   const a0 = Math.floor(E0[0]);
-  for (const [x, y] of cells(pts)) { const u = (x + 0.5 - E0[0]) / (E1[0] - E0[0]); const ey = E0[1] + u * (E1[1] - E0[1]); put(g, x, y, fn(x - a0, Math.max(0, Math.floor(ey - y - 0.5)), u, x, y)); }
+  for (const [x, y] of cells(pts)) { const u = (x + 0.5 - E0[0]) / (E1[0] - E0[0]); const ey = E0[1] + u * (E1[1] - E0[1]); put(g, x, y, fn(x - a0, Math.max(0, Math.floor(flip ? y + 0.5 - ey : ey - y - 0.5)), u, x, y)); }
 }
 /** coursed ashlar: o = {t:[lit,mid,dark], m:mortar, ch, bw, s, q:[quoinLit,quoinDark]?, qa:[a-ranges at corners], len, ao} */
 const stone = o => (a, v, u) => {
@@ -74,11 +76,13 @@ const { T, L, Rr, Bm } = top;
 
 // ---- ground: packed earth in patches, three worn lanes from the shed to the butts, a chalk shooting line
 for (const [x, y] of cells([T, Rr, Bm, L])) { const n = vnoise(x, y, 8, 2); g[y][x] = n < 0.32 ? 'Y' : n > 0.74 ? 'j' : 'y'; }
+// (tile() sits ~0.56 tile in from the footprint's back corner, so the front lane and butt use ty 2.25, not 2.5, to stay on the plinth)
+const LANE = [0.5, 1.5, 2.25];
 for (let ty = 0; ty < 3; ty++) {
-  const a = tile(0.75, ty + 0.5), b = tile(2.35, ty + 0.5);
+  const a = tile(0.75, LANE[ty]), b = tile(2.35, LANE[ty]);
   for (const [x, y] of cells([P(a, -4, -2), P(b, -4, -2), P(b, 4, 2), P(a, 4, 2)])) { const n = vnoise(x, y, 4, 7 + ty); if (g[y][x] !== '.') g[y][x] = n > 0.45 ? 'j' : 'y'; }
 }
-{ const a = tile(0.62, 0.15), b = tile(0.62, 2.55); for (let k = 0; k <= 40; k++) if (k % 4 < 3) { const p = lerp(a, b, k / 40); pixSet(g, p[0], p[1], 'B'); } }
+{ const a = tile(0.62, 0.15), b = tile(0.62, 2.55); for (let k = 0; k <= 40; k++) if (k % 4 < 3) { const p = lerp(a, b, k / 40), x = Math.round(p[0]), y = Math.round(p[1]); if ('yYj'.includes(g[y][x])) g[y][x] = 'B'; } }   // chalk only on the range floor, not past the plinth edge
 for (const [x, y] of [[120, 70], [64, 112], [150, 100], [92, 92], [176, 90]]) { g[y][x] = 'J'; g[y][x + 1] = 'Y'; }
 
 // ---- straw butts: a disc in the plane that faces the shed (sheared ellipse), bale thickness behind, A-frame stand
@@ -92,7 +96,7 @@ function butt(t, c, arrows) {
   pixLine(t, c[0] - 1, c[1] + 4, c[0] - 4, c[1] + 12, 't'); pixLine(t, c[0] + 2, c[1] + 4, c[0] + 2, c[1] + 12, 't');
   for (const [dx, dy] of arrows) { const x = Math.round(c[0] + dx), y = Math.round(c[1] + dy); pixLine(t, x, y, x - 4, y - 2, 'W'); pixSet(t, x - 5, y - 3, 'A'); pixSet(t, x - 4, y - 3, 'r'); pixSet(t, x - 5, y - 2, 'r'); }
 }
-const butts = [[tile(2.25, 0.5), [[1, -2], [-1, 2]]], [tile(2.25, 1.5), [[2, 1], [0, -3], [-2, 0]]], [tile(2.25, 2.5), [[1, 2]]]];
+const butts = [[tile(2.25, 0.5), [[1, -2], [-1, 2]]], [tile(2.25, 1.5), [[2, 1], [0, -3], [-2, 0]]], [tile(2.1, 2.25), [[1, 2]]]];
 for (const [p, ar] of butts) inked(g, t => butt(t, P(p, 0, -12), ar));
 // arrows that missed, stuck in the earth behind the butts
 for (const [x, y] of [[170, 86], [151, 103], [184, 92], [118, 120]]) { pixLine(g, x, y, x - 3, y - 2, 'W'); pixSet(g, x - 4, y - 3, 'A'); pixSet(g, x - 3, y - 3, 'r'); }
@@ -179,7 +183,7 @@ function valance(t, f) {
   }
 }
 function pennant(t, f) {
-  const x = 84, y = 108; pixLine(t, x, y, x, y - 14, 'u');
+  const x = 84, y = 108; pixLine(t, x, y + 6, x, y - 14, 'u');   // the stake runs down beside the barrel to the ground
   const rows = [[`TTTL`, `TTTTT`, `DTT`], [`TTTT`, `TTTTD`, `DTTT`], [`TTTL`, `TTTTT`, `DTTT`], [`TTT`, `TTTTD`, `DTTL`]][f];
   rows.forEach((r, k) => { for (let i = 0; i < r.length; i++) put(t, x + 1 + i, y - 14 + k + (f === 1 && i > 2 ? 1 : 0), r[i]); });
 }

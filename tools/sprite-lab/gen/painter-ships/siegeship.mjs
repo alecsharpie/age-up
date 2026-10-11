@@ -37,7 +37,7 @@ bBBBBBBBBe
   stamp(g, x + 1, 22, `.ms..ms.`); set(g, x + 2, 22, 'w'); set(g, x + 5, 22, 'w');   // carriage + wheels
   stamp(g, 23, 21, `dmmmmmd`);
 }
-function gunner(g, x, pose) { P.crew(g, x, 19); if (pose === 'ram') { set(g, x + 2, 20, 'k'); line(g, x + 3, 19, x + 5, 19, 'w'); } if (pose === 'cover') { set(g, x - 1, 19, 'k'); } }
+function gunner(g, x, pose) { P.crew(g, x, 19, { tall: true });   /* tall: the body reaches the gunwale (row 23) instead of hovering a row above it */ if (pose === 'ram') { set(g, x + 2, 20, 'k'); line(g, x + 3, 19, x + 5, 19, 'w'); } if (pose === 'cover') { set(g, x - 1, 19, 'k'); } }
 function ship({ b = 1, flag = 0, foam = 0, moving = false, back = 0, pose = 'idle', fx = null, dx = 0 }) {
   let g = grid();
   masts(g, b); P.pennant(g, 19, 2, flag); P.pennant(g, 8, 6, (flag + 1) % 3);

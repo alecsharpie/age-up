@@ -61,8 +61,9 @@ QeeeeeeeeQ
 .QeeeeeeQ.
 ..QQQQQQ..
 `);
-for(let k=0;k<11;k++){const yy=pr[1]-2-Math.floor(k/2);pixSet(g,pr[0]-2+k,yy-1,'k');pixSet(g,pr[0]-2+k,yy,'I');pixSet(g,pr[0]-2+k,yy+1,'i');pixSet(g,pr[0]-2+k,yy+2,'J');pixSet(g,pr[0]-2+k,yy+3,'k')}
-const MZ=[pr[0]+9,pr[1]-8];pixLine(g,MZ[0],MZ[1]-1,MZ[0],MZ[1]+3,'k');pixSet(g,MZ[0]-1,MZ[1]+1,'J');
+// the barrel sticks straight out of the port (down-right, along the face's normal) instead of lying flat along the wall
+for(let k=0;k<10;k++){const yy=pr[1]-4+Math.floor(k/2);pixSet(g,pr[0]-3+k,yy-1,'k');pixSet(g,pr[0]-3+k,yy,'I');pixSet(g,pr[0]-3+k,yy+1,'i');pixSet(g,pr[0]-3+k,yy+2,'J');pixSet(g,pr[0]-3+k,yy+3,'k')}
+const MZ=[pr[0]+7,pr[1]-1];pixLine(g,MZ[0],MZ[1]-1,MZ[0],MZ[1]+3,'k');pixSet(g,MZ[0]-1,MZ[1]+1,'J');
 const pl=[Math.round(lerpP(top.base.L,top.base.Bm,0.62)[0]),Math.round(lerpP(top.base.L,top.base.Bm,0.62)[1]-Z*0.5)];
 pixStamp(g,pl[0]-4,pl[1]-4,`
 .qqqq..

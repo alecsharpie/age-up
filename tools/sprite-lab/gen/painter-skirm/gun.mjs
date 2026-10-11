@@ -104,7 +104,8 @@ const attack = [
   // lower to reload: gun brought down to the hip, last wisp
   frame({ lean: 0, nf: 2, ff: -2, hand: [10, 12], gun: (f, d) => gun(f, 7, 11 + d, 13, 14 + d, 4), fx: f => stamp(f, 13, 0, WISP) }),
 ];
-const DW = 26, DH = 24, AX = 21;
+// SX: the lying body is ~23 px long; a 26-wide canvas cropped the head at x<0, so the death canvas is 4 px wider on the left.
+const SX = 4, DW = 26 + SX, DH = 24, AX = 21 + SX;
 const stand = o => body({ hand: [11, 12], ...o });
 const raw = [
   fallen(stand({ lean: -1, hand: [12, 7] }), 7.5, 23.5, -10, DW, DH, AX),
@@ -116,11 +117,11 @@ const raw = [
 ];
 const death = raw.map((g, k) => {
   const f = outline(despeckle(g));
-  if (k === 0) gun(f, 22, 18, 24, 6, 5);
-  if (k === 1) gun(f, 21, 18, 25, 8, 5);
-  if (k === 2) gun(f, 18, 22, 25, 17, 4);
-  if (k >= 3) { gun(f, 5, 23, 15, 23, 4); }
-  if (k === 3) stamp(f, 9, 18, `.g\ngG`);
+  if (k === 0) gun(f, SX + 22, 18, SX + 24, 6, 5);
+  if (k === 1) gun(f, SX + 21, 18, SX + 25, 8, 5);
+  if (k === 2) gun(f, SX + 18, 22, SX + 25, 17, 4);
+  if (k >= 3) { gun(f, SX + 5, 23, SX + 15, 23, 4); }
+  if (k === 3) stamp(f, SX + 9, 18, `.g\ngG`);
   return f;
 });
 emit(OUT, [
@@ -128,7 +129,7 @@ emit(OUT, [
   'Hand cannoneer (AAA repaint): steel morion with crest and upturned brim, padded linen coat under a team tabard, dark hose,',
   'hand cannon (wooden tiller + iron barrel) carried at the port. 16×24, feet at [7,24], faces right; light upper-left; ink outline',
   '(#24180f, selective #4a3020). idle 4 (breath, blink), walk 8, attack 4 (muzzle flash + first puff → puff grows, recoil kicks the',
-  'muzzle up → smoke drifts and thins → lowered to the hip to reload; smoke is painted), death 6 (26×24, falls backward, gun dropped).',
+  'muzzle up → smoke drifts and thins → lowered to the hip to reload; smoke is painted), death 6 (30×24, falls backward, gun dropped).',
   'Generated with scratchpad/painter-skirm/gun.mjs, then kept as literal grids.',
 ], {
   id: 'handgunner', anchor: [7, 24], anchors: { death: [AX, 24] },

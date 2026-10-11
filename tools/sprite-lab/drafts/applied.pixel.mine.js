@@ -95,6 +95,14 @@ wallA(g, A1, C1, C0, 0, Z, (U, V) => (V < 2 ? (Math.floor(U) % 6 === 0 ? 'J' : '
   wallC(g, C1 + 0.02, da - 0.24, da, 0, dh - 2, (U, V) => { const u = Math.floor(U); if (u === 0) return 'D'; if (Math.floor(V) === 2 || Math.floor(V) === 6) return 'k'; return u % 3 === 0 ? 'D' : u > 5 ? 'T' : 'L'; });
   // a lantern hook glinting by the door
   const l = iso(da + dw + 0.06, C1, 8); pixSet(g, l[0], l[1], 'Y'); pixSet(g, l[0], l[1] + 1, 'y'); }
+// a pick leaning on the store wall, painted before the roof: it stands under the eave, so it is short enough for its head to
+// show below the eave line (anything above ~8 px on the wall plane is behind the roof)
+{ const p = iso(1.66, C1, 0); line(g, [p[0] - 2, p[1]], [p[0], p[1] - 4], 'w'); line(g, [p[0] - 1, p[1]], [p[0] + 1, p[1] - 4], 'v');
+  pixStamp(g, p[0] - 3, p[1] - 6, `
+kkkkkkk
+kmMMMnk
+.kk.kk.
+`); }
 // gable roof of weathered boards, ridge along a; eave shadow under the front
 const RA0 = -0.02, RA1 = 2.0, RC0 = 0.0, RC1 = 0.98, RR = 0.48;
 wallC(g, C1, A0, A1, Z - 2, Z, () => 'k');
@@ -142,13 +150,6 @@ line(g, iso(0.9, 1.65, 0), iso(1.96, 1.65, 0), 'n'); line(g, iso(0.9, 1.65, 1), 
   wallA(g, ca1, cc1, cc0, cz0, cz1, (U, V) => { if (V >= cz1 - cz0 - 1 || V < 1) return 'n'; return Math.floor(V) % 3 === 0 ? 'v' : 'W'; });
   for (const a of [ca0 + 0.08, ca1 - 0.08]) { const p = iso(a, cc1, 3); disc(g, Math.round(p[0]), Math.round(p[1]), 3, (dx, dy, ring) => (ring ? 'k' : (dx === 0 && dy === 0) ? 'M' : dx + dy < 0 ? 'M' : 'n')); }
 }
-// a pick and a shovel leaning on the store wall, a crate of tools
-{ const p = iso(1.66, C1, 0); line(g, [p[0] - 2, p[1]], [p[0] + 2, p[1] - 11], 'w'); line(g, [p[0] - 1, p[1]], [p[0] + 3, p[1] - 11], 'v');
-  pixStamp(g, p[0] - 1, p[1] - 14, `
-kkkkkkk
-kmMMMnk
-.kk.kk.
-`); }
 
 // ---- headframe over the shaft: two posts with braces, a crossbeam, the team banner
 const HZ = 30, HL = 0.08, HR = 0.94, HC = 1.5;

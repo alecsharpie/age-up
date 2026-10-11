@@ -70,15 +70,17 @@ function build(ripe, f) {
   if (ripe) { stook(gr, 1.55, 1.9); stook(gr, 1.86, 1.62); }
   // worn path through the gate at the near corner
   for (let k = 0; k < 6; k++) { const p = iso(1.94 - k * 0.04, 1.94 - k * 0.04, 0); pixSet(gr, p[0], p[1] - 1, 'E'); pixSet(gr, p[0] - 1, p[1] - 1, 'e'); }
-  fence(gr, 0.02, 1.98, 1.98, 1.98, 0.92); fence(gr, 1.98, 1.98, 1.98, 0.02, 0.08);  // front edges, gap at the near corner
-  // a scythe leaning on the right fence, a water bucket by the gate
-  { const p = iso(1.98, 1.3, 0); line(gr, [p[0] + 2, p[1]], [p[0] + 6, p[1] - 13], 'w'); line(gr, [p[0] + 3, p[1]], [p[0] + 7, p[1] - 13], 'v');
-    pixStamp(gr, p[0] + 1, p[1] - 15, `
+  // a scythe leaning on the right fence from the field side: its foot in the headland, the snath resting on the top rail,
+  // painted before the front fences so the rails cross in front of it
+  { const p = iso(1.98, 1.3, 0); line(gr, [p[0] - 3, p[1] - 2], [p[0] + 1, p[1] - 13], 'O'); line(gr, [p[0] - 2, p[1] - 2], [p[0] + 2, p[1] - 13], 'v');
+    pixStamp(gr, p[0] - 4, p[1] - 15, `
 kkkkkkk..
 kmMMMMnk.
 .kkkkkknk
 .......kk
 `); }
+  fence(gr, 0.02, 1.98, 1.98, 1.98, 0.92); fence(gr, 1.98, 1.98, 1.98, 0.02, 0.08);  // front edges, gap at the near corner
+  // a water bucket by the gate
   { const p = iso(1.8, 1.98, 0); pixStamp(gr, Math.round(p[0]) - 2, Math.round(p[1]) - 4, `
 .kkkk.
 kMnnMk

@@ -77,7 +77,9 @@ function howdah(cv, o = {}) {
   });
   for (let x = 7; x <= 17; x += 2) cv.px(x, 17.0, 'tassel');
   // rider: head + shoulders above the box
-  cv.withRing('ink', t => { t.T = cv.T.map(r => r.slice()); t.stamp(9 + (o.rx || 0), 3 + (o.ry || 0), RIDER, R); });
+  // the box floor hides whatever sinks below it: drop the rows that would poke out under the box when the rider dips (ry > 0)
+  const ry = o.ry || 0, rows = RIDER.replace(/^\n+|\n+$/g, '').split('\n');
+  cv.withRing('ink', t => { t.T = cv.T.map(r => r.slice()); t.stamp(9 + (o.rx || 0), 3 + ry, rows.slice(0, rows.length - Math.max(0, ry)).join('\n'), R); });
   // the box: wood with a gold rail, posts
   cv.withRing('ink', t => { t.T = cv.T.map(r => r.slice());
     t.rect(7.6, 7.6, 9.0, 2.8, 'wood');
@@ -103,7 +105,7 @@ const TAILS = [[[2.4, 15.6], [1.6, 19.0], [1.6, 22.0]], [[2.4, 15.6], [1.8, 19.0
 // ---------- idle: trunk sways, ears fan, tail flicks, rider breathes
 const IDL = [{ sw: 0, ear: 0, t: 0 }, { sw: 0.8, ear: 1, t: 1 }, { sw: 1.4, ear: 2, t: 0, ry: 1 }, { sw: 0.6, ear: 1, t: 2, ry: 1 }];
 const idle = IDL.map(p => frame(30, cv => elephant(cv, { x: 0, y: 0, feet: STAND, trunk: trunkAt(p.sw - 0.6), ear: p.ear, tail: TAILS[p.t], ry: p.ry || 0,
-  spear: [[15, 6 + (p.ry || 0)], [15, 1 + (p.ry || 0)]] })));
+  spear: [[15, 6], [15, 1 + (p.ry || 0)]] })));   // the butt stays inside the box so it never notches the rail
 // ---------- walk: slow 4-beat, heavy 1-px bob, trunk swings as a pendulum, ears flap
 const walk = [0, 1, 2, 3, 4, 5, 6, 7].map(f => frame(30, cv => {
   const bob = [0, 1, 1, 0, 0, 1, 1, 0][f], sw = Math.sin(f / 8 * Math.PI * 2) * 1.4;

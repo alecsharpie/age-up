@@ -28,8 +28,6 @@ flat(g, A0, A1, C0, C1, 0, (s, t, x, y) => (hash(x >> 1, y, 9) < 0.3 ? 'i' : 'f'
 // stacked sawn boards against the back wall: courses of 2 px, lit top edge, end grain at the right
 wallC(g, 0.32, 0.18, 1.2, 0, 8, (U, V) => { const v = Math.floor(V); if (U >= 31) return v % 2 ? 'o' : 'u'; return v % 2 ? 'w' : (hash(Math.floor(U / 7), v, 2) < 0.2 ? 'v' : 'W'); });
 flat(g, 0.18, 1.2, 0.05, 0.32, 8, (s, t) => (t > 0.8 ? 'w' : 'W'));
-// end wall a = A1: vertical boards with seams, sill at the bottom, shade deepening to the back
-wallA(g, A1, C1, C0, 0, Z, (U, V) => { const u = Math.floor(U); if (V < 1) return 'V'; if (u % 4 === 3) return 'p'; return (u > 22 || (V > Z - 3)) ? 'R' : 'r'; });
 
 // a log end-on (axis along c, cut face toward the front-left), a log lying along a, both as swept discs
 const bark = (i) => (dx, dy, ring) => ring ? 'k' : dy <= -Math.ceil(dx / 2) - 1 ? 'w' : dy >= 1 ? (hash(i, dx, 4) < 0.25 ? 'V' : 'v') : 'W';
@@ -50,6 +48,8 @@ function logA(gr, c, a0, a1, z, r) {
 }
 // cut logs stored inside on the right, ends to the front
 for (const [a, z] of [[1.42, 0], [1.62, 0], [1.82, 0], [1.52, 5], [1.72, 5]]) logC(g, a, 0.35, 0.86, z, 3);
+// end wall a = A1 (after the stored logs, which lie behind it and show only through the open front): vertical boards with seams, sill at the bottom, shade deepening to the back
+wallA(g, A1, C1, C0, 0, Z, (U, V) => { const u = Math.floor(U); if (V < 1) return 'V'; if (u % 4 === 3) return 'p'; return (u > 22 || (V > Z - 3)) ? 'R' : 'r'; });
 // posts of the open front, sill beam
 for (const a of [A0, 0.68, 1.32, A1]) { const p = iso(a, C1, 0); for (let z = 0; z < Z; z++) { pixSet(g, p[0], p[1] - z, 'w'); pixSet(g, p[0] + 1, p[1] - z, 'v'); } pixSet(g, p[0] - 1, p[1], 'V'); pixSet(g, p[0] + 2, p[1], 'V'); }
 line(g, iso(A0, C1, 0), iso(A1, C1, 0), 'V');

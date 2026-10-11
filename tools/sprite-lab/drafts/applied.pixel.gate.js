@@ -163,33 +163,43 @@ ashlar(g,'1',top.base.L,top.base.Bm,LIT,{ch:5,bl:8,plinth:2,seed:2});
 ashlar(g,'2',top.base.Bm,top.base.Rr,SHD,{ch:5,bl:8,plinth:2,seed:3});
 flagstones(g,'3',top,{n:4});
 pixLine(g,top.base.Bm[0],top.base.Bm[1]-1,top.Bm[0],top.Bm[1]+1,'K');
-const front=crenels(g,top,W,H,{th:0.12,n:[2,2],ml:0.25,f0:0.125,lo:2,hi:6,tex:{L:[top.base.L,top.base.Bm],R:[top.base.Bm,top.base.Rr],seed:2}});front();   // same merlon rhythm as the wall
+const front=crenels(g,top,W,H,{th:0.12,n:[2,2],ml:0.25,f0:0.125,lo:2,hi:6,tex:{L:[top.base.L,top.base.Bm],R:[top.base.Bm,top.base.Rr],seed:2}});
+const preFront=cloneG(g);front();   // same merlon rhythm as the wall
+const postFront=cloneG(g),frontParapet=(x,y)=>preFront[y][x]!==postFront[y][x];
 // arches: voussoir surround, dark passage, portcullis grid with spikes
 const PORT=(c,r,w,h)=>r===0&&c%2===0?'I':(c%3===1?(r%2?'i':'I'):r%3===1?'i':null);
 const archL=[bx-10,by-5-2],archR=[bx+3,by-1-2];   // centred in the strip each face shows between the flanking towers
 const arch=(x,y,sl,jamb)=>{opening(g,x,y,8,13,sl,{sur:sl>0?'q':'Q',surround:true,jamb,fill:PORT});
   for(let c=-2;c<=9;c++){const yy=y+Math.floor((c+0.5)*sl)-14-(c>=1&&c<=6?1:0)-(c>=3&&c<=4?1:0);pixSet(g,x+c,yy,c%2?(sl>0?'h':'H'):(sl>0?'m':'M'))}};
 arch(archL[0],archL[1],0.5,'h');arch(archR[0],archR[1],-0.5,'H');
-// flanking towers at the L and Rr corners
-const s=0.32;const TW=[];
+// flanking towers at the L and Rr corners. They stand inside the gate block's footprint: the outer faces are flush with the
+// block, but each inner face (the left tower's shaded face, the right tower's lit face) is inside the block below the wall-walk
+// and behind the front parapet there, so those cells are restored from underTowers once the towers are dressed.
+const s=0.32;const TW=[];const underTowers=cloneG(g);const inner=[];
 for(const [B0,side] of [[[top.base.L[0]+s*32,top.base.L[1]+s*16],0],[[top.base.Rr[0]-s*32,top.base.Rr[1]+s*16],1]]){
   const t=pixIsoBox(g,B0[0],B0[1],s,s,TZ,1,{left:'4',right:'5',top:'6'});
+  {const ch=side?'4':'5',[A,B]=side?[t.base.L,t.base.Bm]:[t.base.Bm,t.base.Rr],sl=(B[1]-A[1])/(B[0]-A[0]);
+   for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(g[y][x]===ch)inner.push([x,y,A[1]+(x+0.5-A[0])*sl-(y+0.5)])}
   ashlar(g,'4',t.base.L,t.base.Bm,LIT,{ch:5,bl:5,plinth:2,seed:6+side});ashlar(g,'5',t.base.Bm,t.base.Rr,SHD,{ch:5,bl:5,plinth:2,seed:8+side});
   flagstones(g,'6',t,{n:2});
   pixLine(g,t.base.Bm[0],t.base.Bm[1]-1,t.Bm[0],t.Bm[1]+1,'K');
   pixLine(g,t.L[0],t.L[1]+3,t.Bm[0],t.Bm[1]+3,'q');pixLine(g,t.Bm[0],t.Bm[1]+3,t.Rr[0],t.Rr[1]+3,'Q');pixLine(g,t.L[0],t.L[1]+4,t.Bm[0],t.Bm[1]+4,'m');pixLine(g,t.Bm[0],t.Bm[1]+4,t.Rr[0],t.Rr[1]+4,'k'); // string course
   const fr=crenels(g,t,s,s,{th:0.1,n:[2,2],ml:0.3,f0:0.12,lo:2,hi:6,tex:{L:[t.base.L,t.base.Bm],R:[t.base.Bm,t.base.Rr],bl:5,seed:6}});fr();
-  slit(g,Math.round(t.base.Bm[0])+3,Math.round(t.base.Bm[1])-TZ+10,4,true);
+  slit(g,Math.round(t.base.Bm[0])+3,Math.round(t.base.Bm[1])-TZ+(side?10:4),4,true);   // the left tower's slit sits on its inner face, above the wall-walk
   TW.push(t);
 }
+for(const [x,y,z] of inner)if(z<Z||frontParapet(x,y))g[y][x]=underTowers[y][x];
+for(const t of TW)pixLine(g,t.base.Bm[0],t.base.Bm[1]-Z-1,t.Bm[0],t.Bm[1]+5,'K');   // each tower's front edge, from the wall-walk up
+// a dark seam where each inner face rises out of the wall-walk
+for(const [x,y,z] of inner)if(z>=Z&&!frontParapet(x,y)&&inner.some(([x2,y2,z2])=>x2===x&&y2===y+1&&z2<Z)&&!frontParapet(x,y+1))g[y][x]='M';
 inkOutline(g);
 const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
   const tl=TW[0],tr=TW[1];
   banner(f,Math.round(tl.base.L[0])+2,Math.round(tl.base.L[1])-TZ+11,6,13,k,{sl:0.5});      // outer faces of the towers
   banner(f,Math.round(tr.base.Bm[0])+2,Math.round(tr.base.Bm[1])-TZ+10,6,13,k+2,{sl:-0.5});
-  // torches on the tower faces that flank each arch
-  for(const [t,a,b,ph] of [[tl,'Bm','Rr',0],[tr,'L','Bm',1]]){const p=lerpP(t.base[a],t.base[b],0.5);const x=Math.round(p[0]),y=Math.round(p[1])-9;glow(f,x,y-3,(k+ph)%2?2:3);torch(f,x,y,(k+ph*2)%4)}
+  // torches on the gate faces between each arch and its flanking tower
+  for(const [A,B,ph] of [[top.base.L,top.base.Bm,0],[top.base.Bm,top.base.Rr,1]]){const p=lerpP(A,B,ph?0.53:0.48);const x=Math.round(p[0]),y=Math.round(p[1])-9;glow(f,x,y-3,(k+ph)%2?2:3);torch(f,x,y,(k+ph*2)%4)}
   frames.push(pixText(f));}
 export default {
   id:'gate',kind:'building',footprint:[W,H],anchor:[bx,by],

@@ -527,7 +527,7 @@ OTDTTTTDTTTDTTTDXo.OObbWbbbBo.
 .oDTTTTDTTTDTTTDXkobbbbwbobbbo
 .ODDDDDDDDDDDDDDDkbbbbbbBbbbbo
 OuuuuuuuuuuuuuuuuubBBBBBBBbcco
-OWWWWWwwwwwwWWWWWWWWWWWBBkBCCo
+OWWWWWwwwwwwWWWWWWBBBBBBBkBCCo
 .oooowwoooWXXoooooKBBBBBkkooo.
 ...OwWoOOOWoXXo..OKBkkkBko....
 ...OwoWWuwo.oXo..OkBkokKBko...
@@ -556,7 +556,7 @@ OWWWWWwwwwwwWWWWWWWWWWWBBkBCCo
 .OLLTTTDTTTDTTTDokBBBBBBBbbbbo
 ODDTTTTDTTTDTTTDDoKBBBBBkBbcco
 .oDDDDDDDDDDDDDDDoKBkkkBkoBCCo
-OWwwwWwwwwWwwwwWwwwwwwwBkoooo.
+OWwwwWwwwwWwwwwWwwkBkwkBkoooo.
 .ooowWooooWoXXooookBkokBko....
 ...OwoOOwuoOoXo.OkKBkokKBko...
 ....oXXWooOXXo..OkKBkokKBko...
@@ -581,7 +581,7 @@ OWwwwWwwwwWwwwwWwwwwwwwBkoooo.
 ....OO.....OOO..OkbbbbbbbcCo..
 ...OwwoOOOOWWXo.OkbBBBBBbbbBo.
 .OOOwoWWuwoooXoOOkBBBBBBbobbbo
-OWWWWWwwwwwwWWWWWWWWWWWBBbbbbo
+OWWWWWwwwwwwWWWWWWkBBBBBBbbbbo
 OuuuuuuuuuuuuuuuuukBkkkBkBbcco
 OTDTTTTDTTTDTTTDXokBkokBkoBCCo
 .oLLTTTDTTTDTTTDoOkBkokKBkooo.
@@ -653,7 +653,7 @@ OTDTTTTDTTTDTTTDXkbbbbbbbcCo..
 ...OwoWWuwo.OXo...............
 .OOOwWooooWoXXoOOOOOOOOO......
 OWWWWWwwwwwwWWWWWWWWWWWWo.....
-OWwwwWwwwwWwwwwWwwwwwwwWoOO...
+OWwwwWwwwwWwwwwWwwwwwbbWoOO...
 .oDDDDDDDDDDDDDDDkobbbbwbbco..
 .ODTTTTDTTTDTTTDXkbbbbbbbcCo..
 OTDTTTTDTTTDTTTDXkbBBBBBbbbBo.

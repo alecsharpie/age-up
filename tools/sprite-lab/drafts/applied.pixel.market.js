@@ -1,7 +1,7 @@
 // @pixel market
 // Market (3×3): a cobbled courtyard on a low stone kerb, four stalls on timber posts under pitched awnings striped in team
 // colour and cream with scalloped hems, counters of goods (terracotta pots, bolts of cloth, fruit baskets, grain sacks), a
-// well in the middle, crates and barrels, a pennant pole at the left corner. The code flag flies from the back corner.
+// well in the middle, crates and barrels, a pennant pole at the left corner. The code flag flies from the right corner (clear of the awnings).
 // idle ×4: the awning hems flutter and the pennant waves.
 // Drawn by drafts/building.market.js: pixDraw(PIXELS.market,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ---- local kit: iso faces with surface coordinates, structured textures, selective outline, seeded rng ----
@@ -162,14 +162,15 @@ const post = (gr, a, c, z0, z1) => { const p = iso(a, c, z0); for (let z = 0; z 
 function stall(gr, s0, f) {
   const { a0, a1, c0, c1, kind } = s0;
   post(gr, a0, c0, KZ, PZ + 5); post(gr, a1, c0, KZ, PZ + 5);
+  // front posts stand behind the counter, so they go down before it and the counter and its goods hide their feet
+  const cm = c0 + (c1 - c0) * 0.5;
+  post(gr, a0, cm, KZ, PZ); post(gr, a1, cm, KZ, PZ);
   // counter along the front edge, goods on it
   const ta0 = a0 + 0.08, ta1 = a1 - 0.08, tc0 = c1 - 0.32, tc1 = c1 - 0.06, TZ = KZ + 7;
   wallC(gr, tc1, ta0, ta1, KZ, TZ, (U, V) => { const u = Math.floor(U); if (V >= TZ - KZ - 1) return 'w'; return u % 8 === 0 ? 'v' : V < 1 ? 'v' : 'W'; });
   wallA(gr, ta1, tc1, tc0, KZ, TZ, (U, V) => (V >= TZ - KZ - 1 ? 'W' : 'v'));
   flat(gr, ta0, ta1, tc0, tc1, TZ, (s, t) => (t > 0.85 ? 'w' : Math.floor(s * 20) % 5 === 0 ? 'W' : 'u'));
   for (const fa of [0.27, 0.72]) { const m = iso(ta0 + (ta1 - ta0) * fa, (tc0 + tc1) / 2, TZ); goods[kind](gr, Math.round(m[0]) - 7, Math.round(m[1]) - 2); }
-  const cm = c0 + (c1 - c0) * 0.5;
-  post(gr, a0, cm, KZ, PZ); post(gr, a1, cm, KZ, PZ);
   // awning: back edge high, front edge low; stripes run front-to-back
   const o = iso(a0 - 0.04, c0 - 0.04, PZ + 5), u = sub2(iso(a1 + 0.04, c0 - 0.04, PZ + 5), o), v = sub2(iso(a0 - 0.04, cm + 0.06, PZ), o);
   const n = Math.max(6, Math.round((a1 - a0) * 8)) | 1;

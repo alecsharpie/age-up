@@ -45,7 +45,7 @@ pixPoly(g, [top.Rr, top.Bm, r2], '8');
 pixPoly(g, [top.T, top.L, r1], '8');
 pixPoly(g, [eL, eB, r2, r1], '7');
 paint(g, '7', (x, y) => course(x, y, 0.5, { h: 4, w: 6, joint: 'c', seam: 'b', lip: 'B', tones: ['A', 'A', 'B'] }));
-paint(g, '6', (x, y) => course(x, y, 0.5, { h: 3, w: 6, joint: 'e', seam: 'e', tones: ['c', 'b'] }));
+paint(g, '6', (x, y) => course(x, y, 0.5, { h: 3, w: 6, joint: 'e', seam: 'e', tones: ['c', 'b'], flip: true }));   // back slope
 paint(g, '8', (x, y) => course(x, y, 0, { h: 4, w: 7, joint: 'Q', seam: 'Q', tones: ['r', 'r', 's'] }));
 line(g, r1, r2, 'k'); line(g, r1, r2, 'B', 1); line(g, eL, eB, 'k'); line(g, eL, eB, 'e', -1);
 line(g, eB, r2, 'k'); line(g, [eB[0] + 1, eB[1]], [r2[0] + 1, r2[1]], 'B'); line(g, top.Rr, r2, 'k');
@@ -81,6 +81,9 @@ kSSSSSSSk
 // ---- bell tower at the front-left corner, ashlar with string courses, open belfry with a swinging bell, spire, gold cross
 const TX = 0.1, TY = 2.0, TS = 0.9, TZ = 50, SP = 40;
 const tb = bmOf(TX, TY, TS, TS); tb[1] -= 3;
+// The tower overlaps the nave's front-left end: the back part of its right face (j < 2.4, behind the nave's front wall) is
+// hidden by the nave wall and roof, so it rises out of the roof. `underTower` keeps the nave to restore those cells.
+const underTower = copy(g);
 const tt = pixIsoBox(g, tb[0], tb[1], TS, TS, TZ, 1, { left: '4', right: '5' });
 const tbase = tt.base;
 paint(g, '4', (x, y) => { const h = wallH(tbase.L, tbase.Bm, x, y); return h < 3 ? 'q' : course(x, y, 0.5, ashL); });
@@ -109,7 +112,7 @@ knnGnnk
 kqnnnqk
 .kkkkk.
 `);
-pixStamp(g, Math.round(pR[0]) - 3, Math.round(pR[1]) - 31, `
+{ const pB = lerp(tbase.Bm, tbase.Rr, 0.35); pixStamp(g, Math.round(pB[0]) - 3, Math.round(pB[1]) - 31, `
 kkkkkkk
 kDTTTDk
 kTTLTTk
@@ -120,7 +123,12 @@ kTTTTTk
 kDTTTDk
 kTDTDTk
 .k.k.k.
-`);
+`); }
+{ const roofZ = j => 3 + 24 + 20 * (NY + NH - j) / (NH / 2);   // nave front slope / wall in front of the tower's right face
+  const hid = (x, y) => { if (x + 0.5 <= tbase.Bm[0]) return false; const i = TX + TS, j = i - (x + 0.5 - bx) / 32; return j < NY + NH && by - 96 + (i + j) * 16 - (y + 0.5) < roofZ(j); };
+  const cells = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underTower[y][x]) cells.push([x, y]);
+  for (const [x, y] of cells) if (hid(x, y)) g[y][x] = underTower[y][x];
+  for (const [x, y] of cells) if (!hid(x, y) && hid(x, y + 1) && g[y][x] !== 'k') g[y][x] = 'Q'; }
 // spire: slate-dark tile faces in courses, cross on top
 const sR = { L: [tt.L[0] - 1, tt.L[1] + 1], Bm: [tt.Bm[0], tt.Bm[1] + 2], Rr: [tt.Rr[0] + 1, tt.Rr[1] + 1], T: tt.T };
 const ap = pixIsoRoof(g, sR, SP, 1, { back: '6', left: '7', front: '9', right: '0' });

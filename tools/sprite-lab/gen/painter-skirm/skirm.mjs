@@ -85,7 +85,8 @@ const attack = [
   frame({ lean: -1, nf: 2, ff: -2, hand: [8, 7], band: -1, jav: (f, d) => { line(f, 2, 9 + d, 12, 5 + d, 'w'); put(f, 13, 5 + d, 'M'); put(f, 14, 4 + d, 'm'); } }),
 ];
 // death: from a plain standing body (no thin props), rotated as it falls backward
-const DW = 26, DH = 24, AX = 21;
+// SX: the lying body is ~23 px long; a 26-wide canvas cropped the head at x<0, so the death canvas is 4 px wider on the left.
+const SX = 4, DW = 26 + SX, DH = 24, AX = 21 + SX;
 const stand = o => body({ hand: [11, 11], ...o });
 const raw = [
   fallen(stand({ lean: -1, hand: [12, 7], band: -1 }), 7.5, 23.5, -10, DW, DH, AX),
@@ -97,10 +98,10 @@ const raw = [
 ];
 const death = raw.map((g, k) => {
   let f = outline(despeckle(g));
-  if (k === 0) { line(f, 21, 3, 22, 21, 'w'); put(f, 21, 2, 'm'); } // javelin still in hand, slipping
-  if (k === 1) { line(f, 19, 9, 24, 20, 'w'); put(f, 18, 8, 'm'); }
-  if (k === 2) { line(f, 18, 16, 25, 22, 'w'); put(f, 17, 15, 'm'); }
-  if (k >= 3) { line(f, 6, 23, 17, 23, 'w'); put(f, 18, 23, 'm'); put(f, 19, 23, 'n'); }
+  if (k === 0) { line(f, SX + 21, 3, SX + 22, 21, 'w'); put(f, SX + 21, 2, 'm'); } // javelin still in hand, slipping
+  if (k === 1) { line(f, SX + 19, 9, SX + 24, 20, 'w'); put(f, SX + 18, 8, 'm'); }
+  if (k === 2) { line(f, SX + 18, 16, SX + 25, 22, 'w'); put(f, SX + 17, 15, 'm'); }
+  if (k >= 3) { line(f, SX + 6, 23, SX + 17, 23, 'w'); put(f, SX + 18, 23, 'm'); put(f, SX + 19, 23, 'n'); }
   return f;
 });
 emit(OUT, [
@@ -108,7 +109,7 @@ emit(OUT, [
   'Skirmisher (AAA repaint): red headband, light hide cuirass over a team tunic, small round team shield on the back arm,',
   'javelin bundle on the back, one javelin in hand. 16×24, feet at [7,24], faces right; light from the upper-left; ink outline',
   '(#24180f, selective #4a3020 on the lit upper-left). idle 4 (breath, band flick, blink), walk 8 (contact/down/pass/up ×2),',
-  'attack 4 (release with javelin leaving → follow-through → reach to the bundle → new javelin cocked), death 6 (26×24, falls backward).',
+  'attack 4 (release with javelin leaving → follow-through → reach to the bundle → new javelin cocked), death 6 (30×24, falls backward).',
   'Generated with scratchpad/painter-skirm/skirm.mjs, then kept as literal grids.',
 ], {
   id: 'skirmisher', anchor: [7, 24], anchors: { death: [AX, 24] },

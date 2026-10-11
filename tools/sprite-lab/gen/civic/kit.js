@@ -5,18 +5,20 @@ const copy = g => g.map(r => r.slice());
 /** Replace every cell holding one of `chs` by fn(x,y,ch) (null keeps it). */
 const paint = (g, chs, fn) => { for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) if (chs.includes(g[y][x])) { const c = fn(x, y, g[y][x]); if (c) g[y][x] = c; } };
 /** Courses on a face whose rows run with slope s (+0.5 down-right, -0.5 up-right, 0 flat): rows of height h, blocks of width w
- *  staggered by half a block, 1-px joint under each row, optional lit lip on top of each row, block tones picked per block. */
+ *  staggered by half a block, 1-px joint under each row, optional lit lip on top of each row, block tones picked per block.
+ *  o.flip: the face slopes away from the viewer (a back roof slope), so downhill is up the screen and the joint/lip swap ends. */
 const course = (x, y, s, o) => {
-  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v = u - row * o.h;
+  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v0 = u - row * o.h, v = o.flip ? o.h - 1 - v0 : v0;
   if (v >= o.h - 1) return o.joint;
   const xs = x + (((row % 2) + 2) % 2) * Math.floor(o.w / 2) + (o.xoff || 0), col = Math.floor(xs / o.w);
   if (o.seam && ((xs % o.w) + o.w) % o.w === 0) return o.seam;
   if (o.lip && v < 1) return o.lip;
   return o.tones[Math.floor(hash(col + 17, row + 91) * o.tones.length)];
 };
-/** Thatch: layered bands (slope s, height h) of short vertical strands; the bottom of every band is the shaded underside. */
+/** Thatch: layered bands (slope s, height h) of short vertical strands; the bottom of every band is the shaded underside.
+ *  o.flip: a back slope (downhill is up the screen), so the shaded underside is at the top of every band. */
 const thatch = (x, y, s, o) => {
-  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v = u - row * o.h;
+  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v0 = u - row * o.h, v = o.flip ? o.h - 1 - v0 : v0;
   const hx = hash(x + 5, row + 3);
   if (v >= o.h - 1 - (hx < 0.3 ? 1 : 0)) return o.under;
   return o.tones[Math.floor(hash(x >> 1, row * 7 + 1) * o.tones.length)];

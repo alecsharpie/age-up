@@ -46,6 +46,11 @@ for(const [A,B,c] of [[roofTop.L,roofTop.Bm,'N'],[roofTop.Bm,roofTop.Rr,'U']]){p
 pixLine(g,roofTop.Bm[0],roofTop.Bm[1],ap[0],ap[1],'N');pixLine(g,roofTop.L[0],roofTop.L[1],ap[0],ap[1],'d');pixLine(g,roofTop.L[0],roofTop.L[1],roofTop.Bm[0],roofTop.Bm[1],'k');pixLine(g,roofTop.Bm[0],roofTop.Bm[1],roofTop.Rr[0],roofTop.Rr[1],'k');
 inkOutline(g);
 // legs drawn after the outline: 3-tone logs with their own ink edge (thin members would turn solid ink)
+// The posts stand inside the deck's footprint, so the deck is in front of their tops: everything drawn below is clipped to the
+// deck's bottom edge (cells above it are restored from underLegs), so the posts end under the deck instead of poking up through
+// the deck and the roof eave.
+const underLegs=cloneG(g);
+const deckBottom=x=>x<=bx?plat.base.L[1]+(x-plat.base.L[0])*0.5:plat.base.Bm[1]-(x-bx)*0.5;
 // posts: back post thin, front posts two-tone logs
 const post=(P,th)=>{const C=th===1?['x']:['k','w','v','y'];for(let k=0;k<C.length;k++)pixLine(g,P[0]+k-1,P[1]-1,P[0]+k-1,P[1]-PZ,C[k])};
 post(base.T,1);
@@ -57,6 +62,7 @@ post(base.L,2);post(base.Rr,2);post(base.Bm,2);
 for(const P of [base.L,base.Rr,base.Bm])for(let y=6;y<PZ-4;y+=7){pixSet(g,P[0],P[1]-y,'x');pixSet(g,P[0]+1,P[1]-y,'k')}  // bark rings
 // ladder up the lit face: two rails, rungs every 4 px
 for(let k=0;k<PZ-3;k++){const y=base.L[1]+3-k,x0=Math.round(base.L[0]+9+k*0.1);pixSet(g,x0,y,'x');pixSet(g,x0+5,y+2,'y');if(k%4===2){pixLine(g,x0+1,y,x0+4,y+2,'w');pixLine(g,x0+1,y+1,x0+4,y+3,'y')}}
+for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(y+0.5<deckBottom(x+0.5))g[y][x]=underLegs[y][x];
 
 // idle: a torch on the front post flickers (warm light on the post), a team banner hung under the deck ripples
 const frames=[];

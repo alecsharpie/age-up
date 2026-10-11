@@ -11,9 +11,10 @@ const copy = g => g.map(r => r.slice());
 /** Replace every cell holding one of `chs` by fn(x,y,ch) (null keeps it). */
 const paint = (g, chs, fn) => { for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) if (chs.includes(g[y][x])) { const c = fn(x, y, g[y][x]); if (c) g[y][x] = c; } };
 /** Courses on a face whose rows run with slope s (+0.5 down-right, -0.5 up-right, 0 flat): rows of height h, blocks of width w
- *  staggered by half a block, 1-px joint under each row, optional lit lip on top of each row, block tones picked per block. */
+ *  staggered by half a block, 1-px joint under each row, optional lit lip on top of each row, block tones picked per block.
+ *  o.flip: the face slopes away from the viewer (a back roof slope), so downhill is up the screen and the joint/lip swap ends. */
 const course = (x, y, s, o) => {
-  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v = u - row * o.h;
+  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v0 = u - row * o.h, v = o.flip ? o.h - 1 - v0 : v0;
   if (v >= o.h - 1) return o.joint;
   const xs = x + (((row % 2) + 2) % 2) * Math.floor(o.w / 2) + (o.xoff || 0), col = Math.floor(xs / o.w);
   if (o.seam && ((xs % o.w) + o.w) % o.w === 0) return o.seam;
@@ -42,8 +43,8 @@ const line = (g, a, b, ch, dy = 0) => pixLine(g, a[0], a[1] + dy, b[0], b[1] + d
 /** height above the base line of an iso wall from a to b (a.x < b.x) at (x,y) */
 const wallH = (a, b, x, y) => (a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0])) - y;
 
-const W = 3, H = 3, Z = 26, ROOF = 30, PL = 4, TZ = 44;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + PL + 22 + 26 + 36;
+const W = 3, H = 3, Z = 26, ROOF = 30, PL = 4, TZ = 64;
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + PL + 22 + 26 + 56;
 const bx = W * 32 + 2, by = GH - 4;
 const g = pixGrid(GW, GH);
 
@@ -155,9 +156,9 @@ onL(0.25, -3, Z - 6, BANNER); onL(0.583, -3, Z - 6, BANNER); onR(0.417, -3, Z - 
 // ---- the big roof: hipped, red tile in courses with lit lips, rounded hip caps, finial; eave overhang casts shadow
 const R = { L: [hall.L[0] - 2, hall.L[1] + 2], Bm: [hall.Bm[0], hall.Bm[1] + 3], Rr: [hall.Rr[0] + 2, hall.Rr[1] + 2], T: [hall.T[0], hall.T[1] - 1] };
 const ap = pixIsoRoof(g, R, ROOF, 1, { back: '5', left: '6', front: '7', right: '8' });
-paint(g, '6', (x, y) => course(x, y, -0.5, { h: 4, w: 5, joint: 'c', lip: 'g', seam: 'c', tones: ['b', 'b', 'g'] }));
+paint(g, '6', (x, y) => course(x, y, -0.5, { h: 4, w: 5, joint: 'c', lip: 'g', seam: 'c', tones: ['b', 'b', 'g'], flip: true }));
 paint(g, '7', (x, y) => course(x, y, 0.5, { h: 4, w: 5, joint: 'd', lip: 'b', seam: 'd', tones: ['c', 'c', 'b'] }));
-paint(g, '5', (x, y) => course(x, y, 0.5, { h: 4, w: 5, joint: 'd', lip: 'c', seam: 'd', tones: ['a', 'c'] }));
+paint(g, '5', (x, y) => course(x, y, 0.5, { h: 4, w: 5, joint: 'd', lip: 'c', seam: 'd', tones: ['a', 'c'], flip: true }));
 paint(g, '8', (x, y) => course(x, y, -0.5, { h: 4, w: 5, joint: 'e', lip: 'a', seam: 'e', tones: ['d', 'd', 'a'] }));
 line(g, R.L, R.Bm, 'e', 0); line(g, R.Bm, R.Rr, 'e', 0);
 // hip caps: a lit roll with an ink crease
@@ -192,15 +193,24 @@ kkkkiokkkk
 `;
 for (const t of [0.3, 0.7]) { const p = lerp(lerp(R.L, R.Bm, t), ap, 0.3); pixStamp(g, Math.round(p[0]) - 5, Math.round(p[1]) - 5, DORM); }
 { const p = lerp(lerp(R.Bm, R.Rr, 0.35), ap, 0.3); pixStamp(g, Math.round(p[0]) - 5, Math.round(p[1]) - 5, DORMR); }
-// chimney on the back-right slope
-const chb = lerp(lerp(R.T, R.Rr, 0.5), ap, 0.35);
+// chimney on the back-left slope (the side tower hides the back-right one)
+const chb = lerp(lerp(R.T, R.L, 0.45), ap, 0.35);
 const chTop = pixIsoBox(g, chb[0], chb[1], 0.22, 0.22, 13, 1, { top: 'j', left: '9', right: '0' });
 paint(g, '9', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'Q', tones: ['S', 'q'] }));
 paint(g, '0', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'j', tones: ['q', 'Q'] }));
 pixRect(g, chTop.T[0] - 1, chTop.T[1] + 1, 4, 2, 'k');
 
-// ---- side tower on the right corner tile: coursed stone, quoins, recessed lit windows, team banner, tile cap
+// ---- side tower on the right corner tile: coursed stone, quoins, recessed lit windows, team banner, tile cap.
+// The tower stands inside the roofed footprint: its outer (right) face is flush with the hall wall and runs down to the plinth,
+// but its inner (left) face is hidden wherever the main roof is in front of it, so it rises out of the roof instead of
+// sitting on the eave. `underTower` keeps what was drawn before so hidden cells can be restored once the tower is dressed.
+const underTower = copy(g);
 const tw = pixIsoBox(g, bx + 64, by - PL - 32, 1, 1, TZ, 1, { left: '!', right: '@' });
+const towerInner = [];
+for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] === '!') towerInner.push([x, y]);
+const EAVE = PL + 2 + Z;                          // height of the roof's eave above the ground
+const roofAt = a => EAVE + ROOF * Math.min(a, 1.5) / 1.5;   // main roof surface over the tower's inner face (a = depth into the hall)
+const hiddenByRoof = (x, y) => { const a = (bx + 64 - x) / 32, z = by - 32 - 16 * a - y; return a > 0 && z < roofAt(a) + 1; };
 const TB = tw.base;
 paint(g, '!', (x, y) => course(x, y, 0.5, { h: 4, w: 7, joint: 'q', seam: 'q', lip: 's', tones: ['S', 'S', 's', 'q'] }));
 paint(g, '@', (x, y) => course(x, y, -0.5, { h: 4, w: 7, joint: 'j', seam: 'j', tones: ['q', 'Q', 'q', 'S'] }));
@@ -224,9 +234,9 @@ kioik
 kiiik
 kqqqk
 `;
-{ const p = lerp(TB.L, TB.Bm, 0.3); pixStamp(g, p[0] - 2, p[1] - 36, TWIN); pixStamp(g, p[0] - 2, p[1] - 22, TWIN); }
-{ const p = lerp(TB.Bm, TB.Rr, 0.7); pixStamp(g, p[0] - 2, p[1] - 36, TWINR); }
-{ const p = lerp(TB.L, TB.Bm, 0.72); pixStamp(g, p[0] - 3, p[1] - 38, `
+{ const p = lerp(TB.L, TB.Bm, 0.3); pixStamp(g, p[0] - 2, p[1] - 56, TWIN); }
+{ const p = lerp(TB.Bm, TB.Rr, 0.7); pixStamp(g, p[0] - 2, p[1] - 56, TWINR); pixStamp(g, p[0] - 2, p[1] - 38, TWINR); pixStamp(g, p[0] - 2, p[1] - 20, TWINR); }
+{ const p = lerp(TB.L, TB.Bm, 0.72); pixStamp(g, p[0] - 3, p[1] - 58, `
 kkkkkkk
 kDTTTDk
 kTTLTTk
@@ -241,11 +251,14 @@ kTDTDTk
 `); }
 const tR = { L: [tw.L[0] - 2, tw.L[1] + 1], Bm: [tw.Bm[0], tw.Bm[1] + 2], Rr: [tw.Rr[0] + 2, tw.Rr[1] + 1], T: [tw.T[0], tw.T[1] - 1] };
 const tap = pixIsoRoof(g, tR, 12, 1, { back: '5', left: '6', front: '7', right: '8' });
-paint(g, '6', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'c', lip: 'g', tones: ['b'] }));
+paint(g, '6', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'c', lip: 'g', tones: ['b'], flip: true }));
 paint(g, '7', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', lip: 'b', tones: ['c'] }));
-paint(g, '5', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', tones: ['a'] }));
+paint(g, '5', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', tones: ['a'], flip: true }));
 paint(g, '8', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'e', lip: 'a', tones: ['d'] }));
 line(g, tR.L, tR.Bm, 'e'); line(g, tR.Bm, tR.Rr, 'e'); line(g, tR.Bm, tap, 'k'); line(g, [tR.Bm[0] - 1, tR.Bm[1]], [tap[0] - 1, tap[1]], 'h');
+for (const [x, y] of towerInner) if (hiddenByRoof(x, y)) g[y][x] = underTower[y][x];
+// where the roof meets the tower's inner face: a dark flashing line so the join reads as an intersection
+for (const [x, y] of towerInner) if (!hiddenByRoof(x, y) && hiddenByRoof(x, y + 1)) g[y][x] = 'j';
 // barrels and a sack on the plinth by the front-left
 pixStamp(g, pl.L[0] + 14, pl.L[1] + 1, `
 .kkkk.kk..

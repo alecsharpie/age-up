@@ -26,7 +26,7 @@ function sail(g, b) {
 function fisher(g, pose) {
   // 2 wide; bow side; legs hidden by the gunwale
   const x = 20;
-  stamp(g, x - 1, 23, `.nn.\nnNNn\n.Kk.\n.DT.\n.DT.`);
+  stamp(g, x - 1, 23, `.nn.\nnNNn\n.Kk.\n.DT.\n.DT.\n.DT.`);   // body runs down to the gunwale (row 29) so he stands in the boat, not above it
   if (pose === 'hold') { set(g, x + 2, 26, 'k'); }
   if (pose === 'raise') { set(g, x - 1, 25, 'k'); set(g, x + 2, 22, 'k'); set(g, x + 2, 23, 'k'); }
   if (pose === 'throw') { set(g, x + 2, 25, 'k'); set(g, x + 3, 25, 'k'); }

@@ -188,7 +188,9 @@ export function generatedPixelText(src, id) {
 }
 
 export function serializePixelSpec(spec) {
-  const extra = (spec.scale && spec.scale !== 1 ? `,scale:${spec.scale}` : '') + (spec.kind ? `,kind:${JSON.stringify(spec.kind)}` : '') + (spec.footprint ? `,footprint:[${spec.footprint[0]},${spec.footprint[1]}]` : '');
+  // per-set anchors (death, carried loads) and per-set fps must survive the trip into index.html: pixBlit and pixUnit read them
+  const extra = (spec.scale && spec.scale !== 1 ? `,scale:${spec.scale}` : '') + (spec.kind ? `,kind:${JSON.stringify(spec.kind)}` : '') + (spec.footprint ? `,footprint:[${spec.footprint[0]},${spec.footprint[1]}]` : '')
+    + (spec.anchors ? `,anchors:${JSON.stringify(spec.anchors)}` : '') + (spec.fps ? `,fps:${JSON.stringify(spec.fps)}` : '');
   const pal = Object.entries(spec.palette).map(([k, v]) => `${/^[a-zA-Z_$][\w$]*$/.test(k) ? k : JSON.stringify(k)}:${JSON.stringify(v)}`).join(',');
   const frames = Object.entries(spec.frames).map(([name, list]) => `  ${name}:[\n${list.map(g => '`\n' + normaliseGrid(g).join('\n') + '\n`').join(',\n')}\n  ]`).join(',\n');
   return `{id:${JSON.stringify(spec.id)},anchor:[${spec.anchor[0]},${spec.anchor[1]}]${extra},palette:{${pal}},frames:{\n${frames}\n}}`;

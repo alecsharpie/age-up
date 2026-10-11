@@ -46,7 +46,7 @@ const sh = pixIsoBox(g, 44, 119, 1.3, 3, 22, 1, {});
 const sb = sh.base;
 const mT = lerp(sh.T, sh.Rr, 0.5), mB = lerp(sh.L, sh.Bm, 0.5), RISE = 12;
 const r1 = P(mB, 0, -RISE), r2 = P(mT, 0, -RISE);
-const GLOW = lerp(sh.Bm, sh.Rr, 0.68);
+const GLOW = lerp(sh.Bm, sh.Rr, 0.78);   // brazier spot in the bay, clear of the mangonel in front of it
 inked(g, t => {
   // open bay: back wall planks in shadow, tools hanging, workbench, floor
   wall(t, sh.Bm, sh.Rr, 22, (a, v) => v < 3 ? 'I' : v >= 20 ? 'Y' : v % 4 === 3 ? 'I' : 'i');
@@ -63,7 +63,8 @@ inked(g, t => {
   });
   // gable over the end wall, then the two roof planes in shingle courses
   for (const [x, y] of cells([sh.L, sh.Bm, r1])) t[y][x] = (x % 4 === 3) ? 't' : 'W';
-  plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 41 }));
+  // the back slope faces away: its eave L→T sits above the ridge on screen, so its courses lap upward (flip)
+  plane(t, [sh.L, sh.T, r2, r1], sh.L, sh.T, tiles({ t: ['O', 'Q', 'P'], ch: 3, tw: 5, s: 41 }), true);
   plane(t, [r1, r2, P(sh.Rr, 1, 1), P(sh.Bm, 0, 1)], P(sh.Bm, 0, 1), P(sh.Rr, 1, 1), (a, d) => tiles({ t: d > 14 ? ['Q', 'q', 'P'] : ['q', 'P', 'p', 'R'], ch: 3, tw: 5, s: 42 })(a, d));
   pixLine(t, r1[0], r1[1], r2[0], r2[1], 'k'); pixLine(t, r1[0], r1[1] - 1, r2[0], r2[1] - 1, 'O');
   pixLine(t, sh.L[0], sh.L[1], r1[0], r1[1], 'u'); pixLine(t, sh.Bm[0], sh.Bm[1] + 1, r1[0], r1[1], 'u');
@@ -77,8 +78,10 @@ inked(g, t => wall(t, sh.L, sh.Bm, 22, (a, v) => {
   if (v >= 5 && v <= 9 && ((i === 4) || (v === 7 && i >= 2 && i <= 6))) return 'L';
   return i === 0 ? 'L' : i === 8 ? 'D' : 'T';
 }));
-// a wheel leaning on the end wall
-inked(g, t => wheel(t, 34, 116, 6));
+// the shed as painted so far: the brazier inside the bay may only show where nothing in the yard was drawn over it
+const gShed = copy(g);
+// a wheel leaning on the corner post of the open bay (the end wall stands on the plinth edge, so there is no ground in front of it)
+inked(g, t => wheel(t, 50, 112, 6));
 
 // ---- stacked wheels and a spare axle (front-left of the yard)
 inked(g, t => { const p = iso(1.55, 2.55); wheel(t, p[0] - 6, p[1] - 6, 6); wheel(t, p[0] + 4, p[1] - 6, 6); wheel(t, p[0] - 1, p[1] - 12, 6); });
@@ -101,6 +104,8 @@ GwwwwG
   pixLine(t, x + 9, y - 10, x + 25, y - 1, 'B');
   wheel(t, x + 5, y + 2, 5);
   pixRect(t, x + 21, y + 2, 2, 2, 'G');
+  // the rear end, with no wheel yet, rests on a timber chock down to the ground line of the fitted wheel
+  pixRect(t, x + 19, y + 4, 6, 4, 'w'); pixLine(t, x + 19, y + 4, x + 24, y + 4, 'W'); pixLine(t, x + 19, y + 7, x + 24, y + 7, 't');
 });
 inked(g, t => { const p = iso(1.95, 1.75); wheel(t, p[0] + 2, p[1] - 3, 5, 1.0); });
 
@@ -139,14 +144,15 @@ function crane(t, f) {
   for (let i = -8; i <= 8; i++) { put(t, lx + i, ly - 1 + Math.floor((i + 8) / 4) - 2, 'W'); put(t, lx + i, ly + Math.floor((i + 8) / 4) - 2, 'w'); put(t, lx + i, ly + 1 + Math.floor((i + 8) / 4) - 2, 't'); }
 }
 function brazier(t, f) {
-  const x = Math.round(GLOW[0]), y = Math.round(GLOW[1]) + 13;
+  const x = Math.round(GLOW[0]), y = Math.round(GLOW[1]) + 15;   // legs end on the bay floor (v 20)
   stampL(t, x - 2, y, ['\n.ogo.\nGogoG\n.GGG.\n..t..\n.t.t.\n', '\n..o..\nGgogG\n.GGG.\n..t..\n.t.t.\n', '\n.o.o.\nGogoG\n.GGG.\n..t..\n.t.t.\n', '\n..g..\nGoooG\n.GGG.\n..t..\n.t.t.\n'][f]);
   if (f % 2 === 0) { pixSet(t, x - 3, y + 1, 'r'); pixSet(t, x + 3, y + 1, 'r'); }
 }
 const frames = [];
 for (let f = 0; f < 4; f++) {
   const q = copy(g);
-  brazier(q, f);
+  // the brazier stands inside the bay: paint it on a layer and keep only the cells where the shed is still on top
+  { const b = pixGrid(GW, GH); brazier(b, f); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (b[y][x] !== '.' && g[y][x] === gShed[y][x]) q[y][x] = b[y][x]; }
   inked(q, t => crane(t, f));
   outline(q, 'k', 'K');
   frames.push(pixText(q));

@@ -101,7 +101,11 @@ const convert = [
 // death: 24×24
 const DW = 24, DH = 24, pad = g => place(g, DW, DH, 4, 0);
 const d0 = pad(monk({ lean: -2, front: [12, 6], back: [2, 8], staff: { x0: 14, y0: 2, x1: 13, y1: 20 } }));
-const d1 = pad(monk({ stoop: 2, lean: -1, blink: true, front: [11, 16], back: [3, 16], staff: { x0: 15, y0: 6, x1: 13, y1: 23 } }));
+const cross = (x, y) => [[x, y - 1, 'g'], [x, y, 'G'], [x - 1, y, 'g'], [x + 1, y, 'y'], [x, y + 1, 'y']];
+const inked = (g, px) => { toolLayer(g, px); for (const [x, y, c] of px) if ('gGy'.includes(c)) for (const [a, b] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) if (get(g, a, b) === '.') set(g, a, b, 'k'); };
+// d1: the staff is let go and starts to topple; drawn on the 24-wide canvas so the cross keeps its right arm
+const d1 = pad(monk({ stoop: 2, lean: -1, blink: true, front: [11, 16], back: [3, 16], staff: null }));
+inked(d1, [...line(null, 19, 8, 17, 23).map(([x, y]) => [x, y, 'b']), ...cross(19, 6)]);
 const d2 = ink(shear(place(monk({ blink: true, raw: true, front: [12, 9], back: [3, 9] }), DW, DH, 9, 0), 0.6, 22));
 const CORPSE = `
 ...as.................
@@ -119,7 +123,11 @@ wWbSSWWWCWWWWWWWWWWWbB
 .Wb....bCbbbbbbbbbbbbB`;
 const lie = (art, lift) => { const R = parse(art); return place(R, DW, DH, 1, 22 - R.length + 1 - lift); };
 const d3 = ink(lie(CORPSE_UP, 0)), d4 = ink(lie(CORPSE, 1)), d5 = ink(lie(CORPSE, 0));
-toolLayer(d5, [[4, 23, 'b'], [5, 23, 'b'], [6, 23, 'b'], [7, 23, 'b'], [8, 23, 'b'], [9, 23, 'b'], [10, 23, 'b'], [11, 23, 'b'], [12, 23, 'b'], [13, 23, 'y'], [14, 23, 'G'], [14, 22, 'g'], [15, 23, 'y']]);
+// the staff he lets go of in d1 keeps falling (d2) and lies on the ground beside him from the impact on (d3..d5),
+// so it never vanishes and reappears between frames
+inked(d2, [...line(null, 17, 23, 21, 17).map(([x, y]) => [x, y, 'b']), ...cross(22, 15)]);
+const STAFF_DOWN = [...line(null, 11, 23, 19, 23).map(([x, y]) => [x, y, 'b']), [20, 23, 'y'], [21, 23, 'G'], [21, 22, 'g'], [22, 23, 'y']];
+for (const g of [d3, d4, d5]) toolLayer(g, STAFF_DOWN);
 emit(OUT, {
   id: 'monk', anchor: [8, 24], anchors: { death: [12, 24] }, fps: { convert: 6 }, palette: PAL,
   header: `// Monk: brown hooded robe to the ankles (lit left, shaded right), team-colour stole down the front, rope belt, staff with a gold cross.

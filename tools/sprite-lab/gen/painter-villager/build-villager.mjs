@@ -181,8 +181,8 @@ const lie = (art, lift) => { const R = parse(art); return place(R, DW, DH, 1, 22
 const d3 = ink(lie(CORPSE_UP, 0));
 const d4 = ink(lie(CORPSE, 1));
 const d5 = ink(lie(CORPSE, 0));
-// dropped spear beside the corpse
-toolLayer(d5, [[13, 23, 'b'], [14, 23, 'b'], [15, 23, 'b'], [16, 23, 'b'], [17, 23, 'b'], [18, 23, 'b'], [19, 23, 'M'], [20, 23, 'm']]);
+// dropped spear beside the corpse, there from the impact frame on (it used to pop in on the last frame only)
+for (const g of [d3, d4, d5]) toolLayer(g, [[13, 23, 'b'], [14, 23, 'b'], [15, 23, 'b'], [16, 23, 'b'], [17, 23, 'b'], [18, 23, 'b'], [19, 23, 'M'], [20, 23, 'm']]);
 frames.death = [d0, d1, d2, d3, d4, d5];
 // ---- carried loads: one-frame props, cropped to their rows; anchors.load* puts their bottom row at the anchor so the
 // unit draft draws them at y = LOADY (their top row lands on villager row `top`), +1 on the walk's down frames.

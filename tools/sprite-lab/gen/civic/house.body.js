@@ -61,9 +61,9 @@ knnyntknnyntk..
 const OV = 1, DROP = 2;
 const R = { L: [top.L[0] - OV, top.L[1] + DROP], Bm: [top.Bm[0], top.Bm[1] + DROP + 1], Rr: [top.Rr[0] + OV, top.Rr[1] + DROP], T: [top.T[0], top.T[1] - 1] };
 const ap = pixIsoRoof(g, R, ROOF, 1, { back: '2', left: '3', front: '4', right: '5' });
-paint(g, '3', (x, y) => thatch(x, y, -0.5, { h: 5, under: 'f', tones: ['1', 'A', 'A', 'A', 'A', 'f'] }));
+paint(g, '3', (x, y) => thatch(x, y, -0.5, { h: 5, under: 'f', tones: ['1', 'A', 'A', 'A', 'A', 'f'], flip: true }));   // back slopes: flip
 paint(g, '4', (x, y) => thatch(x, y, 0.5, { h: 5, under: 'a', tones: ['A', 'f', 'f', 'f', 'b'] }));
-paint(g, '2', (x, y) => thatch(x, y, 0.5, { h: 5, under: 'c', tones: ['b', 'a', 'a', 'a'] }));
+paint(g, '2', (x, y) => thatch(x, y, 0.5, { h: 5, under: 'c', tones: ['b', 'a', 'a', 'a'], flip: true }));
 paint(g, '5', (x, y) => thatch(x, y, -0.5, { h: 5, under: 'd', tones: ['a', 'c', 'c', 'c'] }));
 // eaves: a thick trimmed edge, darker on the shaded side
 line(g, R.L, R.Bm, 'c', 0); line(g, R.L, R.Bm, 'e', 1); line(g, R.Bm, R.Rr, 'd', 0); line(g, R.Bm, R.Rr, 'e', 1);
@@ -77,13 +77,20 @@ k1fAAck
 kebbbek
 .kkkkk.
 `);
-// chimney: stone stack in courses on the shaded slope, sooty cap
+// chimney: stone stack in courses on the shaded slope, sooty cap. The slope falls toward the Bm-Rr eave, i.e. along the stack's
+// L->Bm edge, so the roof stands ROOF*0.24 px higher at its L corner than at Bm: the left face's foot follows the slope (cells
+// below it are thatch in front of the stack, restored from `underCh`) with a dark seam where stone meets thatch.
 const ch = lerp(lerp(R.Bm, R.Rr, 0.66), ap, 0.42);
+const underCh = copy(g);
 const chTop = pixIsoBox(g, ch[0], ch[1], 0.24, 0.24, 14, 1, { top: 'j', left: '6', right: '7' });
 paint(g, '6', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'Q', tones: ['S', 'q'] }));
 paint(g, '7', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'j', tones: ['q', 'Q'] }));
 pixRect(g, chTop.T[0] - 1, chTop.T[1] + 1, 4, 2, 'k');
 pixRect(g, chTop.L[0], chTop.L[1] + 3, Math.round(chTop.Rr[0] - chTop.L[0]) + 1, 1, 'e');
+{ const rise = ROOF * 0.24, cL = ch[0] - 0.24 * 32;
+  const hid = (x, y) => { const cx = x + 0.5, d = ch[0] - cx; return d > 0 && y + 0.5 > ch[1] - d * 0.5 - rise * d / (ch[0] - cL); };
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underCh[y][x] && hid(x, y)) g[y][x] = underCh[y][x];
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underCh[y][x] && !hid(x, y) && hid(x, y + 1)) g[y][x] = 'j'; }
 
 const base = outline(g, 'k', { '1': 'A', 'f': 'A', l: 'm', S: 'q' });
 

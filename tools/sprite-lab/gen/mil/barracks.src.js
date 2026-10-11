@@ -92,7 +92,8 @@ inked(g, t => turret(t, tBack, true, true));
   });
 }
 
-// ---- weapon rack along the back-right parapet: spears with steel heads, team shields hung on the rail
+// ---- weapon rack along the back-right parapet: spears with steel heads, team shields hung on the rail.
+// The spear shafts and heads carry their own edge (no ink halo), so the parapet stays visible between them behind the rack.
 inked(g, t => {
   const p0 = [128, 61], p1 = [158, 76];
   for (let i = 0; i < 7; i++) { const p = lerp(p0, p1, (i + 0.5) / 7); const x = Math.round(p[0]), y = Math.round(p[1]); pixLine(t, x, y, x + 1, y - 13, 'w'); pixSet(t, x + 1, y - 14, 'S'); pixSet(t, x + 1, y - 15, 's'); pixSet(t, x + 2, y - 14, 'G'); }
@@ -105,7 +106,7 @@ DTLTD
 DTTTD
 .DDD.
 `); }
-});
+}, 'k', 'K', 'wsSG');
 // barrels and a chest by the hall door
 inked(g, t => {
   stampL(t, 52, 94, `

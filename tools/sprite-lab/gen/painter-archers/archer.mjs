@@ -28,7 +28,7 @@ function hooks(extra = {}) {
     sleeve: 'skin',
     back(p, o) { // quiver on the back, arrows' fletching poking out above the shoulder
       const x = o.ux, y = o.uy;
-      p.stamp(x + 2, y + 4, o.pose.noArrows ? QUIVER.replace(/[on]/g, '.') : QUIVER);
+      p.stamp(x + 2 + (o.pose.tuck || 0), y + 4, o.pose.noArrows ? QUIVER.replace(/[on]/g, '.') : QUIVER);
     },
     torso(p, o) { p.stamp(5 + o.ux, 8 + o.uy, TUNIC); },
     head(p, o) { p.stamp(5 + o.ux, 1 + o.uy, o.pose.blink ? CAP_BLINK : CAP); if (o.pose.flick) { p.px(5 + o.ux, 1 + o.uy, 'n'); p.px(4 + o.ux, 1 + o.uy, 'n'); } else { p.px(5 + o.ux, 1 + o.uy, 'n'); p.px(4 + o.ux, 0 + o.uy, 'n'); } },
@@ -57,7 +57,7 @@ function mkDeath(pose, ox) { return body(pose, hooks(), DW, 40, ox); }
 const DEATH = death(mkDeath, {
   recoil: Object.assign({}, STAND, { lean: -1, farm: [[8, 9], [6, 6], [5, 4]], barm: [[6, 9], [4, 8], [3, 6]] }),
   buckle: { bob: 3, F: [10, 21], B: [8, 21], fk: 2, bk: 2, lean: -1, farm: [[8, 9], [6, 7], [4, 6]], barm: [[6, 9], [4, 10], [3, 12]] },
-  lie: Object.assign({}, STAND, { F: [7, 21], B: [6, 21], farm: [[9, 9], [10, 12], [11, 15]], barm: null, noArrows: true }),
+  lie: Object.assign({}, STAND, { F: [7, 21], B: [6, 21], farm: [[9, 9], [10, 12], [11, 15]], barm: null, noArrows: true, tuck: 2 }), // lying on his back: the quiver is under him, only its edge shows
 }, (p, k) => {
   const X = DOX;
   if (k === 0) bow(p, [X + 13, 12], 6, 1, null, { tilt: 2 });

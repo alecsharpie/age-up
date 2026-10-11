@@ -261,7 +261,8 @@ function frames() {
   const C = compose(U, { legs: standLegs(GY, fxo), tail: [0.6, 0], head: 1, breathe: 1, weapon: wI(0), cape: 0 });
   const D = compose(U, { legs: standLegs(GY, fxo, 2), tail: [-0.3, 0], mane: 2, weapon: wI(1), cape: 2 });
   F.idle = [A, A, B, C, C, D].map(x => text(x.g));
-  const bobs = [0, 1, 1, 0, 0, -1, -1, 0];
+  // the body dips on the loading stride and never rises above standing height: lifting it in 5, 6 left the planted leading fore a pixel off the ground
+  const bobs = [0, 1, 1, 0, 0, 0, 0, 0];
   for (let k = 0; k < 8; k++) {
     const t = k / 8;
     const fr = compose(U, { legs: canterLegs(t, GY, fxo), bob: bobs[k], ry: bobs[(k + 7) % 8] - bobs[k], head: bobs[k] > 0 ? 1 : 0,

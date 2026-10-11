@@ -114,9 +114,11 @@ function vscale(src, sy, top = 3, gy = 23) {
   return o;
 }
 function deathFrame(sy, oxo, lift = 0, extra) {
-  const c = grid(GW, GH); shafts(c, 0, 0); cart(c, { ang: 30, broken: sy < 0 });
-  let cr = vscale(c, sy); if (lift) cr = shift(cr, 0, -lift);
-  const g = grid(GW, GH); if (oxo) ox(g, oxo); over(g, cr);
+  // the shafts run along the ox's far side (behind it, as in idle/walk), so they get their own layer under the ox
+  const c = grid(GW, GH); cart(c, { ang: 30, broken: sy < 0 });
+  const sh = grid(GW, GH); shafts(sh, 0, 0);
+  let cr = vscale(c, sy), sr = vscale(sh, sy); if (lift) { cr = shift(cr, 0, -lift); sr = shift(sr, 0, -lift); }
+  const g = grid(GW, GH); over(g, sr); if (oxo) ox(g, oxo); over(g, cr);
   if (extra) extra(g);
   return outline(despeckle(g));
 }

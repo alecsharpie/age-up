@@ -44,11 +44,15 @@ kwwwwwk
 `); }
 const R = { L: [top.L[0] - 2, top.L[1] + 2], Bm: [top.Bm[0], top.Bm[1] + 3], Rr: [top.Rr[0] + 2, top.Rr[1] + 2], T: [top.T[0], top.T[1] - 1] };
 const ap = pixIsoRoof(g, R, ROOF, 1, { back: '5', left: '6', front: '7', right: '8' });
-paint(g, '6', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'c', lip: 'g', tones: ['b'] }));
+paint(g, '6', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'c', lip: 'g', tones: ['b'], flip: true }));   // back slopes: flip
 paint(g, '7', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', seam: 'd', lip: 'b', tones: ['c'] }));
-paint(g, '5', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', tones: ['a'] }));
+paint(g, '5', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'd', tones: ['a'], flip: true }));
 paint(g, '8', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'e', seam: 'e', lip: 'a', tones: ['d'] }));
 line(g, R.L, R.Bm, 'e'); line(g, R.Bm, R.Rr, 'e'); line(g, R.Bm, ap, 'k'); line(g, [R.Bm[0] - 1, R.Bm[1]], [ap[0] - 1, ap[1]], 'h');
+// back posts of the awning, drawn before the goods so the barrels and crate stand in front of them: the cloth's high back
+// edge rests on these instead of hanging in the air
+const AW = { A0: lerp(pL, pB, 0.22), A1: lerp(pL, pB, 0.58), D: [9, -4.5], HF: 13, HB: 16 };
+for (const P of [AW.A0, AW.A1]) { const x = Math.round(P[0] + AW.D[0]), y = Math.round(P[1] + AW.D[1]); for (let yy = y - AW.HB; yy < y; yy++) { pixSet(g, x, yy, 'u'); pixSet(g, x + 1, yy, 'v'); pixSet(g, x - 1, yy, 'k'); pixSet(g, x + 2, yy, 'k'); } }
 // goods under the awning: barrels, a crate, a fish basket
 const BARRELS = `
 .kkkk..kkkk.
@@ -77,7 +81,7 @@ kxsxsxk
 .kkkkk.
 `); }
 // team awning over the goods: striped cloth on two front posts, scalloped hem
-{ const A0 = lerp(pL, pB, 0.22), A1 = lerp(pL, pB, 0.58); const D = [9, -4.5], HF = 13, HB = 16;
+{ const { A0, A1, D, HF, HB } = AW;
   for (const P of [A0, A1]) { const x = Math.round(P[0]), y = Math.round(P[1]); for (let yy = y - HF; yy < y; yy++) { pixSet(g, x, yy, 'u'); pixSet(g, x + 1, yy, 'v'); pixSet(g, x - 1, yy, 'k'); pixSet(g, x + 2, yy, 'k'); } }
   const f0 = up(A0, HF), f1 = up(A1, HF), b0 = [A0[0] + D[0], A0[1] + D[1] - HB], b1 = [A1[0] + D[0], A1[1] + D[1] - HB];
   pixPoly(g, [f0, f1, b1, b0], '9');

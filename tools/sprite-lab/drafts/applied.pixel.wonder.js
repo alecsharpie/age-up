@@ -11,9 +11,10 @@ const copy = g => g.map(r => r.slice());
 /** Replace every cell holding one of `chs` by fn(x,y,ch) (null keeps it). */
 const paint = (g, chs, fn) => { for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) if (chs.includes(g[y][x])) { const c = fn(x, y, g[y][x]); if (c) g[y][x] = c; } };
 /** Courses on a face whose rows run with slope s (+0.5 down-right, -0.5 up-right, 0 flat): rows of height h, blocks of width w
- *  staggered by half a block, 1-px joint under each row, optional lit lip on top of each row, block tones picked per block. */
+ *  staggered by half a block, 1-px joint under each row, optional lit lip on top of each row, block tones picked per block.
+ *  o.flip: the face slopes away from the viewer (a back roof slope), so downhill is up the screen and the joint/lip swap ends. */
 const course = (x, y, s, o) => {
-  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v = u - row * o.h;
+  const u = y - s * x + (o.off || 0), row = Math.floor(u / o.h), v0 = u - row * o.h, v = o.flip ? o.h - 1 - v0 : v0;
   if (v >= o.h - 1) return o.joint;
   const xs = x + (((row % 2) + 2) % 2) * Math.floor(o.w / 2) + (o.xoff || 0), col = Math.floor(xs / o.w);
   if (o.seam && ((xs % o.w) + o.w) % o.w === 0) return o.seam;
@@ -65,7 +66,7 @@ const slateDk = { h: 3, w: 4, joint: 'K', seam: 'K', lip: 'v', tones: ['V'] };
 const gableX = (t, rise) => {
   const m1 = lerp(t.T, t.L, 0.5), m2 = lerp(t.Rr, t.Bm, 0.5), r1 = [m1[0], m1[1] - rise], r2 = [m2[0], m2[1] - rise];
   const eL = [t.L[0] - 1, t.L[1] + 2], eB = [t.Bm[0] - 1, t.Bm[1] + 2];
-  pixPoly(g, [t.T, t.Rr, r2, r1], '6'); paint(g, '6', (x, y) => course(x, y, 0.5, slateDk));
+  pixPoly(g, [t.T, t.Rr, r2, r1], '6'); paint(g, '6', (x, y) => course(x, y, 0.5, { ...slateDk, flip: true }));   // back slope: downhill is up the screen
   pixPoly(g, [t.Rr, t.Bm, r2], '5'); paint(g, '5', (x, y) => course(x, y, 0, ashR));
   pixPoly(g, [eL, eB, r2, r1], '7'); paint(g, '7', (x, y) => course(x, y, 0.5, slateMid));
   line(g, r1, r2, 'k'); line(g, r1, r2, 'f', 1); line(g, eL, eB, 'k'); line(g, eB, r2, 'k'); line(g, [eB[0] + 1, eB[1] - 1], [r2[0] + 1, r2[1]], 'Q'); line(g, t.Rr, r2, 'k');
@@ -75,7 +76,7 @@ const gableX = (t, rise) => {
 const gableY = (t, rise) => {
   const m1 = lerp(t.T, t.Rr, 0.5), m2 = lerp(t.L, t.Bm, 0.5), r1 = [m1[0], m1[1] - rise], r2 = [m2[0], m2[1] - rise];
   const eR = [t.Rr[0] + 1, t.Rr[1] + 2], eB = [t.Bm[0] + 1, t.Bm[1] + 2];
-  pixPoly(g, [t.T, t.L, r2, r1], '6'); paint(g, '6', (x, y) => course(x, y, -0.5, slateLit));
+  pixPoly(g, [t.T, t.L, r2, r1], '6'); paint(g, '6', (x, y) => course(x, y, -0.5, { ...slateLit, flip: true }));  // back slope
   pixPoly(g, [t.L, t.Bm, r2], '4'); paint(g, '4', (x, y) => course(x, y, 0, ashL));
   pixPoly(g, [eR, eB, r2, r1], '7'); paint(g, '7', (x, y) => course(x, y, -0.5, slateDk));
   line(g, r1, r2, 'k'); line(g, r1, r2, 'f', 1); line(g, eR, eB, 'k'); line(g, eB, r2, 'k'); line(g, t.L, r2, 'k'); line(g, [t.L[0] + 1, t.L[1]], [r2[0], r2[1] + 1], 'l');
@@ -160,10 +161,14 @@ for (let k = 0; k <= 7; k++) { const t = k / 7; const ii = 0.5 + 4 * t; if (ii >
   for (let yy = y - 1; yy > y - 30; yy--) { pixSet(g, x - 2, yy, 'k'); pixSet(g, x - 1, yy, 'l'); pixSet(g, x, yy, 'm'); pixSet(g, x + 1, yy, 'r'); pixSet(g, x + 2, yy, 'k'); }
   for (let yy = y - 1; yy > y - 12; yy--) { pixSet(g, x - 3, yy, 'k'); pixSet(g, x - 2, yy, 'l'); }
   pinnacle(x, y - 30, 4);
-  // the flyer: a quarter arch from the pier to the clerestory wall
+  // the flyer: a quarter arch from the pier to the clerestory wall (the corner piers have no wall behind them to spring to)
+  if (k === 0 || k === 7) continue;
   for (let s = 0; s <= 20; s++) { const u = s / 20; const fx = x + 1 + u * 22, fy = y - 27 - u * 11 - Math.sin(u * Math.PI) * 4 - u * 8; pixSet(g, fx, fy, 'k'); pixSet(g, fx, fy + 1, 'r'); pixSet(g, fx, fy + 2, 'k'); } }
 
 // ---- front arm of the transept: north portal and the great rose window on its lit gable end
+// The aisle runs on past the transept's right face (i 3.5..4.5), so its wall and lean-to stand in front of that face's back
+// part: `underTrF` keeps them so those cells can be restored once the transept is dressed.
+const underTrF = copy(g);
 const trF = block(2.0, 3.45, 1.5, 0.95, 34);
 const troof = gableY(trF, 18);
 { const B = trF.base; const m = lerp(B.L, B.Bm, 0.5);
@@ -183,10 +188,18 @@ kmkDDDDDDDkmk
 kQQQQQQQQQQQk
 `);
   for (const f of [0.12, 0.88]) { const a = lerp(B.L, B.Bm, f); pinnacle(a[0], a[1] - 32, 14); }
-  const a = lerp(B.Bm, B.Rr, 0.5); lancet(a[0], a[1] - 28, LANCETR); }
+  const a = lerp(B.Bm, B.Rr, 0.12); lancet(a[0], a[1] - 28, LANCETR); }   // clear of the aisle roof
+{ const aisleZ = j => j > 4.2 ? -1 : PL + 20 + 9 * (4.2 - j) / 0.75;          // aisle wall / lean-to surface in front of the face
+  const hid = (x, y) => { if (x <= trF.base.Bm[0]) return false; const j = 3.5 - (x + 0.5 - bx) / 32, z = by - 160 + (3.5 + j) * 16 - (y + 0.5); return z < aisleZ(j); };
+  const cells = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underTrF[y][x]) cells.push([x, y]);
+  for (const [x, y] of cells) if (hid(x, y)) g[y][x] = underTrF[y][x];
+  for (const [x, y] of cells) if (!hid(x, y) && hid(x, y + 1) && g[y][x] !== 'k') g[y][x] = 'j'; }
 
 // ---- crossing tower rising from the roofs, belfry lancets, team banners, corner pinnacles, crocketed spire with a gold tip
 const TZ0 = 46, TZ = 84 - TZ0, SP = 84;
+// The crossing tower stands on the nave's ridge: the nave roof is in front of its lower faces (a gable-shaped bite out of the
+// right face, a few rows off the left), so those cells are restored from `underTow` once the tower is dressed.
+const underTow = copy(g);
 const tow = block(2.35, 1.9, 1.1, 1.1, TZ, PL + TZ0);
 { const B = tow.base; for (const f of [0.3, 0.7]) { const a = lerp(B.L, B.Bm, f); lancet(a[0], a[1] - TZ + 3, LANCET); const b2 = lerp(B.Bm, B.Rr, f); lancet(b2[0], b2[1] - TZ + 3, LANCETR); }
   line(g, [B.L[0], B.L[1] - 4], [B.Bm[0], B.Bm[1] - 4], 'k'); line(g, [B.Bm[0], B.Bm[1] - 4], [B.Rr[0], B.Rr[1] - 4], 'k'); }
@@ -198,6 +211,12 @@ line(g, sB.L, sB.Bm, 'k'); line(g, sB.Bm, sB.Rr, 'k'); line(g, sB.Bm, apex, 'k')
 // crockets: little gold-lit knobs up the front hip
 for (let k = 1; k < 8; k++) { const p = lerp(sB.Bm, apex, k / 8.5); pixSet(g, p[0] + 1, p[1], 'n'); pixSet(g, p[0] + 2, p[1], 'k'); }
 for (const P of [tow.L, tow.Bm, tow.Rr]) pinnacle(P[0] + (P === tow.L ? 1 : P === tow.Rr ? -2 : 0), P[1], 4);
+{ const naveZ = j => j >= 2.5 ? PL + 36 + 26 * (3.45 - j) / 0.95 : PL + 38 + 24 * (j - 1.55) / 0.95;   // nave roof surface height
+  const hid = (x, y) => { const cx = x + 0.5 - bx, cy = y + 0.5; let i, j; if (cx <= tow.base.Bm[0] - bx) { j = 3.0; i = 3.0 + cx / 32; } else { i = 3.45; j = 3.45 - cx / 32; }
+    return by - 160 + (i + j) * 16 - cy < naveZ(j); };
+  const cells = []; for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (g[y][x] !== underTow[y][x]) cells.push([x, y]);
+  for (const [x, y] of cells) if (hid(x, y)) g[y][x] = underTow[y][x];
+  for (const [x, y] of cells) if (!hid(x, y) && hid(x, y + 1) && g[y][x] !== 'k') g[y][x] = 'Q'; }
 // team banners down the two visible tower faces, and long ones on the transept front
 const BAN = `
 kkkkkkk
