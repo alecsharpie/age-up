@@ -37,8 +37,8 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 .mmb{height:44px;border:2px solid var(--edge);border-radius:4px;background:var(--panel2);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
 .mmb:hover{border-color:var(--gold)}
 .mmb.on{border-color:var(--gold);background:#4a3826}
-#b-idle.on{animation:idlePulse 1.6s ease-in-out infinite}
-@keyframes idlePulse{50%{box-shadow:0 0 0 2px rgba(255,210,122,.55),0 0 10px rgba(255,210,122,.5)}}
+#b-idle.on{animation:idlePulse 2.4s ease-in-out infinite;background:#5a4428}
+@keyframes idlePulse{0%,100%{box-shadow:0 0 0 0 rgba(255,210,122,0),0 0 0 rgba(255,210,122,0)}50%{box-shadow:0 0 0 2px rgba(255,210,122,.6),0 0 14px rgba(255,210,122,.45);border-color:#ffd27a}}
 .mmb img{width:26px;height:26px;image-rendering:pixelated}
 .mmb b{position:absolute;right:1px;bottom:0;font-size:11px;font-weight:normal;color:#fff;background:rgba(0,0,0,.6);padding:0 3px;border-radius:3px;line-height:1.3}
 .mmb b:empty{display:none}
@@ -108,7 +108,6 @@ canvas#c{display:block;width:100%;height:100%}
 #msgs{position:absolute;left:12px;top:10px;pointer-events:none;font-size:14px;text-shadow:0 1px 2px #000}
 #msgs div{opacity:.95;margin-bottom:3px}
 #tr{position:absolute;right:12px;top:10px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}#hint{font-size:12px;color:var(--muted);text-shadow:0 1px 2px #000;text-align:right;pointer-events:none}
-#hint .idle{pointer-events:auto;cursor:pointer;color:#ffd27a;text-decoration:underline dotted}
 #info{width:300px;border-right:2px solid #1a120c;padding:8px 12px;font-size:13px;overflow:hidden}
 #info h3{margin:0 0 4px;font-size:16px;color:var(--gold);font-weight:normal}
 #info .row{color:var(--muted);line-height:1.5}
@@ -184,6 +183,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay table.st tr.total td.best{color:var(--gold)}
 #overlay table.st tr.sec td{color:var(--gold);padding-top:10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:0}
 #endBody{position:relative}
+#tl-tip .tt-g{border-collapse:collapse;font-size:12px}#tl-tip .tt-g th{font-weight:normal;color:var(--muted);text-align:right;padding:0 0 2px 10px}#tl-tip .tt-g td{text-align:right;padding:1px 0 1px 10px;white-space:nowrap}#tl-tip .tt-g td:first-child{text-align:left;padding-left:0}#tl-tip .tt-g i{display:inline-block;width:9px;height:9px;margin-right:5px;vertical-align:-1px}
 #overlay .tl-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 8px}
 #overlay .tl-seg{display:inline-flex;border:1px solid var(--edge);border-radius:4px;overflow:hidden}
 #overlay .tl-seg button{font:12.5px Georgia,serif;background:var(--panel2);color:var(--muted);border:0;padding:4px 12px;cursor:pointer}
@@ -192,7 +192,6 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay .tl-leg{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--text)}
 #overlay .tl-leg i,#tl-tip i,#overlay .tl-h i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 #overlay .tl-cap{margin-left:auto;font-size:11.5px;color:var(--muted)}
-#overlay .tl-grid{display:grid;gap:10px}#overlay .tl-grid.two{grid-template-columns:1fr 1fr}
 #overlay .tl-p{background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:4px;padding:6px 6px 2px}
 #overlay .tl-h{display:flex;align-items:baseline;gap:6px;font-size:13px;margin:0 0 2px 4px}
 #overlay .tl-h b{font-weight:normal;color:var(--text)}#overlay .tl-h span{color:var(--muted);font-size:11.5px}#overlay .tl-h .tot{margin-left:auto;color:var(--text);font-size:13px;font-variant-numeric:tabular-nums;padding-right:6px}
@@ -358,7 +357,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
         <button class="big" id="play">Play</button>
         <div id="dip" class="hidden" style="margin:8px 0"></div>
         <details id="treewrap" class="hidden"><summary>Tech tree</summary><div id="tree" style="font-size:12px;line-height:1.5;max-height:40vh;overflow:auto"></div></details>
-        <div class="opts" id="saveopts" style="margin:8px 0 0"><div class="opt hidden" id="save">Save game</div><div class="opt hidden" id="load">Load saved game</div><div class="opt hidden" id="restart" title="Start over on this same map with the same settings">Restart this map</div></div>
+        <div class="opts" id="saveopts" style="margin:8px 0 0"><div class="opt hidden" id="save">Save game</div><div class="opt hidden" id="load">Load saved game</div><div class="opt hidden" id="restart" title="Start over on this same map with the same settings">Restart this map</div><div class="opt hidden" id="scoresbtn" title="Players' scores in the top-right corner (F4)">Hide scoreboard</div></div>
         <button class="big hidden" id="resign" style="background:#5a2a20;margin-top:6px">Resign</button>
         <div id="resign-ask" class="hidden"><span>Resign this game? You will be defeated<span id="resign-mp"> and your units removed for everyone</span>.</span><button id="resign-yes">Yes, resign</button><button id="resign-no">Keep playing</button></div>
       </div>
@@ -32005,19 +32004,21 @@ const $=id=>document.getElementById(id);
 function fmt(n){return Math.floor(n)}
 function costStr(c){const e=Object.entries(c);if(e.length>=3&&e.every(([k,v])=>v===e[0][1]))return `<span class="ci" title="${e[0][1]} of each">${e.map(([k])=>`<img src="${iconUrl('res',k)}" alt="">`).join('')}${e[0][1]}</span>`;return e.map(([k,v])=>`<span class="ci"><img src="${iconUrl('res',k)}" alt="">${v}</span>`).join(' ')}
 function hudIcons(){const tc=TEAM[ME];if(ui.hudTeam===tc.c)return;ui.hudTeam=tc.c;for(const k of RES_KINDS)$('i-'+k).src=iconUrl('res',k);$('i-pop').src=iconUrl('unit','villager',tc);$('b-idle').querySelector('img').src=iconUrl('unit','villager',tc);$('b-army').querySelector('img').src=iconUrl('unit','swordsman',tc);$('b-th').querySelector('img').src=iconUrl('bld','townhall',tc)}
-// In-game scoreboard; read-only on G so it is lockstep-safe. Toggle with the top-bar score or F4.
-function renderScores(){const el=$('scoreboard');let on=true;try{on=localStorage.getItem('age-up-scores')!=='0'}catch(e){}el.classList.toggle('hidden',!on);if(!on)return;
+// In-game scoreboard; read-only on G so it is lockstep-safe. Toggle from the menu or with F4.
+function renderScores(){const el=$('scoreboard');let on=true;try{on=localStorage.getItem('age-up-scoreboard')!=='0'}catch(e){}el.classList.toggle('hidden',!on);if(!on)return;
  const ps=G.players.filter(p=>p&&!p.gaia).slice().sort((a,b)=>(a.dead-b.dead)||b.score-a.score);
  const h=ps.map(p=>`<div class="sb-r${p.dead?' dead':''}"><span class="sb-s" style="background:${TEAM[p.team].c}"></span><span class="sb-n">${p.team===ME?'You':esc(p.name||TEAM[p.team].n)}${p.team!==ME&&allied(p.team,ME)?' <span class="sb-a">ally</span>':''}</span><span class="sb-a">${AGES[p.age].replace(' Age','')}</span><span class="sb-v">${p.score}</span></div>`).join('');
  if(el._h!==h){el.innerHTML=h;el._h=h}}
-function toggleScores(){let on=true;try{on=localStorage.getItem('age-up-scores')!=='0';localStorage.setItem('age-up-scores',on?'0':'1')}catch(e){}if(G)renderScores()}
-$('score').title='Show or hide the scoreboard (F4)';$('score').onclick=toggleScores;
+function scoresOn(){try{return localStorage.getItem('age-up-scoreboard')!=='0'}catch(e){return true}}
+function toggleScores(){const on=scoresOn();try{localStorage.setItem('age-up-scoreboard',on?'0':'1')}catch(e){}if(G)renderScores();syncScoresBtn()}
+function syncScoresBtn(){const b=$('scoresbtn');if(b)b.textContent=scoresOn()?'Hide scoreboard':'Show scoreboard'}
+$('scoresbtn').onclick=toggleScores;
 function updateTop(){const p=player(ME);hudIcons();for(const k of RES_KINDS){$('r-'+k).textContent=fmt(p.res[k]);let n=0;for(const u of G.units)if(u.team===ME&&u.type==='villager'&&(u.state==='gather'||u.state==='hunt')&&u.carryKind===k)n++;$('w-'+k).textContent=n?n:''}
  {const bp=$('b-pause');bp.classList.toggle('on',!!G.paused);const pl=G.paused?'\u25b6':'\u275a\u275a';if(bp.textContent!==pl)bp.textContent=pl;bp.title=G.paused?'Resume (P)':'Pause (P)'}$('r-pop').textContent=p.pop+'/'+p.popCap;$('r-pop').style.color=p.pop>=p.popCap?'#f66':'';$('age').textContent=AGES[p.age]+(p.ageing?' → '+AGES[p.age+1]:'');const m=Math.floor(G.time/60),s=Math.floor(G.time%60);$('clock').textContent=m+':'+(s<10?'0':'')+s;$('score').textContent='Score '+p.score;renderScores();
  let tm='';const ft=x=>{const mm=Math.floor(Math.max(0,x)/60),ss=Math.floor(Math.max(0,x)%60);return mm+':'+(ss<10?'0':'')+ss};if(G.wonderTimer)tm+=(allied(G.wonderTimer.team,ME)?'Your':TEAM[G.wonderTimer.team].n)+' Wonder '+ft(G.wonderTimer.left)+'  ';if(G.relicTimer)tm+=(G.relicTimer.side===p.side?'Your':'Enemy')+' relics '+ft(G.relicTimer.left);if(G.setup.victory==='time')tm+='Time left '+ft(40*60-G.time);if(G.setup.victory==='score'){const b=alivePlayers().slice().sort((a,b)=>b.score-a.score)[0];if(b)tm+='Leader '+(b.team===ME?'you':TEAM[b.team].n)+' '+b.score+'/6000'}$('timers').textContent=tm;
  const idle=G.units.filter(u=>u.team===ME&&u.type==='villager'&&u.state==='idle').length;const idleM=G.units.filter(u=>u.team===ME&&isMil(u)&&u.state==='idle'&&!u.inside).length;
  const bi=$('b-idle'),ba=$('b-army');bi.classList.toggle('on',idle>0);bi.querySelector('b').textContent=idle||'';ba.classList.toggle('on',idleM>0);ba.querySelector('b').textContent=idleM||'';
- {const h=(G.paused?'<span style="color:#fff">PAUSED</span><br>':'')+(ui.mode==='amove'?'<span style="color:#f88">Attack-move: click a target</span><br>':ui.mode==='patrol'?'<span style="color:#f88">Patrol: click a point</span><br>':ui.mode==='repair'?'<span style="color:#8f8">Repair: click a damaged building</span><br>':'')+(ui.build?`<span style="color:#8f8">Placing ${BUILDINGS[ui.build.type].name}${ui.build.type==='wall'?' — drag a line':''}. Shift keeps placing, Esc cancels</span><br>`:'')+(idle?`<span class="idle">${idle} idle villager${idle>1?'s':''} (press .)</span><br>`:'')+(p.bell?'<span style="color:#ffd27a">Town bell rung — villagers sheltering</span><br>':'')+(G.speed!==1?`speed ${G.speed}x<br>`:'');if(h!==ui.hintHtml){ui.hintHtml=h;$('hint').innerHTML=h}};
+ {const h=(G.paused?'<span style="color:#fff">PAUSED</span><br>':'')+(ui.mode==='amove'?'<span style="color:#f88">Attack-move: click a target</span><br>':ui.mode==='patrol'?'<span style="color:#f88">Patrol: click a point</span><br>':ui.mode==='repair'?'<span style="color:#8f8">Repair: click a damaged building</span><br>':'')+(ui.build?`<span style="color:#8f8">Placing ${BUILDINGS[ui.build.type].name}${ui.build.type==='wall'?' — drag a line':''}. Shift keeps placing, Esc cancels</span><br>`:'')+(p.bell?'<span style="color:#ffd27a">Town bell rung — villagers sheltering</span><br>':'')+(G.speed!==1?`speed ${G.speed}x<br>`:'');if(h!==ui.hintHtml){ui.hintHtml=h;$('hint').innerHTML=h}};
  const m2=$('msgs');m2.innerHTML=G.msgs.filter(x=>G.time-x.at<9).map(x=>`<div style="opacity:${Math.min(1,(9-(G.time-x.at))/2)}">${x.t}</div>`).join('')}
 function selKind(){const s=G.sel||[];if(!s.length)return null;if(s.some(e=>e.kind==='unit'&&e.team===ME&&!isAnimal(e))){return s.some(e=>isMil(e)||e.type==='monk')?'mil':s.every(e=>e.naval)?'mil':'vill'}if(s[0].kind==='bld'&&s[0].team===ME)return 'bld';return 'other'}
 function buildButtons(){const s=G.sel||[];const p=player(ME);const out=[];const kind=selKind();if(!kind)return out;
@@ -32046,7 +32047,6 @@ function pressCmd(i){const b=ui.buttons[i];if(!b)return;if(b.enabled===false){sf
 for(const[id,f]of[['b-idle',()=>cycleIdle()],['b-army',()=>cycleIdleMil()],['b-th',()=>cycleTH()]])$(id).addEventListener('mousedown',e=>{if(e.button!==0||!G)return;e.preventDefault();f()});
 $('b-pause').addEventListener('mousedown',e=>{if(e.button!==0||!G||G.over)return;e.preventDefault();setPaused(!G.paused)});
 $('b-menu').addEventListener('mousedown',e=>{if(e.button!==0||!G||G.over)return;e.preventDefault();openMenu()});
-$('hint').addEventListener('mousedown',e=>{if(e.button!==0||!G||!e.target.closest('.idle'))return;e.preventDefault();cycleIdle()});
 $('cmds').addEventListener('mousedown',e=>{if(e.button!==0)return;const el=e.target.closest('.btn');if(!el)return;e.preventDefault();pressCmd(+el.dataset.i)});
 $('cmds').addEventListener('mouseover',e=>{const el=e.target.closest('.btn');if(!el){hideTip();return}const i=+el.dataset.i;if(ui.tipI===i)return;clearTimeout(ui.tipT);if(ui.tipI!=null)showTip(i);else ui.tipT=setTimeout(()=>showTip(i),120)});
 $('cmds').addEventListener('mouseleave',hideTip);
@@ -32404,34 +32404,37 @@ function endTab(tab){ui.endTab=tab;$('endTabs').innerHTML=END_TABS.map(([k,n])=>
   body=row('Wonders built',ps.map(p=>g(p,'wonders')))+row('Keeps built',ps.map(p=>g(p,'keeps')))+row('<span class="hint" title="Every relic this player has ever delivered to one of their Temples, including ones later lost">Relics captured <small>(all game)</small></span>',ps.map(p=>g(p,'relics')))+row('<span class="hint" title="Relics sitting in this player\'s Temples right now. Holding every relic is a win condition">Relics held <small>(right now)</small></span>',ps.map(held))+row('Relic gold',ps.map(p=>Math.round(g(p,'relicGold'))))+row('Villager high',ps.map(p=>g(p,'villHigh')))+row('Buildings standing',ps.map(p=>G.buildings.filter(b=>b.team===p.team&&b.built&&b.type!=='wall'&&b.type!=='farm').length))+row('Society score',ps.map(p=>scoreParts(p).society),{total:true})}
  if(tab==='timeline'){renderTimeline();return}
  else $('endBody').innerHTML=`<table class="st">${head}${body}</table>`+(tab==='society'?'<p class="stnote"><b style="color:var(--text);font-weight:normal">Captured</b> counts every relic a player ever brought to their Temples. <b style="color:var(--text);font-weight:normal">Held</b> is how many are in their Temples now, so a relic that was later lost counts as captured but not held.</p>':'')}
-// ---- Timeline: score over time. "Breakdown" is one stacked-area panel per player (military, economy, technology,
-// society) on a shared scale; "Totals" compares the players' total scores as lines. Hover reads out exact values.
-const TL_PARTS=[['Military','#d95926'],['Economy','#3987e5'],['Technology','#199e70'],['Society','#c98500']];
+// ---- Timeline: score over time. "Breakdown" is one large stacked-area chart: each player is a band in their colour,
+// split into military (dark shade, bottom) and economy (light shade: economy + technology + society). "Totals"
+// compares the players' total scores as lines. Hover reads out exact values.
+function tlShade(hex,f){const n=parseInt(hex.slice(1),16);const ch=[n>>16,(n>>8)&255,n&255].map(v=>Math.round(f<0?v*(1+f):v+(255-v)*f));return '#'+ch.map(v=>v.toString(16).padStart(2,'0')).join('')}
+const tlMil=c=>tlShade(c,-0.18),tlEco=c=>tlShade(c,0.5);
+const tlSplit=e=>i=>{const q=e.p[i]||[];return[q[0]||0,(q[1]||0)+(q[2]||0)+(q[3]||0)]};
 function tlName(p){return p.team===ME?'You':esc(p.name||TEAM[p.team].n)}
 function tlTime(t){const m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+(s<10?'0':'')+s}
 function tlNice(v){if(v<=0)return 100;const e=Math.pow(10,Math.floor(Math.log10(v)));const f=v/e;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*e}
 function renderTimeline(){const tl=(G.timeline||[]).filter(e=>e&&e.s);const hasParts=tl.length>0&&tl.every(e=>Array.isArray(e.p));const mode=hasParts?(ui.tlMode||'parts'):'total';
  let h=`<div class="tl-bar">`;if(hasParts)h+=`<div class="tl-seg">${[['parts','Breakdown'],['total','Totals']].map(([k,n])=>`<button class="${k===mode?'on':''}" onclick="ui.tlMode='${k}';renderTimeline()">${n}</button>`).join('')}</div>`;
- if(mode==='parts')h+=`<div class="tl-leg">${TL_PARTS.slice().reverse().map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join('')}</div>`;
+ if(mode==='parts')h+=`<div class="tl-leg">${G.players.map(p=>`<span><i style="background:${tlMil(TEAM[p.team].c)}"></i><i style="background:${tlEco(TEAM[p.team].c)};margin-left:-4px"></i>${tlName(p)}</span>`).join('')}</div>`;
  else h+=`<div class="tl-leg">${G.players.map(p=>`<span><i style="background:${TEAM[p.team].c}"></i>${tlName(p)}</span>`).join('')}</div>`;
- h+=`<span class="tl-cap">${mode==='parts'?'score by category, stacked · same scale for every player · F C I mark age-ups':'total score per player'}</span></div>`;
+ h+=`<span class="tl-cap">${mode==='parts'?'all players stacked · dark = military, light = economy (incl. tech &amp; society)':'total score per player'}</span></div>`;
  if(tl.length<2){$('endBody').innerHTML=h+'<p class="sub">The game was too short to chart; scores are sampled every 30 seconds.</p>';return}
  if(!hasParts&&tl.length)h+='<p class="sub" style="font-size:12px;margin:0 0 6px">This game was saved before score categories were recorded, so only totals are shown.</p>';
- const tMax=Math.max(60,tl[tl.length-1].t);let vMax=10;for(const e of tl)for(const v of e.s)vMax=Math.max(vMax,v);
+ const tMax=Math.max(60,tl[tl.length-1].t);let vMax=10;for(const e of tl){if(mode==='parts'){let sum=0;for(const p of G.players){const v=tlSplit(e)(p.team);sum+=v[0]+v[1]}vMax=Math.max(vMax,sum)}else for(const v of e.s)vMax=Math.max(vMax,v)}
  const step=tlNice(vMax/4),yMax=Math.ceil(vMax/step)*step;const tStep=tMax<=300?60:tMax<=900?120:tMax<=1800?300:tMax<=3600?600:1200;
- const panels=mode==='parts'?G.players:[null];const cols=mode==='parts'&&panels.length>1?2:1;const W=cols===2?420:840,H=mode==='parts'?(panels.length>2?140:200):250;
+ const W=840,H=mode==='parts'?340:250;
  const L=44,R=10,T=8,B=20;const px=t=>L+(W-L-R)*t/tMax,py=v=>T+(H-T-B)*(1-v/yMax);
  const axes=()=>{let a='';for(let v=0;v<=yMax+1e-6;v+=step)a+=`<line x1="${L}" x2="${W-R}" y1="${py(v)}" y2="${py(v)}" class="g${v===0?' z':''}"/><text x="${L-6}" y="${py(v)+3.5}" class="yl">${fmt(v)}</text>`;
   for(let t=0;t<=tMax+1e-6;t+=tStep)a+=`<text x="${px(t)}" y="${H-5}" class="xl">${Math.floor(t/60)}m</text>`;return a};
  const ages=p=>{const aa=(p.stats&&p.stats.ageAt)||[];let a='';for(let k=1;k<4;k++){const t=aa[k];if(!(t>0))continue;a+=`<line x1="${px(t)}" x2="${px(t)}" y1="${T}" y2="${H-B}" class="age"/><text x="${px(t)+3}" y="${T+9}" class="al">${'FCI'[k-1]}</text>`}return a};
  let body='';
- if(mode==='parts'){body='<div class="tl-grid'+(cols===2?' two':'')+'">';for(const p of panels){const i=p.team;let areas='';
-   for(let k=TL_PARTS.length-1;k>=0;k--){// draw top layer first so each lower one paints over its own baseline seam
-    const top=tl.map(e=>{let v=0;for(let j=0;j<=k;j++)v+=e.p[i][j]||0;return[px(e.t),py(v)]});const d='M'+top.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join('L')+`L${px(tl[tl.length-1].t).toFixed(1)},${py(0)}L${px(tl[0].t).toFixed(1)},${py(0)}Z`;
-    areas+=`<path d="${d}" fill="${TL_PARTS[k][1]}" class="ar"/>`}
-   const last=tl[tl.length-1];const tot=last.s[i]||0;
-   body+=`<div class="tl-p" data-team="${i}"><div class="tl-h"><i style="background:${TEAM[i].c}"></i><b>${tlName(p)}</b><span>${CIVS[p.civ].name}${p.dead?' · defeated':''}</span><span class="tot">${fmt(tot)}</span></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="tl-svg" style="aspect-ratio:${W}/${H}">${axes()}${areas}${ages(p)}<line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/></svg></div>`}
-  body+='</div>'}
+ if(mode==='parts'){// layers bottom-up: player 1 military, player 1 economy, player 2 military, ...
+  const layers=[];for(const p of G.players)for(const j of[0,1])layers.push({i:p.team,j,c:j?tlEco(TEAM[p.team].c):tlMil(TEAM[p.team].c)});
+  const cum=tl.map(e=>{const sp=tlSplit(e);let acc=0;return layers.map(L2=>{acc+=sp(L2.i)[L2.j];return acc})});
+  let areas='';for(let k=0;k<layers.length;k++){const top=tl.map((e,n)=>[px(e.t),py(cum[n][k])]),bot=tl.map((e,n)=>[px(e.t),py(k?cum[n][k-1]:0)]).reverse();
+   const d='M'+top.concat(bot).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join('L')+'Z';areas+=`<path d="${d}" fill="${layers[k].c}" class="ar"/>`;
+   if(layers[k].j===1&&k<layers.length-1)areas+=`<polyline points="${top.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" stroke="#1c150f" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`}
+  const me=player(ME);body=`<div class="tl-p" data-team="-2"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="tl-svg" style="aspect-ratio:${W}/${H}">${axes()}${areas}${me?ages(me):''}<line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/></svg></div>`}
  else{let lines='';for(const p of G.players){const pts=tl.map(e=>px(e.t).toFixed(1)+','+py(e.s[p.team]||0).toFixed(1)).join(' ');lines+=`<polyline points="${pts}" fill="none" stroke="${TEAM[p.team].c}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`}
   body=`<div class="tl-p" data-team="-1"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="tl-svg" style="aspect-ratio:${W}/${H}">${axes()}${lines}<line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/></svg></div>`}
  $('endBody').innerHTML=h+body+'<div id="tl-tip" class="hidden"></div>';
@@ -32441,9 +32444,9 @@ function renderTimeline(){const tl=(G.timeline||[]).filter(e=>e&&e.s);const hasP
    let e=tl[0];for(const q of tl)if(Math.abs(q.t-t)<Math.abs(e.t-t))e=q;
    for(const s2 of document.querySelectorAll('#endBody .tl-svg')){const xh=s2.querySelector('.xh');xh.setAttribute('x1',px(e.t));xh.setAttribute('x2',px(e.t));xh.setAttribute('visibility','visible')}
    const team=+el.dataset.team;let th=`<div class="tt-t">${tlTime(e.t)}</div>`;
-   if(team>=0){const v=e.p[team];th+=`<div class="tt-n"><i style="background:${TEAM[team].c}"></i>${tlName(G.players[team])}</div>`+TL_PARTS.map(([n,c],j)=>({n,c,v:v[j]||0})).reverse().map(x=>`<div class="tt-r"><i style="background:${x.c}"></i>${x.n}<b>${fmt(x.v)}</b></div>`).join('')+`<div class="tt-r tot">Total<b>${fmt(e.s[team]||0)}</b></div>`}
+   if(team===-2){const sp=tlSplit(e);th+=`<table class="tt-g"><tr><th></th><th>Eco</th><th>Mil</th><th>Total</th></tr>`+G.players.slice().reverse().map(p=>{const v=sp(p.team);return `<tr><td><i style="background:${TEAM[p.team].c}"></i>${tlName(p)}</td><td>${fmt(v[1])}</td><td>${fmt(v[0])}</td><td><b>${fmt(v[0]+v[1])}</b></td></tr>`}).join('')+'</table>'}
    else th+=G.players.map(p=>({p,v:e.s[p.team]||0})).sort((a,b)=>b.v-a.v).map(x=>`<div class="tt-r"><i style="background:${TEAM[x.p.team].c}"></i>${tlName(x.p)}<b>${fmt(x.v)}</b></div>`).join('');
-   tip.innerHTML=th;tip.classList.remove('hidden');const br=$('endBody').getBoundingClientRect();let lx=ev.clientX-br.left+14,ly=ev.clientY-br.top+10;if(lx+180>br.width)lx=ev.clientX-br.left-180-14;tip.style.left=lx+'px';tip.style.top=ly+'px'});
+   tip.innerHTML=th;tip.classList.remove('hidden');const br=$('endBody').getBoundingClientRect();let lx=ev.clientX-br.left+14,ly=ev.clientY-br.top+10;const tw=tip.offsetWidth||180,tH=tip.offsetHeight||100;if(lx+tw>br.width)lx=ev.clientX-br.left-tw-14;if(ly+tH>br.height)ly=Math.max(0,ev.clientY-br.top-tH-10);tip.style.left=lx+'px';tip.style.top=ly+'px'});
   svg.addEventListener('mouseleave',()=>{tip.classList.add('hidden');for(const s2 of document.querySelectorAll('#endBody .xh'))s2.setAttribute('visibility','hidden')})}}
 // ================= ICONS =================
 // Small thumbnails of the pixel-art sprites (and a few drawn glyphs for actions) as data URLs, cached per key and team colour.
@@ -32526,7 +32529,7 @@ $('resign-yes').onclick=()=>{$('resign-ask').classList.add('hidden');if(!resign(
 $('restart').onclick=()=>{if(!G||NET.active)return;const S=Object.assign({},G.setup);startGame(S);sfx('select')};
 $('save').onclick=()=>{if(G&&!G.over){saveGame();ui.menu=false;G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('save').classList.add('hidden');$('setupwrap').classList.remove('hidden')}};
 $('load').onclick=()=>{if(loadGame()){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall')||G.buildings.find(b=>b.team===ME);if(th)centerOn(th.tx+1,th.ty+1);setSel([]);updateTop();renderCmds();renderInfo();msg('Game loaded.');$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('save').classList.add('hidden');$('load').classList.add('hidden');$('setupwrap').classList.remove('hidden')}else sfx('error')};
-function refreshMenu(){$('load').classList.toggle('hidden',!hasSave()||!!NET.tr);renderLobby();const inGame=G&&!G.over;$('restart').classList.toggle('hidden',!inGame||NET.active);$('save').classList.toggle('hidden',!inGame||NET.active);$('dip').classList.toggle('hidden',!inGame);$('treewrap').classList.toggle('hidden',!inGame);if(inGame){renderDiplomacy();renderTree()}}
+function refreshMenu(){$('load').classList.toggle('hidden',!hasSave()||!!NET.tr);renderLobby();const inGame=G&&!G.over;$('restart').classList.toggle('hidden',!inGame||NET.active);$('scoresbtn').classList.toggle('hidden',!inGame);syncScoresBtn();$('save').classList.toggle('hidden',!inGame||NET.active);$('dip').classList.toggle('hidden',!inGame);$('treewrap').classList.toggle('hidden',!inGame);if(inGame){renderDiplomacy();renderTree()}}
 function renderDiplomacy(){const me=player(ME);const locked=G.setup.diplo==='locked';
  const rows=G.players.filter(p=>p.team!==ME).map(p=>{const al=allied(p.team,ME);const fixed=p.side===me.side;const sent=!al&&me.prop&&me.prop[p.team];const asked=!al&&p.prop&&p.prop[ME];
   const who=`<div class="dwho"><b><i></i>${TEAM[p.team].n}${p.name?' · '+esc(p.name):''}</b><small>${CIVS[p.civ].name} · ${p.ai?'Computer, '+DIFF_NAMES[aiLevel(p)]:'Human'}</small></div>`;
