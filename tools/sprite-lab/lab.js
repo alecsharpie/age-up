@@ -79,6 +79,7 @@ function fakeUnit(type, o = {}) {
   else if (st === 'carry') { u.state = 'gather'; u.goal = {}; u.carry = 10; u.carryKind = o.carryKind || 'wood'; }
   else if (st === 'convert') { u.state = 'convert'; u.target = {}; u.goal = {}; }
   if (o.carry) { u.carry = o.carry; u.carryKind = o.carryKind || 'food'; }
+  if (d.packs) u.packed = o.packed ?? true;
   return u;
 }
 function fakeRes(kind, o = {}) { return { id: 3, kind: 'res', res: kind, tx: o.tx ?? 0, ty: o.ty ?? 0, amount: o.amount ?? 100, max: 100, v: o.v ?? 0, fish: !!o.fish, gatherers: 0 }; }
