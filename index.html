@@ -22,6 +22,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 .btn:hover{border-color:var(--gold)}
 .btn.disabled{opacity:.4}
 .btn.active{border-color:#fff;background:#4a3826}
+#tip{position:fixed;z-index:60;max-width:300px;background:rgba(28,21,15,.97);border:2px solid var(--gold);border-radius:5px;padding:7px 9px;font:12px Georgia,serif;color:var(--text);pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.5);line-height:1.35}#tip div+div{margin-top:3px}#tip .tt-h b{color:var(--gold);font-size:13px}#tip .tt-k{color:var(--muted);font-size:10.5px;border:1px solid var(--edge);border-radius:3px;padding:0 3px}#tip .tt-m{color:var(--muted)}#tip .tt-e{color:#a6e39a}#tip .tt-x{color:#ff8a70}
 .btn>img{grid-row:1/3;width:28px;height:28px;image-rendering:pixelated;justify-self:center}
 .btn .lbl{align-self:end;overflow-wrap:anywhere}
 .btn .key{position:absolute;top:1px;right:4px;font-size:9px;color:var(--gold)}
@@ -260,7 +261,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
   </div>
   <div id="bottom">
     <div id="info"></div>
-    <div id="cmds"></div>
+    <div id="cmds"></div><div id="tip" class="hidden"></div>
     <div id="mm"><div id="mmbtns"><div class="mmb" id="b-idle" title="Idle villager (.)" onclick="cycleIdle()"><img alt=""><b></b></div><div class="mmb" id="b-army" title="Idle soldiers (,)" onclick="cycleIdleMil()"><img alt=""><b></b></div><div class="mmb" id="b-th" title="Town Hall (H)" onclick="cycleTH()"><img alt=""><b></b></div></div><canvas id="mini" width="264" height="156"></canvas></div>
   </div>
 </div>
@@ -328,7 +329,7 @@ function trainsOf(p,b){const d=BUILDINGS[b.type];if(!d.trains)return null;if(b.t
 const MILITARY=new Set(Object.keys(UNITS).filter(k=>k!=='villager'));
 
 const BUILDINGS={
- townhall:{name:'Town Hall',w:3,h:3,hp:1800,cost:{wood:275,stone:100},time:100,pop:5,age:2,key:'T',drop:['food','wood','gold','stone'],trains:['villager'],los:8,atk:5,range:6,rof:2,proj:'arrow',garrison:15,desc:'Trains villagers, drop-off for everything. Garrison villagers inside to shelter them and add arrows.'},
+ townhall:{name:'Town Hall',w:3,h:3,hp:1800,cost:{wood:275,stone:100},time:100,pop:5,age:2,key:'L',drop:['food','wood','gold','stone'],trains:['villager'],los:8,atk:5,range:6,rof:2,proj:'arrow',garrison:15,desc:'Trains villagers, drop-off for everything. Garrison villagers inside to shelter them and add arrows.'},
  house:{name:'House',w:2,h:2,hp:250,cost:{wood:25},time:20,pop:5,age:0,key:'Q',desc:'+5 population.'},
  farm:{name:'Farm',w:2,h:2,hp:200,cost:{wood:60},time:12,age:0,key:'W',resource:'food',desc:'Endless slow food for one villager. Place near the Town Hall or a Mill.'},
  lumber:{name:'Lumber Camp',w:2,h:2,hp:300,cost:{wood:100},time:25,age:0,key:'E',drop:['wood'],desc:'Wood drop-off. Build next to a forest.'},
@@ -833,8 +834,9 @@ function tryTrain(b,type){const p=player(b.team);const d=UNITS[type];if(!b.built
 function tryAge(b){const p=player(b.team);if(p.age>=3||p.ageing||!b.built)return false;const c=AGE_COST[p.age+1];if(!canAfford(p,c)){msg('Not enough resources to age up.',b.team);return false}pay(p,c);p.ageing=true;b.queue.push({age:p.age+1,t:0});return true}
 function techLevel(p,k){return p.techs[k]||0}
 function tryResearch(b,k){const p=player(b.team);const t=TECHS[k];const lvl=techLevel(p,k);p.researching=p.researching||{};if(lvl>=t.name.length||p.researching[k]||!b.built||p.age<t.age[lvl])return false;if(!canAfford(p,t.cost[lvl])){msg('Not enough resources.',b.team);return false}pay(p,t.cost[lvl]);p.researching[k]=true;b.queue.push({tech:k,lvl,t:0});return true}
+function relicOn(x,y){for(const r of G.relics)if(!r.holder&&!r.temple&&Math.floor(r.x)===x&&Math.floor(r.y)===y)return true;return false}
 function canPlace(type,tx,ty,team){const d=BUILDINGS[type];if(d.water){let shore=false;for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){if(!inMap(x,y))return false;const i=idx(x,y);if(G.terrain[i]!==2||G.bAt[i]||G.rAt[i]||G.vis[team][i]===0)return false}for(let y=ty-1;y<ty+d.h+1;y++)for(let x=tx-1;x<tx+d.w+1;x++){if(inMap(x,y)&&G.terrain[idx(x,y)]!==2&&!G.block[idx(x,y)])shore=true}return shore}
- for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){if(!inMap(x,y))return false;const i=idx(x,y);if(G.block[i]||G.bAt[i]||G.terrain[i]===2)return false;if(G.vis[team][i]===0)return false}
+ for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){if(!inMap(x,y))return false;const i=idx(x,y);if(G.block[i]||G.bAt[i]||G.terrain[i]===2||relicOn(x,y))return false;if(G.vis[team][i]===0)return false}
  if(G.elev&&!footprintFlat(tx,ty,d.w,d.h))return false;
  if(type!=='farm'&&type!=='wall'&&type!=='gate')for(let y=ty-1;y<ty+d.h+1;y++)for(let x=tx-1;x<tx+d.w+1;x++){if(!inMap(x,y))continue;const b=G.bAt[idx(x,y)];if(b&&b.type==='townhall')return false}
  for(const u of G.units)if(!u.inside&&!allied(u.team,team)&&!isAnimal(u)&&u.x>=tx&&u.x<tx+d.w&&u.y>=ty&&u.y<ty+d.h)return false;return true}
@@ -28184,7 +28186,7 @@ function updateTop(){const p=player(ME);hudIcons();for(const k of RES_KINDS){$('
  const m2=$('msgs');m2.innerHTML=G.msgs.filter(x=>G.time-x.at<9).map(x=>`<div style="opacity:${Math.min(1,(9-(G.time-x.at))/2)}">${x.t}</div>`).join('')}
 function selKind(){const s=G.sel||[];if(!s.length)return null;if(s.some(e=>e.kind==='unit'&&e.team===ME&&!isAnimal(e))){return s.some(e=>isMil(e)||e.type==='monk')?'mil':s.every(e=>e.naval)?'mil':'vill'}if(s[0].kind==='bld'&&s[0].team===ME)return 'bld';return 'other'}
 function buildButtons(){const s=G.sel||[];const p=player(ME);const out=[];const kind=selKind();if(!kind)return out;
- if(kind==='vill'||(kind==='mil'&&s.some(e=>e.type==='villager'))){for(const t of BUILD_ORDER){const d=BUILDINGS[t];const locked=(p.age<d.age&&!(t==='townhall'&&!G.buildings.some(b=>b.team===ME&&b.type==='townhall')))||(d.needs&&!p.techs[d.needs]);out.push({key:d.key,label:d.name,icon:['bld',t],cost:bcost(p,t),enabled:!locked,tip:d.desc+(p.age<d.age?` (${AGES[d.age]})`:''),act:()=>{ui.build={type:t,tx:0,ty:0};ui.mode=null}})}}
+ if(kind==='vill'||(kind==='mil'&&s.some(e=>e.type==='villager'))){for(const t of BUILD_ORDER){const d=BUILDINGS[t];const locked=(p.age<d.age&&!(t==='townhall'&&!G.buildings.some(b=>b.team===ME&&b.type==='townhall')))||(d.needs&&!p.techs[d.needs]);out.push({key:d.key,label:d.name,icon:['bld',t],cost:bcost(p,t),enabled:!locked,bt:t,tip:d.desc+(p.age<d.age?` (${AGES[d.age]})`:''),act:()=>{ui.build={type:t,tx:0,ty:0};ui.mode=null;if(ui.mouse.in)aimBuild(s2w(ui.mouse.x,ui.mouse.y))}})}}
  if(kind==='mil'||kind==='vill'){if(kind==='mil'){out.push({key:'A',label:'Attack-move',icon:['glyph','amove'],tip:'Move and fight anything on the way',act:()=>{ui.mode='amove';ui.build=null}});out.push({key:'Z',label:'Patrol',icon:['glyph','patrol'],tip:'Patrol between here and a point, fighting on the way',act:()=>{ui.mode='patrol';ui.build=null}});if(s.some(e=>e.kind==='unit'&&!e.naval))out.push({key:'X',label:'Explore',icon:['glyph','explore'],tip:'Wander into unexplored land until the map is known or you give another order. Good for the scout.',act:()=>submit({v:'orders',list:s.filter(u=>u.kind==='unit'&&!u.naval).map(u=>({id:u.id,c:{k:'explore'}})),q:false})});const ground=s.every(e=>e.kind!=='unit'||e.stance==='ground');out.push({key:'D',label:ground?'Aggressive':'Stand ground',icon:['glyph',ground?'aggr':'ground'],tip:ground?'Chase enemies that come into view':'Hold position; only fight what comes in range',act:()=>submit({v:'stance',ids:s.filter(u=>u.kind==='unit').map(u=>u.id),s:ground?'aggr':'ground'})})}
   if(s.some(e=>e.kind==='unit'&&e.cargo&&e.cargo.length))out.push({key:'U',label:'Unload',icon:['glyph','unload'],tip:'Put everyone ashore beside the ship',act:()=>{for(const u of s)if(u.kind==='unit'&&u.cargo&&u.cargo.length)submit({v:'eject',id:u.id})}});
   if(s.some(e=>e.type==='villager'))out.push({key:'Y',label:'Repair',icon:['glyph','repair'],tip:'Click a damaged building or siege engine to repair it (costs half its price over a full repair)',act:()=>{ui.mode='repair';ui.build=null}});
@@ -28192,15 +28194,49 @@ function buildButtons(){const s=G.sel||[];const p=player(ME);const out=[];const 
  if(kind==='bld'){const b=s[0];const d=BUILDINGS[b.type];const same=s.filter(e=>e.kind==='bld'&&e.type===b.type&&e.built);
   if(!b.built){out.push({key:'X',label:'Cancel',icon:['glyph','cancel'],tip:'Cancel construction (75% refund)',act:()=>{submit({v:'delete',ids:[b.id]});G.sel=[]}});return out}
   const trainOn=type=>{const tgt=same.slice().sort((a,c)=>a.queue.length-c.queue.length)[0];if(submit({v:'train',id:tgt.id,type})===false)sfx('error')};
-  const tr=trainsOf(p,b);if(tr)for(const t of tr){const u=UNITS[t];const locked=p.age<u.age||(u.needs&&!p.techs[u.needs]);out.push({key:u.key,label:u.name,icon:['unit',t],cost:ucost(p,t),enabled:!locked,tip:u.desc+(p.age<u.age?` (${AGES[u.age]})`:''),act:()=>trainOn(t)})}
+  const tr=trainsOf(p,b);if(tr)for(const t of tr){const u=UNITS[t];const locked=p.age<u.age||(u.needs&&!p.techs[u.needs]);out.push({key:u.key,label:u.name,icon:['unit',t],cost:ucost(p,t),enabled:!locked,ut:t,tip:u.desc+(p.age<u.age?` (${AGES[u.age]})`:''),act:()=>trainOn(t)})}
   if(b.type==='townhall'){const na=p.age+1;if(na<=3)out.push({key:'A',label:'Age up: '+AGES[na].replace(' Age',''),icon:['glyph','age'],cost:AGE_COST[na],enabled:!p.ageing,tip:`Advance to the ${AGES[na]} (${AGE_TIME[na]}s)`,act:()=>{if(submit({v:'age',id:b.id})===false)sfx('error')}});out.push({key:'B',label:p.bell?'Back to work':'Town Bell',icon:['glyph','bell'],tip:'Villagers garrison in the nearest Town Hall, tower or keep. Ring again to send them back.',act:()=>submit({v:'bell'})})}
   if(b.type==='market'){for(const k of['wood','food','stone']){out.push({key:k==='wood'?'Z':k==='food'?'X':'C',label:'Buy '+k,icon:['res',k],cost:{gold:buyPrice(p,k)},gain:{[k]:100},tip:'Buy 100 '+k+' for '+buyPrice(p,k)+' gold. The price rises with each purchase.',act:()=>{if(submit({v:'buy',k})===false)sfx('error')}})}for(const k of['wood','food','stone']){out.push({key:k==='wood'?'A':k==='food'?'S':'D',label:'Sell '+k,icon:['glyph','sell'],cost:{[k]:100},gain:{gold:sellPrice(p,k)},tip:'Sell 100 '+k+' for '+sellPrice(p,k)+' gold. The price falls with each sale.',act:()=>{if(submit({v:'sell',k})===false)sfx('error')}})}
    const ally=G.players.find(q=>q.team!==ME&&!q.dead&&allied(q.team,ME));if(ally)for(const k of RES_KINDS){out.push({key:k==='wood'?'F':k==='food'?'G':k==='gold'?'H':'J',label:'Give '+k,icon:['glyph','give'],cost:{[k]:100},tip:'Send 100 '+k+' to '+TEAM[ally.team].n,act:()=>{if(p.res[k]<100){sfx('error');return}submit({v:'tribute',to:ally.team,k})}})}}
-  for(const k in TECHS){const t=TECHS[k];if(t.at!==b.type)continue;const lvl=techLevel(p,k);if(lvl>=t.name.length)continue;const locked=p.age<t.age[lvl];const busy=p.researching&&p.researching[k];out.push({key:t.key,label:t.name[lvl],icon:['glyph','tech:'+(lvl+1)],cost:t.cost[lvl],enabled:!locked&&!busy,tip:t.desc+(locked?` (${AGES[t.age[lvl]]})`:''),act:()=>{if(submit({v:'research',id:b.id,k})===false)sfx('error')}})}
+  for(const k in TECHS){const t=TECHS[k];if(t.at!==b.type)continue;const lvl=techLevel(p,k);if(lvl>=t.name.length)continue;const locked=p.age<t.age[lvl];const busy=p.researching&&p.researching[k];out.push({key:t.key,label:t.name[lvl],icon:['glyph','tech:'+(lvl+1)],cost:t.cost[lvl],enabled:!locked&&!busy,tk:k,tl:lvl,tip:t.desc+(locked?` (${AGES[t.age[lvl]]})`:''),act:()=>{if(submit({v:'research',id:b.id,k})===false)sfx('error')}})}
   if(d.garrison&&b.garrison.length)out.push({key:'U',label:'Ungarrison ('+b.garrison.length+')',icon:['glyph','eject'],tip:'Send everyone inside back out',act:()=>submit({v:'eject',id:b.id})});
   if(b.queue.length)out.push({key:'X',label:'Cancel last',icon:['glyph','cancel'],tip:'Remove last item from the queue',act:()=>submit({v:'cancel',id:b.id,i:b.queue.length-1})})}
  return out}
-function renderCmds(){const c=$('cmds');const bs=buildButtons();ui.buttons=bs;const p=player(ME);c.innerHTML='';for(const b of bs){const el=document.createElement('div');const afford=!b.cost||canAfford(p,b.cost);el.className='btn'+(b.enabled===false||!afford?' disabled':'')+((ui.build&&b.label===BUILDINGS[ui.build.type].name)||(ui.mode==='amove'&&b.label==='Attack-move')||(ui.mode==='patrol'&&b.label==='Patrol')||(ui.mode==='repair'&&b.label==='Repair')?' active':'');el.title=b.tip||'';const ic=b.icon?iconUrl(b.icon[0],b.icon[1]):iconUrl('glyph','?');el.innerHTML=`<span class="key">${b.key}</span><img src="${ic}" alt=""><span class="lbl">${b.label}</span>${b.cost||b.gain?`<span class="cost">${b.cost?costStr(b.cost):''}${b.gain?'<span class="gain">'+costStr(b.gain).replace(/<span class="ci">/g,'<span class="ci">+')+'</span>':''}</span>`:''}`;el.onclick=()=>{if(b.enabled===false){sfx('error');return}b.act();renderCmds();renderInfo()};c.appendChild(el)}}
+function renderCmds(){const c=$('cmds');const bs=buildButtons();ui.buttons=bs;const p=player(ME);
+ // Buttons are patched in place: rebuilding them every half second swallowed clicks and reset hover
+ for(let i=0;i<bs.length;i++){const b=bs[i];let el=c.children[i];if(!el){el=document.createElement('div');c.appendChild(el)}const afford=!b.cost||canAfford(p,b.cost);const cls='btn'+(b.enabled===false||!afford?' disabled':'')+((ui.build&&b.label===BUILDINGS[ui.build.type].name)||(ui.mode==='amove'&&b.label==='Attack-move')||(ui.mode==='patrol'&&b.label==='Patrol')||(ui.mode==='repair'&&b.label==='Repair')?' active':'');if(el.className!==cls)el.className=cls;el.dataset.i=i;const ic=b.icon?iconUrl(b.icon[0],b.icon[1]):iconUrl('glyph','?');const h=`<span class="key">${b.key}</span><img src="${ic}" alt=""><span class="lbl">${b.label}</span>${b.cost||b.gain?`<span class="cost">${b.cost?costStr(b.cost):''}${b.gain?'<span class="gain">'+costStr(b.gain).replace(/<span class="ci">/g,'<span class="ci">+')+'</span>':''}</span>`:''}`;if(el._h!==h){el.innerHTML=h;el._h=h}}
+ while(c.children.length>bs.length)c.lastChild.remove();if(ui.tipI!=null)showTip(ui.tipI)}
+function pressCmd(i){const b=ui.buttons[i];if(!b)return;if(b.enabled===false){sfx('error');return}if(b.cost&&!canAfford(player(ME),b.cost)&&!b.bt)msg('Not enough resources.');b.act();renderCmds();renderInfo()}
+$('cmds').addEventListener('mousedown',e=>{if(e.button!==0)return;const el=e.target.closest('.btn');if(!el)return;e.preventDefault();pressCmd(+el.dataset.i)});
+$('cmds').addEventListener('mouseover',e=>{const el=e.target.closest('.btn');if(!el){hideTip();return}const i=+el.dataset.i;if(ui.tipI===i)return;clearTimeout(ui.tipT);if(ui.tipI!=null)showTip(i);else ui.tipT=setTimeout(()=>showTip(i),120)});
+$('cmds').addEventListener('mouseleave',hideTip);
+function hideTip(){clearTimeout(ui.tipT);ui.tipI=null;$('tip').classList.add('hidden')}
+function showTip(i){const b=ui.buttons[i],el=$('cmds').children[i];if(!b||!el){hideTip();return}ui.tipI=i;const t=$('tip');const h=tipHtml(b);if(t._h!==h){t.innerHTML=h;t._h=h}t.classList.remove('hidden');const r=el.getBoundingClientRect(),w=t.offsetWidth;t.style.left=Math.max(6,Math.min(innerWidth-w-6,r.left+r.width/2-w/2))+'px';t.style.bottom=(innerHeight-r.top+8)+'px'}
+const ATTR_NAMES=k=>UNITS[k].name;
+// Which units a tech changes. Mirrors unitStat so the tooltip cannot drift from the real effect.
+function techTargets(p,k){const T=TECHS[k];const cv=civ(p);const mine=Object.keys(UNITS).filter(u=>{const d=UNITS[u];if(!d.at||d.animal)return false;const own=Object.values(CIVS).some(c=>c.unique===u);return !own||cv.unique===u});
+ if(T.melee)return mine.filter(u=>{const d=UNITS[u];return !d.proj&&u!=='villager'&&!d.onlyBuildings&&!d.heals});
+ if(T.ranged)return mine.filter(u=>{const d=UNITS[u];return d.proj&&!d.onlyBuildings});
+ if(T.infantry)return INF.slice();if(T.cavalry)return CAV.slice();
+ if(T.line)return[T.line];if(T.siegeeng)return mine.filter(u=>UNITS[u].onlyBuildings||u==='catapult');if(T.ships)return mine.filter(u=>UNITS[u].naval);
+ if(T.squires)return INF.concat(['axethrower']).filter(u=>UNITS[u]);if(T.husbandry)return CAV.concat(['camelrider','horsearcher']).filter(u=>UNITS[u]);if(T.thumbring)return mine.filter(u=>{const d=UNITS[u];return d.proj&&!d.onlyBuildings&&u!=='catapult'});
+ return null}
+function techEffect(p,k,lvl){const T=TECHS[k];const L=[];const sg=v=>(v>0?'+':'')+v;
+ if(T.line){const parts=[];for(const[key,nm]of[['hp','HP'],['atk','attack'],['armor','armour'],['range','range']])if(T[key]&&T[key][lvl])parts.push(sg(T[key][lvl])+' '+nm);if(parts.length)L.push(parts.join(', '))}
+ else if(T.atk){L.push(sg(T.atk)+' attack'+(T.range?', '+sg(T.range)+' range':''))}
+ else if(T.armor){L.push(sg(T.armor)+' melee armour, '+sg(T.armor)+' pierce armour')}
+ if(T.gather){const now=lvl*T.pct*100;L.push(`${sg(T.pct*100)}% ${T.gather==='mine'?'gold & stone':T.gather==='farm'?'farm':T.gather} gather rate`+(now?` (${sg(now)}% → ${sg(now+T.pct*100)}%)`:''))}
+ const tg=techTargets(p,k);if(tg&&tg.length)L.push('Affects: '+tg.map(ATTR_NAMES).join(', ')+(T.ranged||T.tower?', towers':''));
+ return L}
+function unitTipStats(p,t){const d=UNITS[t];const fake={type:t,team:ME};const r=[`HP ${unitStat(fake,'maxhp')}`];if(d.atk)r.push(`Attack ${unitStat(fake,'atk')}`);if(d.range>1)r.push(`Range ${unitStat(fake,'range')}${d.minRange?' (min '+d.minRange+')':''}`);r.push(`Armour ${unitStat(fake,'armor')}/${unitStat(fake,'parmor')}`);return r.join(' · ')}
+function tipHtml(b){const p=player(ME);let h=`<div class="tt-h"><b>${b.label}</b> <span class="tt-k">${b.key}</span></div>`;
+ if(b.cost&&Object.keys(b.cost).length)h+=`<div class="tt-c">${costStr(b.cost)}${b.tk?` <span class="tt-m">· ${TECHS[b.tk].time[b.tl]}s</span>`:b.ut?` <span class="tt-m">· ${UNITS[b.ut].time}s</span>`:''}</div>`;
+ const short=b.cost&&!canAfford(p,b.cost)?Object.keys(b.cost).filter(k=>p.res[k]<b.cost[k]).map(k=>`${b.cost[k]-Math.floor(p.res[k])} ${k}`):null;
+ let desc=b.tip||'';if(b.tk)desc=TECHS[b.tk].desc;else if(b.ut)desc=UNITS[b.ut].desc;else if(b.bt)desc=BUILDINGS[b.bt].desc;h+=`<div>${desc}</div>`;
+ if(b.tk){const lines=techEffect(p,b.tk,b.tl);if(lines.length)h+=`<div class="tt-e">${lines.join('<br>')}</div>`;const T=TECHS[b.tk];if(p.age<T.age[b.tl])h+=`<div class="tt-x">Requires ${AGES[T.age[b.tl]]}</div>`}
+ if(b.ut){h+=`<div class="tt-e">${unitTipStats(p,b.ut)}</div>`;const u=UNITS[b.ut];if(p.age<u.age)h+=`<div class="tt-x">Requires ${AGES[u.age]}</div>`;else if(u.needs&&!p.techs[u.needs])h+=`<div class="tt-x">Requires ${TECHS[u.needs].name[0]}</div>`}
+ if(b.bt){const d=BUILDINGS[b.bt];if(d.trains&&d.trains.length)h+=`<div class="tt-e">Trains: ${d.trains.map(ATTR_NAMES).join(', ')}</div>`;if(p.age<d.age)h+=`<div class="tt-x">Requires ${AGES[d.age]}</div>`}
+ if(short&&short.length)h+=`<div class="tt-x">Need ${short.join(', ')} more</div>`;return h}
 function marketTable(p){const g=iconUrl('res','gold');return `<table id="mkt"><tr><th></th><th>Buy 100 costs</th><th>Sell 100 gives</th></tr>${['wood','food','stone'].map(k=>`<tr><td><span class="ci"><img src="${iconUrl('res',k)}" alt="">${k[0].toUpperCase()+k.slice(1)}</span></td><td><span class="ci"><img src="${g}" alt="">${buyPrice(p,k)}</span></td><td><span class="ci"><img src="${g}" alt="">${sellPrice(p,k)}</span></td></tr>`).join('')}</table>`}
 function renderInfo(){const s=G.sel||[];const el=$('info');if(!s.length){el.innerHTML='<h3>Nothing selected</h3><div class="row">Left-click or drag to select. Press H for your Town Hall.</div>';return}
  if(s.length>1){const counts={};for(const e of s){const n=e.kind==='unit'?UNITS[e.type].name:BUILDINGS[e.type].name;counts[n]=(counts[n]||0)+1}
@@ -28250,8 +28286,16 @@ function clickSelect(sx,sy,shift,dbl){const e=entityAt(sx,sy);if(!e){if(!shift)s
  if(dbl&&e.kind==='unit'&&e.team===ME&&!isAnimal(e)){const same=ownUnits().filter(u=>u.type===e.type&&(()=>{const s=w2s(u.x,u.y);return s.x>=0&&s.x<=W&&s.y>=0&&s.y<=H})());setSel(same);return}
  if(shift&&G.sel&&G.sel.length&&G.sel[0].kind===e.kind&&e.team===ME){const i=G.sel.indexOf(e);if(i>=0)G.sel.splice(i,1);else G.sel.push(e);setSel(G.sel.slice());return}
  setSel([e])}
+function aimBuild(w){const d=BUILDINGS[ui.build.type];ui.build.tx=Math.floor(w.x-(d.w-1)/2);ui.build.ty=Math.floor(w.y-(d.h-1)/2)}
+// Why canPlace said no, in words, so a refused placement is never silent
+function placeFail(type,tx,ty,team){const d=BUILDINGS[type];if(d.water)return 'Docks go on water, touching the shore.';let fog=false,blk=false,wat=false,rel=false;
+ for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){if(!inMap(x,y))return 'Too close to the map edge.';const i=idx(x,y);if(G.vis[team][i]===0)fog=true;else if(G.terrain[i]===2)wat=true;else if(G.block[i]||G.bAt[i])blk=true;if(relicOn(x,y))rel=true}
+ if(fog)return 'You cannot build on unexplored land.';if(wat)return 'You cannot build on water.';if(rel)return 'A relic is in the way.';if(blk)return 'Something is in the way.';
+ if(G.elev&&!footprintFlat(tx,ty,d.w,d.h))return 'The ground is too steep here.';
+ if(type!=='farm'&&type!=='wall'&&type!=='gate')for(let y=ty-1;y<ty+d.h+1;y++)for(let x=tx-1;x<tx+d.w+1;x++){if(!inMap(x,y))continue;const b=G.bAt[idx(x,y)];if(b&&b.type==='townhall')return 'Leave a gap around the Town Hall.'}
+ return 'Enemy units are in the way.'}
 function placeBuild(shift){const g=ui.build;if(!g)return;const vills=(G.sel||[]).filter(u=>u.kind==='unit'&&u.type==='villager');const tiles=g.tiles||[{x:g.tx,y:g.ty}];const p=player(ME);
- if(!tiles.some(t=>canPlace(g.type,t.x,t.y,ME))){sfx('error');return}if(!canAfford(p,bcost(p,g.type))){msg('Not enough resources.');sfx('error');return}
+ if(!tiles.some(t=>canPlace(g.type,t.x,t.y,ME))){msg(placeFail(g.type,tiles[0].x,tiles[0].y,ME));sfx('error');return}if(!canAfford(p,bcost(p,g.type))){msg('Not enough resources.');sfx('error');return}
  const r=submit({v:'place',type:g.type,tiles:tiles.map(t=>[t.x,t.y]),builders:vills.map(v=>v.id),q:!!shift});if(r===false){sfx('error');return}
  sfx('order');if(!shift&&g.type!=='wall')ui.build=null;else{g.tiles=null}renderCmds()}
 function wallLine(a,b){const tiles=[];let x=a.x,y=a.y;const dx=Math.sign(b.x-a.x),dy=Math.sign(b.y-a.y);tiles.push({x,y});while(x!==b.x||y!==b.y){if(Math.abs(b.x-x)>=Math.abs(b.y-y))x+=dx;else y+=dy;tiles.push({x,y})}return tiles}
@@ -28266,14 +28310,14 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('mousedown',e=>{if(!G||G.over)return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
  if(e.button===1){ui.mid={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};e.preventDefault();return}
  if(e.button===2){if(ui.build){ui.build=null;renderCmds();return}if(ui.mode){ui.mode=null;renderCmds();return}rightClick(sx,sy,e.shiftKey);return}
- if(e.button===0){if(ui.build){const w=s2w(sx,sy);if(ui.build.type==='wall'){ui.build.start={x:Math.floor(w.x),y:Math.floor(w.y)}}else{placeBuild(e.shiftKey)}return}
+ if(e.button===0){if(ui.build){const w=s2w(sx,sy);if(ui.build.type==='wall'){ui.build.start={x:Math.floor(w.x),y:Math.floor(w.y)}}else{aimBuild(w);placeBuild(e.shiftKey)}return}
   if(ui.mode==='repair'){const e=entityAt(sx,sy);ui.mode=null;renderCmds();if(e&&(e.kind==='bld'||(e.kind==='unit'&&UNITS[e.type].pop>1))&&allied(e.team,ME)){const list=(G.sel||[]).filter(u=>u.kind==='unit'&&u.type==='villager').map(u=>({id:u.id,c:{k:'repair',t:e.id}}));if(list.length)submit({v:'orders',list,q:false});sfx('order')}else sfx('error');return}
   if(ui.mode==='amove'||ui.mode==='patrol'){const w=s2w(sx,sy);const k=ui.mode;const list=(G.sel||[]).filter(u=>u.kind==='unit'&&u.team===ME&&!isAnimal(u)).map(u=>({id:u.id,c:{k,x:w.x,y:w.y}}));if(list.length)submit({v:'orders',list,q:!!e.shiftKey});ui.mode=null;sfx('order');G.pings.push({x:w.x,y:w.y,t:G.time,kind:'order'});renderCmds();return}
   ui.drag={x0:sx,y0:sy,x1:sx,y1:sy};ui.dragging=false}});
 window.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;ui.mouse.x=sx;ui.mouse.y=sy;ui.mouse.in=sx>=0&&sy>=0&&sx<=r.width&&sy<=r.height;
  if(ui.mid){cam.x=ui.mid.cx-(e.clientX-ui.mid.x)/cam.zoom;cam.y=ui.mid.cy-(e.clientY-ui.mid.y)/cam.zoom;clampCam()}
  if(ui.drag){ui.drag.x1=sx;ui.drag.y1=sy;if(Math.abs(sx-ui.drag.x0)+Math.abs(sy-ui.drag.y0)>6)ui.dragging=true}
- if(ui.build){const w=s2w(sx,sy);const d=BUILDINGS[ui.build.type];ui.build.tx=Math.floor(w.x-(d.w-1)/2);ui.build.ty=Math.floor(w.y-(d.h-1)/2);if(ui.build.type==='wall'&&ui.build.start)ui.build.tiles=wallLine(ui.build.start,{x:Math.floor(w.x),y:Math.floor(w.y)})}});
+ if(ui.build){const w=s2w(sx,sy);aimBuild(w);if(ui.build.type==='wall'&&ui.build.start)ui.build.tiles=wallLine(ui.build.start,{x:Math.floor(w.x),y:Math.floor(w.y)})}});
 window.addEventListener('mouseup',e=>{if(e.button===1){ui.mid=null;return}if(!G||G.over)return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
  if(e.button===0&&ui.build&&ui.build.type==='wall'&&ui.build.start){if(!ui.build.tiles)ui.build.tiles=[ui.build.start];placeBuild(true);ui.build.start=null;ui.build.tiles=null;return}
  if(e.button===0&&ui.drag){const d=ui.drag;ui.drag=null;if(ui.dragging){selectBox(d.x0,d.y0,d.x1,d.y1,e.shiftKey)}else{const now=performance.now();const dbl=now-ui.lastClick<350;ui.lastClick=now;clickSelect(sx,sy,e.shiftKey,dbl)}ui.dragging=false}});
