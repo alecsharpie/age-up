@@ -33461,10 +33461,19 @@ function human(u,tc,opts){const d=UNITS[u.type];const moving=u.state!=='idle'&&u
  ctx.fillStyle=opts.body||tc.c;ctx.fillRect(-4,-14,8,9);ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fillRect(2,-14,2,9);
  ctx.fillStyle='#e8c39e';ctx.beginPath();ctx.arc(0,-17.5,3.5,0,7);ctx.fill();
  if(opts.helmet){ctx.fillStyle=opts.helmet;ctx.beginPath();ctx.arc(0,-18,3.8,Math.PI,0);ctx.fill()}}
+// Selection ring as pixel art: a 1-px rasterised ellipse, white with an ink drop below it so it reads on pale ground too;
+// snapped to whole pixels like the sprites. Cached per radius.
+const RING_CV={};
+function selRing(x,y,r){r=Math.round(r);let c=RING_CV[r];if(!c){const a=r,b=r*0.5,W2=2*a+3,H2=Math.ceil(2*b)+4;c=document.createElement('canvas');c.width=W2;c.height=H2;const g=c.getContext('2d'),cx=a+1,cy=Math.ceil(b)+1;
+  const on=(X,Y)=>{const dx=(X+0.5-cx)/a,dy=(Y+0.5-cy)/b,d=Math.sqrt(dx*dx+dy*dy);return Math.abs(d-1)*Math.min(a,b)<0.62};
+  for(let Y=0;Y<H2;Y++)for(let X=0;X<W2;X++)if(on(X,Y-1)&&!on(X,Y)){g.fillStyle='rgba(20,14,8,0.75)';g.fillRect(X,Y,1,1)}
+  for(let Y=0;Y<H2;Y++)for(let X=0;X<W2;X++)if(on(X,Y)){g.fillStyle=Y<cy?'#d8d4cc':'#ffffff';g.fillRect(X,Y,1,1)}
+  c.ox=cx;c.oy=cy;RING_CV[r]=c}
+ const m=ctx.getTransform();ctx.save();ctx.setTransform(m.a,m.b,m.c,m.d,Math.round(m.e),Math.round(m.f));ctx.imageSmoothingEnabled=Math.hypot(m.a,m.b)<0.99;ctx.drawImage(c,Math.round(x)-c.ox,Math.round(y)-c.oy);ctx.restore()}
 function drawUnit(u,sel){const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);const tc=TEAM[u.team]||WILD;const d=UNITS[u.type];const r=d.naval?14:d.hp>80||d.pop>1?10:7;
  if(d.naval){ctx.fillStyle='rgba(0,30,60,0.25)';ctx.beginPath();ctx.ellipse(wx+r*0.22,wy-0.5,r*1.05,r*0.45,-0.12,0,7);ctx.fill()}
  else{ctx.fillStyle='rgba(13,11,15,0.16)';ctx.beginPath();ctx.ellipse(wx+1,wy,r*0.95,r*0.42,0,0,7);ctx.fill();ctx.fillStyle='rgba(13,11,15,0.2)';ctx.beginPath();ctx.ellipse(wx+1,wy,r*0.62,r*0.27,0,0,7);ctx.fill()} /* contact shade at the feet, nudged with the light; the long cast shadow is the render FX's (fxShadows, one light) */
- if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(wx,wy,r+2,(r+2)*0.5,0,0,7);ctx.stroke();ctx.lineWidth=1}
+ if(sel)selRing(wx,wy,r+2);
  ctx.save();ctx.translate(wx,wy);ctx.scale(u.face,1);if(u.flash>0&&!PIXELS[u.type])ctx.globalAlpha=0.7;
  const swing=u.swing>0?Math.sin(u.swing/SWING*Math.PI):0;const working=(u.state==='gather'&&u.phase==='gathering')||(u.state==='build'&&!u.goal);const wph=working?Math.sin(u.anim*10):0;
  switch(u.type){
