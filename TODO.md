@@ -12,11 +12,11 @@
 
 ## Setup / lobby
 - [ ] Per-AI difficulty / personality (currently one global difficulty)
-- [ ] Lock teams / team-together map placement
+- [x] Lock teams / team-together map placement (lobby: Team positions, Diplomacy)
 
 ## Stats
 - [ ] Achievements / "most valuable" awards per category
 
 ## Later
 - [ ] Campaign / scenario mode
-- [ ] Formation types (line, staggered) beyond the current box formation
+- [x] Formation types: line, box, staggered, flank (button C), facing the march, melee in front
