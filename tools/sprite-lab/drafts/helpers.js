@@ -7,15 +7,29 @@ export function pixBuild(spec, grid, tc) {
   const lines = grid.replace(/\r/g, '').split('\n').filter((l, i, a) => !(i === 0 && !l.trim()) && !(i === a.length - 1 && !l.trim()));
   const w = Math.max(1, ...lines.map(l => l.length)), h = lines.length;
   const c = document.createElement('canvas'); c.width = w * sc; c.height = h * sc; const x = c.getContext('2d');
+  const tint = tc && spec.kind === 'building' ? pixTeamRoofs() : 0, tinted = {};   // roofs take a little of their owner's colour
   for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < lines[yy].length; xx++) {
     const ch = lines[yy][xx]; if (ch === '.' || ch === ' ') continue;
     let col = spec.palette[ch]; if (!col) continue;
+    if (tint && col[0] === '#' && (PIX_ROOF.includes(ch) || (spec.roofChars && spec.roofChars.includes(ch)))) col = tinted[ch] || (tinted[ch] = pixTint(col, tc.c, tint));
     if (col === 'team') col = tc ? tc.c : '#888'; else if (col === 'teamdark') col = tc ? tc.d : '#555'; else if (col === 'teamlight') col = tc ? tc.l : '#bbb';
     x.fillStyle = col; x.fillRect(xx * sc, yy * sc, sc, sc);
   }
   return c;
 }
 
+/** Team roofs: building roofs (the age kit's roof chars) lean towards the owner's colour so a town reads as theirs from far
+ *  out. Luminance-preserving, so the material's light and texture stay; the strength is a menu option (off / subtle / strong). */
+export const PIX_ROOF = 'αβγδεζη';
+export function pixTeamRoofs() {
+  if (pixTeamRoofs.v === undefined) { let m = 'subtle'; try { m = localStorage.getItem('age-up-team-roofs') || 'subtle'; } catch (e) { } pixTeamRoofs.v = m === 'off' ? 0 : m === 'strong' ? 0.3 : 0.16; }
+  return pixTeamRoofs.v;
+}
+export function pixTint(base, team, t) {
+  const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)], a = p(base), b = p(team);
+  const lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2], m = a.map((v, i) => v + (b[i] - v) * t), d = lum(a) - lum(m);
+  return '#' + m.map(v => Math.max(0, Math.min(255, Math.round(v + d))).toString(16).padStart(2, '0')).join('');
+}
 /** Cached canvas for frame i of animation `frame` (wraps), coloured for team tc. */
 export function pixFrame(spec, frame, i, tc) {
   const list = spec.frames[frame] || spec.frames.idle || Object.values(spec.frames)[0];
