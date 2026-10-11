@@ -2,13 +2,16 @@
 // Mining camp (2×2), one variant per age (AGE, AK = pixAgeKit(AGE) from gen/ages/wrap.mjs):
 //   Dark     a crude pit ringed with fieldstones under a log windlass (forked posts, a drum, a crank that turns), a log ladder
 //            out of the pit, a low wattle store under a thatched lean-to with a team hide in its doorway, a basket of ore,
-//            a team strip tied to the windlass post.
+//            a team strip tied to the windlass post, a dyed hide laced into a frame drying against the wall.
 //   Feudal   a coursed-stone ore store with a board roof and a team-colour door, a timber-cribbed shaft with a headframe,
 //            pulley and bucket, rails with an ore cart, pit props leaning on the end wall, a loft hatch in the boarded gable.
 //   Castle   a stone-footed, iron-strapped headframe, a stone collar on the shaft, a taller dressed-stone winding house under
 //            red tiles with iron finials, a team door in a stone surround and a team banner on its wall.
 //   Imperial a tall headframe with a big spoked wheel and gilt orbs on its posts, an ore chute into the cart, a limestone
 //            winding house under slate with gilt cresting, a gilt-keyed team door, an arched window, gilt-fringed banners.
+// Every age (pt4): the ore cart is painted in the owner's colour; ridges sag a pixel (least in Imperial), tile and board eaves
+// have a slipped course or two, moss creeps up the foot of stone walls, ore and stone chips are spilled about the gravel and
+// the apron's edge is frayed with weeds rather than a ruled diamond. The Feudal board roof is listed in roofChars (team tint).
 // Every age: a low heap of rock crowned with gold ore at the rail end (round 2: the old big gold heap was too much),
 // quarried stone by the front edge.
 // idle ×4: the pulley / wheel / windlass crank turns, the bucket rides on its rope, glints twinkle across the gold.
@@ -86,9 +89,75 @@ function heap(gr, cx, cy, rx, ry, tones, k = 0, lumps = 2) {
   }
   for (const [x, y, l] of cells) pixSet(gr, x, y, l > 0.45 ? tones[0] : l > 0.05 ? tones[1] : l > -0.4 ? tones[2] : tones[3]);
 }
+// ---- natural lines (HOLISTIC.md, 2026-10-12): working buildings are the most organic in the town. Variation is 1 px; the iso
+// grid never breaks. Palette chars à á â (grass tufts: dark, mid, light) and ã ä (moss: lit, shade): spread NAT_PAL into it.
+const NAT_PAL = { 'à': '#3f7a2e', 'á': '#5f9a3e', 'â': '#8cc25a', 'ã': '#7a8a44', 'ä': '#56632f' };
+const TUFTS = [`.â.\nàáà`, `â.á\nàáà`, `.á\nàà`, `á..\nàâ.\n.àà`, `..â\n.áà\nàà.`];
+/** Fray the footprint's ground edge so there is no hard diamond: edge cells of ground (isG(ch)) are nibbled 1–2 px in clumps,
+ *  and grass tufts creep over the headland (o.edge density) and the foot of walls (o.feet: density, o.feetOf: the wall chars). Call before the outline pass. */
+function fray(gr, isG, seed = 0, o = {}) {
+  const H = gr.length, W = gr[0].length, at = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? gr[y][x] : '.');
+  const open = (x, y) => at(x - 1, y) === '.' || at(x + 1, y) === '.' || at(x, y - 1) === '.' || at(x, y + 1) === '.';
+  for (let pass = 0; pass < 2; pass++) { const kill = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c) || !open(x, y)) continue;
+      if (hash((x + (pass ? 2 : 0)) >> 2, y >> 1, seed + 40 + pass) < (pass ? 0.24 : 0.42)) kill.push([x, y]); }
+    for (const [x, y] of kill) gr[y][x] = '.'; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c)) continue;   // no lone crumbs
+    const n = (at(x - 1, y) !== '.') + (at(x + 1, y) !== '.') + (at(x, y - 1) !== '.') + (at(x, y + 1) !== '.'); if (n <= 1) gr[y][x] = '.'; }
+  // distance (in cells, ≤ 3) from the open edge, for the headland band
+  const dist = gr.map((r, y) => r.map((c, x) => (c === '.' ? 0 : 9)));
+  for (let k = 1; k <= 3; k++) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (dist[y][x] === 9 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => (dist[y + dy] || [])[x + dx] === k - 1)) dist[y][x] = k;
+  const used = [];
+  const place = (x, y, k) => { if (used.some(([ux, uy]) => Math.abs(ux - x) < 4 && Math.abs(uy - y) < 3)) return; used.push([x, y]);
+    const rows = TUFTS[k % TUFTS.length].split('\n'), h = rows.length;
+    rows.forEach((r, yy) => { for (let xx = 0; xx < r.length; xx++) { const ch = r[xx]; if (ch === '.') continue; const X = x - 1 + xx, Y = y - h + 1 + yy, c = at(X, Y);
+      if (c === '.' || (yy === h - 1 && !isG(c))) continue; pixSet(gr, X, Y, ch); } }); };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = gr[y][x]; if (c === '.' || !isG(c)) continue;
+    const h = hash(x, y, seed + 77), k = Math.floor(hash(x, y, seed + 78) * 5);
+    if (dist[y][x] >= 1 && dist[y][x] <= 2 && h < (o.edge ?? 0.05)) place(x, y, k);
+    else if (o.feet && (o.feetOf || '').includes(at(x, y - 1)) && h < o.feet) place(x, y, k);
+  }
+}
+/** Sag a long ridge (or eave) a→b in screen cells: each column's segment from `up` rows above the line to `dn` below moves down
+ *  by round(amp·sin(πt)); with lift > 0 the last `lift` of the run rises 1 px instead (a lifted end). */
+function sag(gr, a, b, up, dn = 0, amp = 1.3, lift = 0) {
+  const H = gr.length, x0 = Math.round(Math.min(a[0], b[0])), x1 = Math.round(Math.max(a[0], b[0]));
+  for (let x = x0; x <= x1; x++) {
+    const t = (x - a[0]) / (b[0] - a[0]); if (t < 0 || t > 1) continue;
+    let d = Math.round(amp * Math.sin(Math.PI * t)); if (lift && t > 1 - lift) d = -1; if (!d) continue;
+    const yl = Math.round(a[1] + (b[1] - a[1]) * t), top = yl - up, bot = yl + dn, old = gr.map(r => r[x]);
+    const get = y => (y >= 0 && y < H ? old[y] : '.');
+    if (d > 0) { for (let y = top; y <= bot + d; y++) if (y >= 0 && y < H) gr[y][x] = get(y - d); }
+    else for (let y = top + d; y <= bot + d; y++) if (y >= 0 && y < H) gr[y][x] = get(y - d);
+  }
+}
+/** Ragged eave a→b (the eave's ink line): here and there a slipped shingle or tile hangs a pixel low, so the drip line is uneven;
+ *  the eave cell becomes roof `ch` and the ink drops onto the row below. */
+function ragEave(gr, a, b, ch, ink = 'k', p = 0.16, seed = 0) {
+  const n = Math.round(Math.abs(b[0] - a[0]));
+  for (let i = 2; i < n - 1; i++) { const x = Math.round(a[0] + (b[0] - a[0]) * i / n), y = Math.round(a[1] + (b[1] - a[1]) * i / n);
+    if (hash(x >> 1, seed, 61) < p && pixGet(gr, x, y + 1) !== '.') { pixSet(gr, x, y, ch); pixSet(gr, x, y + 1, ink); } }
+}
+/** Spill: little stones / ore / chips on the ground round (cx,cy) within rx×ry: each a 2-px pebble in tones[h] with a dark under-
+ *  side `dk`, only on ground chars isG. */
+function spill(gr, cx, cy, rx, ry, n, tones, dk, isG, seed = 0) {
+  for (let i = 0; i < n; i++) { const x = Math.round(cx + (hash(i, seed, 71) * 2 - 1) * rx), y = Math.round(cy + (hash(i, seed, 72) * 2 - 1) * ry);
+    if (!isG(pixGet(gr, x, y)) || !isG(pixGet(gr, x + 1, y)) || !isG(pixGet(gr, x, y + 1))) continue;
+    const t = tones[Math.floor(hash(i, seed, 73) * tones.length)]; pixSet(gr, x, y, t); if (hash(i, seed, 74) < 0.6) pixSet(gr, x + 1, y, t); pixSet(gr, x, y + 1, dk); }
+}
+/** Weather a wall fn(U,V,x,y): moss and lichen low on stone (chars in `stone`), rain streaks running down from the eave (`dark`
+ *  maps a stone char to its next-darker one). o.lit picks the moss tone; o.H the wall height; o.seed. */
+const weather = (fn, stone, dark, o = {}) => (U, V, x, y) => {
+  const c = fn(U, V, x, y); if (!c || !stone.includes(c)) return c;
+  const u = Math.floor(U), v = Math.floor(V), s = o.seed || 0;
+  if (v < 1 + Math.floor(hash(u >> 1, s, 81) * 3) && hash(u >> 1, v, s + 82) < 0.42) return o.lit === false ? 'ä' : (hash(u, v, s) < 0.5 ? 'ã' : 'ä');
+  if (o.H && hash(u, s, 83) < 0.07 && v > o.H * (0.3 + hash(u, s, 84) * 0.4)) return dark[c] || c;
+  return c;
+};
 const W = 2, H = 2, F = AGE === 1;
 const Z = [8, 12, 15, 17][AGE], ROOF = [9, 14, 15, 16][AGE], HZ = [11, 30, 34, 42][AGE];
 const { R, S, Au, Fe } = AK, TW = AK.W;
+const DARKER = { [S[0]]: S[1], [S[1]]: S[2], [S[2]]: S[3], [S[3]]: S[4], [S[4]]: S[5] };
 const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + Z + ROOF + 14;
 const bx = W * 32 + 2, by = GH - 4, OX = bx, OY = by - 64;
 const g = pixGrid(GW, GH);
@@ -128,9 +197,9 @@ wallC(g, C1, A0, A1, Z - 2, Z, () => 'k');
 { const span = (RC1 - RC0) * 32;
   wallA(g, RA1, RC1, RC0, Z, Z + ROOF, (U, V) => {
     const c = RC1 - U / 32, top = ROOF * (1 - Math.abs(c - RR) / (c > RR ? RC1 - RR : RR - RC0));
-    if (V > top) return null; if (V < 2) return V < 1 ? 'c' : 'B';                     // tie beam
-    const hu = U - span / 2; if (Math.abs(hu) < 3.5 && V >= 3 && V < 9) return Math.abs(hu) > 2.5 || V < 4 || V >= 8 ? 'B' : 'i';   // hatch
-    return Math.floor(U) % 4 === 0 ? 'c' : Math.floor(U) % 4 === 1 ? 'b' : 'a';
+    if (V > top) return null; if (V < 2) return V < 1 ? 'è' : 'é';                     // tie beam (gable boards: own chars, untinted)
+    const hu = U - span / 2; if (Math.abs(hu) < 3.5 && V >= 3 && V < 9) return Math.abs(hu) > 2.5 || V < 4 || V >= 8 ? 'é' : 'i';   // hatch
+    return Math.floor(U) % 4 === 0 ? 'è' : Math.floor(U) % 4 === 1 ? 'ê' : 'ë';
   }); }
 
 { const o = iso(RA0, RC1, Z), u = sub2(iso(RA1, RC1, Z), o), v = sub2(iso(RA0, RR, Z + ROOF), o);
@@ -146,6 +215,8 @@ line(g, iso(RA0, RR, Z + ROOF), iso(RA1, RR, Z + ROOF), 'k');
 line(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), 'k');
 line(g, iso(RA1, RC1, Z), iso(RA1, RR, Z + ROOF), 'k'); line(g, iso(RA1, RC0, Z), iso(RA1, RR, Z + ROOF), 'k');
 line(g, iso(RA0, RC0, Z), iso(RA1, RC0, Z), 'k');
+ragEave(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), 'b', 'k', 0.2, 4);
+sag(g, iso(RA0 + 0.1, RR, Z + ROOF), iso(RA1 - 0.1, RR, Z + ROOF), 6, 0, 1.4, 0.1);
 
 } else if (AGE === 0) storeDark(); else storeAge();
 
@@ -165,7 +236,7 @@ function thatch(x, d) {
 }
 function storeDark() {
   const ZB = 15, LC = 0.92, zAt = c => ZB - (ZB - Z) * c / LC, hw = Math.floor(zAt(C1)), len = (A1 - A0) * 32;
-  const d0 = 30, d1 = 41, dh = 6;
+  const d0 = 27, d1 = 42, dh = 7;
   wallC(g, C1, A0, A1, 0, hw, (U, V) => { const u = Math.floor(U), v = Math.floor(V);
     if (u >= d0 && u <= d1 && v <= dh) { const su = u - d0, n = d1 - d0;
       if (v >= dh - 1) return v === dh ? TW[0] : TW[2]; if (su === 0 || su === n) return TW[1];
@@ -183,19 +254,38 @@ function storeDark() {
   { const e0 = iso(LA0, LC, Z), e1 = iso(LA1, LC, Z);
     for (let x = Math.ceil(e0[0]) + 1; x < e1[0]; x++) { const y = Math.round(e0[1] + (x - e0[0]) * 0.5), h = hash(x, 31); if (h < 0.55) pixSet(g, x, y + 1, R[h < 0.2 ? 3 : 5]); if (h < 0.18) pixSet(g, x, y + 2, R[6]); } }
   for (const a of [LA0 + 0.06, LA1 - 0.08]) { const p = iso(a, 0.02, ZB); AK.finial(g, Math.round(p[0]), Math.round(p[1]) - 1); }
+  // a dyed hide laced into a pole frame, propped in front of the eave to dry (painted after the roof: it stands in front of it)
+  { const p = iso(0.5, 1.0, 0), x = Math.round(p[0]), y = Math.round(p[1]);
+    pixStamp(g, x - 1, y - 13, `
+yw..........
+kwkkkkkkk...
+.wLLTTTTTkyw
+.kLTTTTTTTwk
+.wkLTTDTTTkw
+.kLTTTTTTDkw
+.wLTTTTTDDkw
+.kLTTTTDTDk.
+.wkLTTTTDDkw
+..wLTTTDDDkw
+..kkkkkkkkwk
+..w.......w.
+..w........w
+`.replace(/w/g, TW[0]).replace(/y/g, TW[2])); }
+  sag(g, iso(LA0 + 0.14, 0.02, ZB), iso(LA1 - 0.14, 0.02, ZB), 5, 1, 1.5);
 }
 // Castle / Imperial: a winding house in the age's stone under the age's roof, a team door in a stone surround, a banner
 function storeAge() {
   const len = (A1 - A0) * 32, elen = (C1 - C0) * 32, d0 = 31, d1 = 43, dh = Z - 3, n = d1 - d0;
   const arch = (su, h) => { const r = n / 2, dh2 = h - (dh - r); return dh2 > 0 && Math.hypot(su - r, dh2 * 1.4) > r + 0.3; };
+  const wx0 = weather((U, V) => AK.wallTex(U, V, 0, { len, H: Z }), S, DARKER, { H: Z, seed: 1 });
   wallC(g, C1, A0, A1, 0, Z, (U, V) => { const u = Math.floor(U), v = Math.floor(V), su = u - d0;
     if (su >= 0 && su <= n && v <= dh && !arch(su, v)) {
       if (su <= 1 || su >= n - 1 || arch(su, v + 2)) return AGE === 3 && su === n / 2 && v >= dh - 2 ? Au[0] : su === 0 || su === n ? S[1] : S[0];
       if (v < 1) return S[2];
       if (v === 3 || v === dh - 5) return Fe[1];
       return su === 2 ? 'L' : su === n - 2 || su === n / 2 ? 'D' : 'T'; }
-    return AK.wallTex(U, V, 0, { len, H: Z }); });
-  wallA(g, A1, C1, C0, 0, Z, (U, V) => AK.wallTex(U, V, 1, { len: elen, H: Z }));
+    return wx0(U, V); });
+  wallA(g, A1, C1, C0, 0, Z, weather((U, V) => AK.wallTex(U, V, 1, { len: elen, H: Z }), S, DARKER, { lit: false, H: Z, seed: 2 }));
   { const o = iso(A0, C1, 0), u = 50; AK.windowAt(g, o[0] + u, Math.round(o[1] + u * 0.5 - Z * 0.42), 0.5, 0); }
   { const o = iso(A0, C1, 0), u = 22; AK.banner(g, o[0] + u, Math.round(o[1] + u * 0.5 - Z + 3), 0.5, 5, AGE === 3 ? 10 : 9); }
   { const l = iso(1.46, C1, Z - 5); pixSet(g, l[0], l[1], Fe[1]); pixSet(g, l[0], l[1] + 1, 'Y'); pixSet(g, l[0], l[1] + 2, 'y'); }   // lantern by the door
@@ -219,6 +309,7 @@ function storeAge() {
   line(g, iso(RA0 + 0.04, RC1 - 0.02, Z), iso(RA0 + 0.04, RR, Z + ROOF), R[0]);
   AK.crest(g, iso(RA0 + 0.03, RR, Z + ROOF - 1), iso(RA1 - 0.03, RR, Z + ROOF - 1));
   if (AGE === 3) AK.trim(g, iso(RA0 + 0.03, RC1, Z), iso(RA1 - 0.03, RC1, Z), -1);
+  else { ragEave(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), R[3], 'k', 0.14, 5); sag(g, iso(RA0 + 0.12, RR, Z + ROOF), iso(RA1 - 0.12, RR, Z + ROOF), 8, 0, 1.2); }
   for (const a of [RA0 + 0.03, RA1 - 0.03]) { const p = iso(a, RR, Z + ROOF); AK.finial(g, Math.round(p[0]), Math.round(p[1]) - 2); }
 }
 
@@ -265,8 +356,9 @@ function cart(g) { const ca0 = 1.06, ca1 = 1.4, cc0 = 1.43, cc1 = 1.69, cz0 = 3,
   // the box's open top: dark inside, back rims, a mound of ore that sits inside and only crowns above the rim
   flat(g, ca0, ca1, cc0, cc1, cz1, (s, t) => (s < 0.08 || t < 0.1 ? 'W' : 'i'));
   heap(g, ...iso((ca0 + ca1) / 2, (cc0 + cc1) / 2, cz1 - 2), 8, 4, ['Y', 'y', 'z', 'Z'], 9);
-  wallC(g, cc1, ca0, ca1, cz0, cz1, (U, V) => { const u = Math.floor(U); if (u === 0 || u === 10) return 'n'; if (V >= cz1 - cz0 - 1) return 'w'; return Math.floor(V) === 2 ? 'n' : 'W'; });
-  wallA(g, ca1, cc1, cc0, cz0, cz1, (U, V) => (V >= cz1 - cz0 - 1 ? 'W' : Math.floor(V) === 2 ? 'J' : 'v'));
+  // the box sides painted in the owner's colour, iron corner straps and a band, a wooden rim
+  wallC(g, cc1, ca0, ca1, cz0, cz1, (U, V) => { const u = Math.floor(U), v = Math.floor(V); if (u === 0 || u === 10) return 'n'; if (V >= cz1 - cz0 - 1) return 'w'; if (v === 2) return 'n'; return v === 0 ? 'D' : v === cz1 - cz0 - 2 ? 'L' : 'T'; });
+  wallA(g, ca1, cc1, cc0, cz0, cz1, (U, V) => { const v = Math.floor(V); return V >= cz1 - cz0 - 1 ? 'W' : v === 2 ? 'J' : v === cz1 - cz0 - 2 ? 'T' : 'D'; });
   for (const a of [ca0 + 0.07, ca1 - 0.07]) { const p = iso(a, cc1 + 0.01, 2); disc(g, Math.round(p[0]), Math.round(p[1]), 2, (dx, dy, ring) => (ring ? 'k' : dx + dy < 0 ? 'M' : 'n')); }
 }
 // quarried stone by the front edge, clear of the rails
@@ -282,6 +374,12 @@ kWwWwWwWk
 .kkkkkkk.
 `); }
 
+// spilled ore round the gold heap and chips of quarried stone; then the apron's edge frayed, weeds at the walls' feet
+{ const isG = ch => GROUND.includes(ch), h = iso(1.76, 1.18, 0), q = iso(1.62, 1.9, 0);
+  spill(g, h[0] - 2, h[1] + 3, 14, 5, 12, ['y', 'z', 'q'], 'J', isG, 1);
+  spill(g, q[0], q[1] - 2, 13, 4, 10, ['p', 'q', 'P'], 'J', isG, 2);
+  spill(g, ...iso(1.0, 1.0, 0), 22, 10, 10, ['q', 'U', 'p'], 'J', isG, 3);
+  fray(g, isG, 5, { edge: 0.06, feet: 0.22, feetOf: S.join('') + AK.P.join('') + 'QVjJpqPUv' + TW.join('') }); }
 // ---- headframe over the shaft: two posts with braces, a crossbeam, the team banner
 const HL = AGE === 0 ? 0.2 : 0.08, HR = AGE === 0 ? 0.82 : 0.94, HC = 1.5, PR = [0, 4, 4, 6][AGE];
 const post = (gr, a) => { const p = iso(a, HC, 0); for (let z = 0; z <= HZ; z++) { pixSet(gr, p[0], p[1] - z, 'w'); pixSet(gr, p[0] + 1, p[1] - z, 'v'); }
@@ -344,8 +442,8 @@ kWyYyvk
 function front(fr, f) {
   if (AGE === 0) { // right fork, and a team strip tied below its head, fluttering
     fork(fr, HR); const p = iso(HR, HC, HZ - 2);
-    for (let i = 0; i < 8; i++) { const w = Math.round(Math.sin(i / 8 * Math.PI * 1.5 - f * Math.PI / 2) * (i / 8) * 1.4), hgt = Math.max(2, 5 - (i >> 1));
-      for (let k = 0; k < hgt; k++) if (!(i === 7 && (k + f) % 2)) pixSet(fr, p[0] + 2 + i, p[1] + k + w + (5 - hgt >> 1), k === 0 ? 'L' : k === hgt - 1 ? 'D' : 'T'); }
+    for (let i = 0; i < 11; i++) { const w = Math.round(Math.sin(i / 11 * Math.PI * 1.5 - f * Math.PI / 2) * (i / 11) * 1.6), hgt = Math.max(2, 6 - (i >> 1));
+      for (let k = 0; k < hgt; k++) if (!(i === 10 && (k + f) % 2)) pixSet(fr, p[0] + 2 + i, p[1] + k + w + (6 - hgt >> 1), k === 0 ? 'L' : k === hgt - 1 ? 'D' : 'T'); }
     return;
   }
   post(fr, HR);
@@ -397,13 +495,15 @@ const frames = [];
 for (let f = 0; f < 4; f++) { const fr = clone(g); animated(fr, f); front(fr, f); if (AGE >= 1) cart(fr); outline(fr, inkOf); frames.push(pixText(fr)); }
 
 return {
-  id: 'mine', kind: 'building', footprint: [W, H], anchor: [bx, by],
+  id: 'mine', kind: 'building', footprint: [W, H], anchor: [bx, by], roofChars: F ? 'AaBbc' : undefined,
   palette: {
     ...AK.pal,
     e: '#8a7a62', E: '#9c8c72', f: '#76684f', F: '#6a5d48', h: '#a8a090', X: '#3e352a',          // gravel, spoil, rim
     P: '#b8b0a2', p: '#9a9285', q: '#8d8478', Q: '#6f6a60', U: '#625d55', V: '#4f4a44', j: '#575249', J: '#3c3833', // stone
     w: '#a07a4a', W: '#8a6a3a', v: '#5a3a18', K: '#1c1612', i: '#2a221b',                         // timber, shaft dark, doorway
-    A: '#9e8a6c', B: '#857258', b: '#715f48', a: '#5e4e3b', c: '#3e3226',                         // weathered boards
+    A: '#9e8a6c', B: '#857258', b: '#715f48', a: '#5e4e3b', c: '#3e3226',                         // weathered boards (roof)
+    'é': '#857258', 'ê': '#715f48', 'ë': '#5e4e3b', 'è': '#3e3226',                               // the same boards on the gable
+    ...NAT_PAL,
     Y: '#ffe28a', y: '#e1b12c', z: '#a87a12', Z: '#6e4d0a', G: '#fffbe8',                         // gold + glint
     m: '#e6eaee', M: '#9aa0a6', n: '#5f656c', R: '#c9b58e', k: '#24180f',                         // iron, rope, ink
     T: 'team', D: 'teamdark', L: 'teamlight',

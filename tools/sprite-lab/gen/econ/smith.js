@@ -11,6 +11,7 @@
 // Castle as tuned: coursed stone smithy under a gable roof, a stone chimney through the roof, a wide forge mouth in
 // the lit wall with the hearth glowing inside, tools hung on a rail, a team-striped awning over the work bench, an anvil on
 // its stump in the yard, a plank quench trough and a coal bin with a shovel against the wall, on cinder-strewn earth.
+// pt4: the Feudal and Castle ridges sag a pixel (Feudal's far end lifts), the eaves drop a slipped shingle/tile or two, moss at the foot of stone walls, coal spilt by the bin, the yard's edge frayed.
 // idle ×6: smoke puffs rise and drift from the chimney, the forge glow pulses (on the hearth, jambs and the ground), sparks fly off the anvil.
 // Drawn by drafts/building.smith.js: pixDraw(PIXELS.smith,'idle',b.built?Math.floor(G.time*5):0,tc,bm.Bm[0],bm.Bm[1],{clip:p}).
 // ==end
@@ -25,6 +26,7 @@ const RA0 = 0.0, RA1 = 1.99, RC0 = 0.0, RC1 = 1.4, RR = 0.67;
 
 // ---- yard: dark trodden earth with cinders
 const GROUND = 'eEfx';
+const MOSS = (fn, st, lit) => weather(fn, st, {}, { lit, seed: lit ? 1 : 2 });
 flat(g, 0, 2, 0, 2, 0, (s, t, x, y) => { const h = hash(x >> 1, y >> 1, 4); return h < 0.18 ? 'f' : h < 0.26 ? 'x' : h < 0.36 ? 'E' : 'e'; });
 
 // ---- walls: stone courses, a plinth, quoins on the near corner, soot darkening under the eaves
@@ -33,15 +35,15 @@ const lit = AGE === 3 ? blocks([SK[0], SK[1], SK[2], SK[1], SK[3]], SK[5], 4, 9,
 const sh = AGE === 3 ? blocks([SK[2], SK[3], SK[4], SK[3], SK[5]], SK[5], 4, 9, 4) : AGE === 1 ? blocks([SK[2], SK[3], SK[4], SK[3], SK[5]], SK[5], 4, 7, 4) : blocks(['q', 'Q', 'U', 'Q', 'V'], 'J', 4, 9, 4);
 const LENL = (A1 - A0) * 32, LENR = (C1 - C0) * 32;
 if (AGE === 2) {
-  wallC(g, C1, A0, A1, 0, WZ, (U, V) => (V < 2 ? (Math.floor(U) % 7 === 0 ? 'J' : 'U') : V > WZ - 3 ? (hash(Math.floor(U), 0, 2) < 0.5 ? 'Q' : 'U') : lit(U, V - 2)));
-  wallA(g, A1, C1, C0, 0, WZ, (U, V) => (V < 2 ? 'V' : V > WZ - 3 ? 'V' : sh(U, V - 2)));
+  wallC(g, C1, A0, A1, 0, WZ, MOSS((U, V) => (V < 2 ? (Math.floor(U) % 7 === 0 ? 'J' : 'U') : V > WZ - 3 ? (hash(Math.floor(U), 0, 2) < 0.5 ? 'Q' : 'U') : lit(U, V - 2)), 'UJpqP', true));
+  wallA(g, A1, C1, C0, 0, WZ, MOSS((U, V) => (V < 2 ? 'V' : V > WZ - 3 ? 'V' : sh(U, V - 2)), 'VQU', false));
   { const p = iso(A1, C1, 0); for (let z = 2; z < WZ - 1; z++) { const row = Math.floor((z - 2) / 4), r = (z - 2) % 4, len = row % 2 ? 2 : 4; for (let i = 0; i < len; i++) pixSet(g, p[0] - 1 - i, p[1] - z + Math.floor((i + 1) / 2), r === 0 ? 'j' : r === 3 ? 'P' : 'p'); } }
   // shuttered window on the lit wall
   wallC(g, C1, 0.2, 0.42, 5, 11, (U, V) => { const u = Math.floor(U); if (V < 1) return 'P'; if (V >= 5) return 'w'; if (u === 0 || u >= 6) return 'w'; return u === 3 ? 'w' : V > 3 ? 'n' : 'K'; });
 } else {
   const opt = { H: WZ + 1, step: AGE === 3 ? 20 : 10 };
-  wallC(g, C1, A0, A1, 0, WZ, (U, V) => (V >= WZ - 1 ? AK.P[2] : AK.wallTex(U, V, 0, { ...opt, len: LENL })));
-  wallA(g, A1, C1, C0, 0, WZ, (U, V) => (V >= WZ - 1 ? (AGE === 3 ? SK[4] : TW2) : AK.wallTex(U, V, 1, { ...opt, len: LENR })));
+  wallC(g, C1, A0, A1, 0, WZ, MOSS((U, V) => (V >= WZ - 1 ? AK.P[2] : AK.wallTex(U, V, 0, { ...opt, len: LENL })), AGE === 3 ? '' : SK.join(''), true));
+  wallA(g, A1, C1, C0, 0, WZ, MOSS((U, V) => (V >= WZ - 1 ? (AGE === 3 ? SK[4] : TW2) : AK.wallTex(U, V, 1, { ...opt, len: LENR })), AGE === 3 ? '' : SK.join(''), false));
   // the window: Feudal shuttered casement with team shutters; Imperial a tall arched window with a gilt keystone and sill
   { const p = iso(0.31, C1, AGE === 3 ? 11 : 7); AK.windowAt(g, Math.round(p[0]), Math.round(p[1]), 0.5, 0); }
 }
@@ -88,6 +90,7 @@ if (AGE === 2) {
   for (let U = 0; U <= (RC1 - RC0) * 32; U++) { const c = RC1 - U / 32, p = iso(RA1 + 0.01, c, top(c) + 1); pixSet(g, p[0], p[1], 'k'); }
 }
 for (const ra of AGE === 2 ? [RA0 + 0.03] : [RA0 + 0.03, RA1]) { const p = iso(ra, RR, WZ + R); AK.finial(g, Math.round(p[0]), Math.round(p[1]) - 1); }
+if (AGE < 3) { ragEave(g, iso(RA0, RC1, WZ), iso(RA1, RC1, WZ), AGE === 1 ? RK[3] : RK[4], 'k', 0.15, 8); sag(g, iso(RA0 + 0.1, RR, WZ + R), iso(RA1 - 0.14, RR, WZ + R), Math.ceil(RR * 32 - R) + 5, 1, AGE === 1 ? 1.4 : 1.2, AGE === 1 ? 0.1 : 0); }
 // soot staining on the slates around the chimney
 // ---- chimney through the roof: only the part above the roof plane is painted
 const BIG = AGE === 3 ? 0.04 : 0, KA0 = 1.5 - BIG, KA1 = 1.76 + BIG, KC0 = 0.5 - BIG, KC1 = 0.78 + BIG, KZ = [0, 41, 48, 62][AGE];
@@ -145,6 +148,9 @@ inked(g, g => { const TA0 = 1.36, TA1 = 1.8, TC0 = 1.62, TC1 = 1.8, TZ = 6;
   wallC(g, TC1, TA0, TA1, 0, TZ, (U, V) => { const u = Math.floor(U); if (u === 2 || u === 11) return 'n'; if (V >= TZ - 1) return 'w'; return Math.floor(V) === 2 ? 'v' : 'W'; });
   wallA(g, TA1, TC1, TC0, 0, TZ, (U, V) => (V >= TZ - 1 ? 'W' : 'v'));
 });
+// coal spilt round the bin, cinders by the forge; the yard's edge frayed, weeds at the walls' feet
+spill(g, ...iso(1.5, 1.6, 0), 10, 4, 9, ['x', 'N', 'n'], 'F', ch => GROUND.includes(ch), 6);
+fray(g, ch => GROUND.includes(ch), 11, { edge: 0.05, feet: 0.16, feetOf: 'UVJQpqP' + SK.join('') + AK.P.join('') + AK.W.join('') });
 const NA = 1.0, NC = 1.66, NT = 13;
 const AN = iso(NA, NC, -2);
 function anvil(fr) { inked(fr, fr => {
@@ -212,7 +218,7 @@ export default {
     r: '#a8401c', o: '#ff8c2a', O: '#ffb347', Y: '#ffe08a',                                     // ember → white heat
     m: '#e6eaee', M: '#9aa0a6', n: '#5f656c', N: '#3e444b', u: '#c49a5c', b: '#4a6a8a', B: '#7aa0c0',                       // steel, water
     g: '#7d7873', G: '#a29d97', H: '#c4beb8', k: '#24180f',                                     // smoke ramp, ink
-    T: 'team', D: 'teamdark', L: 'teamlight',
+    T: 'team', D: 'teamdark', L: 'teamlight', ...NAT_PAL,
   },
   frames: { idle: frames },
 };

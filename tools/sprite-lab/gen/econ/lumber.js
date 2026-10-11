@@ -11,6 +11,8 @@
 //   Imperial tallest: slate roof with gilt cresting and orb finials, stone piers, an ashlar end wall with a gilt-fringed
 //            banner, a gilt-hemmed valance, a timber gantry over the log stack with a log slung from it and a gilt-trimmed
 //            team sign, the saw-pit.
+// Every age (pt4): ridges sag a pixel (least in Imperial, none there), shingle/tile eaves drop a slipped course here and there,
+// moss creeps up the foot of the stone end wall, the yard's edge is frayed with weeds; the Feudal shingles are in roofChars.
 // idle ×4: the saw works (bow saw rocks / pit saw strokes) and sawdust falls, or (Dark) chips fly off the chopping block;
 // the team pennant on the corner pole flutters.
 // Drawn by drafts/building.lumber.js: pixDraw(pixAge(PIXELS.lumber,b),'idle',Math.floor(G.time*4),tc,bm.Bm[0],bm.Bm[1],{clip:p}).
@@ -70,7 +72,7 @@ for (const [a, z] of [[1.42, 0], [1.62, 0], [1.82, 0], [1.52, 5], [1.72, 5]]) lo
 // end wall a = A1 (after the stored logs, which lie behind it and show only through the open front)
 if (F) wallA(g, A1, C1, C0, 0, Z, (U, V) => { const u = Math.floor(U); if (V < 1) return 'V'; if (u % 4 === 3) return 'p'; return (u > 22 || (V > Z - 3)) ? 'R' : 'r'; });
 else if (AGE === 0) wallA(g, A1, C1, C0, 0, ZB, (U, V) => { const top = zAt(C1 - U / 32) - 1; return V > top ? null : AK.wallTex(U, V, 1, { len: 30, H: Math.floor(top) + 1, pl: 2 }); });
-else wallA(g, A1, C1, C0, 0, Z, (U, V) => AK.wallTex(U, V, 1, { len: 30, H: Z }));
+else wallA(g, A1, C1, C0, 0, Z, weather((U, V) => AK.wallTex(U, V, 1, { len: 30, H: Z }), S, { [S[0]]: S[1], [S[1]]: S[2], [S[2]]: S[3], [S[3]]: S[4], [S[4]]: S[5] }, { lit: false, H: Z, seed: 3 }));
 // posts of the open front, sill beam
 const POSTS = [A0, 0.68, 1.32, A1];
 if (AGE === 0) { // rough poles under the eave, a fieldstone at the foot
@@ -130,6 +132,8 @@ if (F) {
   line(g, iso(RA0 + 0.04, RC1 - 0.02, Z), iso(RA0 + 0.04, RR, Z + ROOF), 'A'); line(g, iso(RA0 + 0.07, RC1 - 0.02, Z), iso(RA0 + 0.07, RR, Z + ROOF), 'b');
   // team-colour valance hung under the front eave: lit hem, body, scalloped dark fringe
   wallC(g, RC1, RA0 + 0.04, RA1 - 0.04, Z - 5, Z - 1, (U, V) => { const u = Math.floor(U); if (V >= 3) return 'L'; if (V >= 1) return u % 8 === 0 ? 'D' : 'T'; return (u % 8) < 6 ? 'D' : null; });
+  ragEave(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), 'B', 'k', 0.18, 6);
+  sag(g, iso(RA0 + 0.1, RR, Z + ROOF), iso(RA1 - 0.1, RR, Z + ROOF), 6, 1, 1.4, 0.1);
 } else if (AGE === 0) {
   // lean-to: one thatched plane from the back top edge down to a low, ragged front eave
   const LA0 = -0.02, LA1 = 2.0;
@@ -150,6 +154,7 @@ if (F) {
     if (u === 0) return 'L'; if (u >= n - 1) return 'D';
     return V >= ZF - z0 - 2 ? 'L' : (u + Math.floor(V)) % 5 === 0 ? 'D' : 'T'; });
   hide(0.1, 0.66, 0); hide(1.42, 1.8, 1);
+  sag(g, iso(LA0 + 0.14, 0, ZB), iso(LA1 - 0.14, 0, ZB), 5, 1, 1.5);
 } else {
   // gable roof in the age's material: red tile (Castle), slate with gilt (Imperial); stone gable end, crested ridge, finials
   wallC(g, C1, A0, A1, Z - 3, Z, (U, V) => (V >= 2 ? 'V' : 'i'));
@@ -170,6 +175,7 @@ if (F) {
   AK.crest(g, iso(RA0 + 0.03, RR, Z + ROOF - 1), iso(RA1 - 0.03, RR, Z + ROOF - 1));
   if (AGE === 3) AK.trim(g, iso(RA0 + 0.03, RC1, Z), iso(RA1 - 0.03, RC1, Z), -1);
   for (const a of [RA0 + 0.02, RA1 - 0.02]) { const p = iso(a, RR, Z + ROOF); AK.finial(g, Math.round(p[0]), Math.round(p[1]) - 2); }
+  if (AGE === 2) { ragEave(g, iso(RA0, RC1, Z), iso(RA1, RC1, Z), R[3], 'k', 0.12, 7); sag(g, iso(RA0 + 0.12, RR, Z + ROOF), iso(RA1 - 0.12, RR, Z + ROOF), 8, 1, 1.2); }
   // valance under the eave; Imperial: a gilt hem and gilt tassels
   if (AGE === 2) wallC(g, RC1, RA0 + 0.04, RA1 - 0.04, Z - 5, Z - 1, (U, V) => { const u = Math.floor(U); if (V >= 3) return 'L'; if (V >= 1) return u % 8 === 0 ? 'D' : 'T'; return (u % 8) < 6 ? 'D' : null; });
   else wallC(g, RC1, RA0 + 0.04, RA1 - 0.04, Z - 6, Z - 1, (U, V) => { const u = Math.floor(U); if (V >= 4) return Au[1]; if (V >= 3) return 'L'; if (V >= 1) return u % 8 === 0 ? 'D' : 'T'; return (u % 8) < 5 ? 'D' : (u % 8) === 6 ? Au[0] : null; });
@@ -291,6 +297,8 @@ for (let i = 0; i < 16; i++) {
   if (!GROUND.includes(pixGet(g, p[0], p[1]))) continue; pixSet(g, p[0], p[1], 'O'); pixSet(g, p[0] + 1, p[1], rnd() < 0.5 ? 'o' : 'u');
 }
 
+// the yard's edge frayed, weeds at the foot of walls and stacks
+fray(g, ch => GROUND.includes(ch), 9, { edge: 0.06, feet: 0.18, feetOf: S.join('') + AK.P.join('') + TW.join('') + 'wWvV' });
 // ---- pennant pole at the shed's front-right corner (Dark: a rough stake; Castle: iron-capped; Imperial: a gilt orb)
 const pole = iso(2.02, 1.18, 0), PH = [28, 42, 47, 50][AGE];
 for (let z = 0; z < PH; z++) { pixSet(g, pole[0], pole[1] - z, AGE === 0 ? TW[0] : 'W'); pixSet(g, pole[0] + 1, pole[1] - z, AGE === 0 ? TW[1] : 'v'); }
@@ -356,7 +364,7 @@ const frames = [];
 for (let f = 0; f < 4; f++) { const fr = clone(g); (AGE === 0 ? chips : F ? saw : pitSaw)(fr, f); pennant(fr, f); outline(fr, inkOf); frames.push(pixText(fr)); }
 
 export default {
-  id: 'lumber', kind: 'building', footprint: [W, H], anchor: [bx, by],
+  id: 'lumber', kind: 'building', footprint: [W, H], anchor: [bx, by], roofChars: F ? 'ABbC' : undefined,
   palette: {
     ...AK.pal,
     e: '#8f7148', E: '#a3844f', f: '#755a36', h: '#d9c08a', H: '#c4a46a', Q: '#4a3520',   // packed earth, sawdust, earth rim
@@ -366,7 +374,7 @@ export default {
     x: '#4e3b28', K: '#1c1612',                                                         // wattle / stone in shadow, pit dark
     A: '#c49a5c', B: '#a07a46', b: '#8a663a', C: '#5e4022',                             // shingles: lit butt, body, alt, gap
     m: '#e6eaee', M: '#9aa0a6', n: '#5f656c', k: '#24180f',                             // steel, ink
-    T: 'team', D: 'teamdark', L: 'teamlight',
+    T: 'team', D: 'teamdark', L: 'teamlight', ...NAT_PAL,
   },
   frames: { idle: frames },
 };
