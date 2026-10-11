@@ -31889,10 +31889,14 @@ function xraySilhouettes(items,z){const units=[],blds=[];for(const it of items){
   try{a.setTransform(1,0,0,1,0,0);a.clearRect(0,0,bw,bh);a.setTransform(z,0,0,z,ox-sx,oy-sy);ctx=a;drawBuilding(b,false);
    bb.setTransform(1,0,0,1,0,0);bb.clearRect(0,0,bw,bh);
    for(const ui2 of behind){const u=ui2.e;cc.setTransform(1,0,0,1,0,0);cc.globalCompositeOperation='source-over';cc.clearRect(0,0,bw,bh);cc.setTransform(z,0,0,z,ox-sx,oy-sy);ctx=cc;drawUnit(u,false);
-    cc.setTransform(1,0,0,1,0,0);cc.globalCompositeOperation='source-in';cc.fillStyle=(TEAM[u.team]||WILD).c;cc.fillRect(0,0,bw,bh);cc.globalCompositeOperation='source-over';bb.drawImage(xrC,0,0)}
+    cc.setTransform(1,0,0,1,0,0);const tc=TEAM[u.team]||WILD;
+    // crisp, in the sprites' style: alpha cubed drops the soft ground shadow and keeps the body; a light team rim round a dark core
+    cc.globalCompositeOperation='destination-in';cc.drawImage(xrC,0,0);cc.drawImage(xrC,0,0);
+    cc.globalCompositeOperation='source-in';cc.fillStyle=tc.l;cc.fillRect(0,0,bw,bh);const rp=Math.max(1,Math.round(z));for(const[dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]])bb.drawImage(xrC,dx*rp,dy*rp);
+    cc.fillStyle=tc.d;cc.fillRect(0,0,bw,bh);cc.globalCompositeOperation='source-over';bb.drawImage(xrC,0,0)}
    bb.globalCompositeOperation='destination-in';bb.drawImage(xrA,0,0);bb.globalCompositeOperation='source-over'}
   finally{ctx=main}
-  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=0.6;ctx.drawImage(xrB,0,0,bw,bh,sx,sy,bw,bh);ctx.restore()}}
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=0.7;ctx.drawImage(xrB,0,0,bw,bh,sx,sy,bw,bh);ctx.restore()}}
 // Cliff tiles: a rock ridge rendered per tile from a height field that only drops on sides facing open ground, so
 // neighbouring cliff tiles join into one continuous ridge. Noise is in world space, so seams line up across tiles.
 // Rendered once per tile (back-to-front height columns into ImageData) and cached; the fogged copy is cached too.
