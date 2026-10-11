@@ -1374,7 +1374,16 @@ function shade(hex,f){const n=parseInt(hex.slice(1),16);let r=(n>>16)&255,g=(n>>
 function corners(cx,cy,w,h,z){return{T:[cx,cy-z],Rr:[cx+w*HW,cy+w*HH-z],Bm:[cx+(w-h)*HW,cy+(w+h)*HH-z],L:[cx-h*HW,cy+h*HH-z]}}
 function box(cx,cy,w,h,ht,col,topCol){const b=corners(cx,cy,w,h,0),t=corners(cx,cy,w,h,ht);poly([b.L,b.Bm,t.Bm,t.L],shade(col,0.78));poly([b.Bm,b.Rr,t.Rr,t.Bm],shade(col,0.6));poly([t.T,t.Rr,t.Bm,t.L],topCol||shade(col,1.05));ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.beginPath();ctx.moveTo(b.Bm[0],b.Bm[1]);ctx.lineTo(t.Bm[0],t.Bm[1]);ctx.stroke()}
 function pyramid(cx,cy,w,h,z,rh,col){const t=corners(cx,cy,w,h,z);const ap=[cx+(w-h)*HW/2,cy+(w+h)*HH/2-z-rh];poly([t.T,t.L,ap],shade(col,0.9));poly([t.T,t.Rr,ap],shade(col,1.1));poly([t.L,t.Bm,ap],shade(col,1.0));poly([t.Bm,t.Rr,ap],shade(col,0.7))}
-function flag(x,y,team,h=22){ctx.strokeStyle='#3a2a1a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-h);ctx.stroke();ctx.lineWidth=1;const wave=Math.sin(G.time*4+x)*1.5;poly([[x,y-h],[x+12,y-h+4+wave],[x,y-h+8]],TEAM[team].c)}
+// Flags are pixel sprites like everything else: a turned pole with a gilt knob and a tapering pennant in the team colour
+// (light top hem, dark lower hem and fold shading, ink tip) that ripples through 8 frames. Cached per colour, height and frame.
+const FLAG_CV={};
+function flagCanvas(tc,h,f){const key=tc.c+'|'+h+'|'+f;let c=FLAG_CV[key];if(c)return c;const L=14,H0=8;c=document.createElement('canvas');c.width=L+3;c.height=h+4;const x=c.getContext('2d');
+ const px=(X,Y,col)=>{x.fillStyle=col;x.fillRect(X,Y,1,1)};for(let y=1;y<h+3;y++){px(0,y,'#2a1c10');px(1,y,y<3?'#2a1c10':'#7a5a34')}px(0,0,'#a87a12');px(1,0,'#ffe28a');
+ for(let k=0;k<L;k++){const X=2+k,t=k/(L-1),ht=Math.max(2,Math.round(H0-t*(H0-2.2))),ph=f/8*Math.PI*2-k*0.7,dy=Math.round(Math.sin(ph)*(0.4+t*1.3)),fold=Math.cos(ph)<-0.55,y0=2+dy+Math.round(t*1.4);
+  for(let r=0;r<ht;r++){let col=r===0?tc.l:r===ht-1?tc.d:fold?tc.d:tc.c;if(k===L-1)col='#24180f';else if(r===ht-1&&k>L-4)col='#24180f';px(X,y0+r,col)}}
+ return FLAG_CV[key]=c}
+function flag(x,y,team,h=22){const tc=TEAM[team];if(!tc)return;h=Math.round(h);const f=Math.floor((((G?G.time:0)*9+x*0.37)%8+8)%8),c=flagCanvas(tc,h,f);const m=ctx.getTransform();
+ ctx.save();ctx.setTransform(m.a,m.b,m.c,m.d,Math.round(m.e),Math.round(m.f));ctx.imageSmoothingEnabled=Math.hypot(m.a,m.b)<0.99;ctx.drawImage(c,Math.round(x)-1,Math.round(y)-h-3);ctx.restore()}
 function battlements(cx,cy,w,h,z,col){const t=corners(cx,cy,w,h,z);const n=w*2;for(let i=0;i<n;i++){const f=(i+0.25)/n;const a=[t.L[0]+(t.Bm[0]-t.L[0])*f,t.L[1]+(t.Bm[1]-t.L[1])*f];const sz=HW/n*0.5;box(a[0],a[1]-sz*0.5,sz/HW,sz/HW,5,col);const b=[t.Bm[0]+(t.Rr[0]-t.Bm[0])*f,t.Bm[1]+(t.Rr[1]-t.Bm[1])*f];box(b[0],b[1]-sz*0.5,sz/HW,sz/HW,5,col)}}
 function pixRelic(x, y, mode = 'idle', seed = 0) {
   const S = PIXELS.relic; if (!S) return;
