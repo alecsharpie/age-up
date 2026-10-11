@@ -70,11 +70,13 @@ if(AGE<3){
   ho=pixIsoBox(g,hb[0],hb[1],s,s,HOARD,1,{left:'3',right:'4',top:'5'});
   ashlar(g,'3',ho.base.L,ho.base.Bm,LIT,{ch:4,bl:7,seed:8,plinth:2});ashlar(g,'4',ho.base.Bm,ho.base.Rr,SHD,{ch:4,bl:7,seed:9,plinth:2});
   machi(g,[ho.base.L[0]+1,ho.base.L[1]],[ho.base.Bm[0],ho.base.Bm[1]],1,true);machi(g,[ho.base.Bm[0]+1,ho.base.Bm[1]],[ho.base.Rr[0]-1,ho.base.Rr[1]],1,false);
-  // arched belfry windows: two per face, firelit, gilt sill
+  // arched belfry windows: two per face, firelit, gilt sill (clipped to the belfry's faces)
+  const preWin=cloneG(g);
   for(const f of [0.3,0.72]){for(const [A,B,sl,lit] of [[ho.base.L,ho.base.Bm,0.5,true],[ho.base.Bm,ho.base.Rr,-0.5,false]]){
     const p=lerpP(A,B,f),x=Math.round(p[0]),y=Math.round(p[1])-3;if(lit)LOOP.push([x,y-4]);
     opening(g,x,y,3,8,sl,{sur:lit?'q':'Q',jamb:lit?'h':'H',fill:(c,r)=>r===0?null:(c===1&&r>2?Gl[1]:Gl[0])});
     pixSet(g,x-1,y+Math.round(-0.5*sl)+1,Au[1]);for(let c=0;c<3;c++)pixSet(g,x+c,y+Math.floor((c+0.5)*sl)+1,Au[lit?0:1]);}}
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(preWin[y][x]==='.')g[y][x]='.';
 }
 // ---- roof: shingle pyramid (Feudal), tiled pyramid (Castle) over the hoarding; Imperial: a battlemented belfry top with a slim
 // slate spire rising inside the parapet. The apex is where the game plants the flag.
@@ -85,6 +87,7 @@ if(AGE<3){
   ageRoof();
   pixLine(g,rt.Bm[0],rt.Bm[1],ap[0],ap[1],R[6]);pixLine(g,rt.L[0],rt.L[1],ap[0],ap[1],R[0]);
   pixLine(g,rt.L[0],rt.L[1],rt.Bm[0],rt.Bm[1],'k');pixLine(g,rt.Bm[0],rt.Bm[1],rt.Rr[0],rt.Rr[1],'k');
+  for(const [A,B] of [[rt.L,rt.Bm],[rt.Bm,rt.Rr]])eaveRag(g,A,B,AGE===1?0.16:0.13,AGE+4,{pair:true});   // a lifted shingle, an uneven tile drip line
   for(let x=Math.ceil(ho.L[0]);x<=ho.Rr[0];x++){const y=Math.floor(x<=bx?ho.Bm[1]-(bx-x)*0.5:ho.Bm[1]-(x-bx)*0.5)+1;if(pixGet(g,x,y)!=='.')pixSet(g,x,y,x<=bx?'x':'y')} // eave shadow on the hoarding
 }else{
   flagstones(g,'5',ho,{n:3});
@@ -121,15 +124,20 @@ const SY=by-SZ+(AGE===1?6:-2);
 if(AGE===1){AK.windowAt(g,bx-12,SY-2,0.5,0);AK.windowAt(g,bx+12,SY-2,-0.5,1)}
 else{slit(g,bx-8,SY,5,true);slit(g,bx+8,SY,5,true);slit(g,bx+18,SY+11,4,false);if(AGE===3){slit(g,bx-18,SY+18,4,false);slit(g,bx+12,SY+20,4,false)}}
 inkOutline(g);
+// natural lines: worn merlons and quoins, moss at the foot, grass tufts and a little rubble
+{const STN=/[hqfaAmpHQnbBMP]/;wear(g,STN,{p:AGE===3?0.35:0.4,notch:0.04,bump:AGE===3?0.05:0.1,seed:11});
+  moss(g,STN,{h:AGE===3?5:7,split:bx,dens:AGE===3?0.35:0.55,seed:12});tufts(g,{p:0.45,maxY:by,split:bx,rubble:0.06,seed:13})}
 // AGE 3: the gilt orb finial on the spire's apex (after the outline so it keeps its own ink)
 if(AGE===3)AK.finial(g,Math.round(ap[0]),Math.round(ap[1]));
 // ---- idle: the banner ripples down the lit face (gilt rod and fringe in Imperial), a watch-fire flickers behind a loophole
 const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
   const bxx=bx-22,byy=Math.floor(hy(bxx))+(AGE===3?6:3),blen=[0,9,15,17][AGE];
-  banner(f,bxx,byy,7,blen,k,{sl:0.5});
-  if(AGE===3){for(let c=-1;c<=7;c++){const y=byy+Math.floor((c+0.5)*0.5);if(pixGet(f,bxx+c,y)==='y')pixSet(f,bxx+c,y,Au[1])}
-    for(let c=0;c<7;c++)for(let r=blen+2;r>=1;r--){const y=byy+Math.floor((c+0.5)*0.5)+r,ch=pixGet(f,bxx+c,y);if(/[TLD]/.test(ch)){pixSet(f,bxx+c,y,c%2?Au[1]:Au[0]);break}}}
+  // Imperial: a second gilt-fringed banner on the shaded face, mirrored about the corner
+  const BN=[[bxx,byy,0.5,0]].concat(AGE===3?[[2*bx-bxx-7,byy,-0.5,2]]:[]);
+  for(const [x0,y0,sl,ph] of BN){banner(f,x0,y0,7,blen,k+ph,{sl});
+  if(AGE===3){for(let c=-1;c<=7;c++){const y=y0+Math.floor((c+0.5)*sl);if(pixGet(f,x0+c,y)==='y')pixSet(f,x0+c,y,Au[1])}
+    for(let c=0;c<7;c++)for(let r=blen+2;r>=1;r--){const y=y0+Math.floor((c+0.5)*sl)+r,ch=pixGet(f,x0+c,y);if(/[TLD]/.test(ch)){pixSet(f,x0+c,y,c%2?Au[1]:Au[0]);break}}}}
   const [lx,ly]=LOOP[0];pixSet(f,lx,ly+1,k%2?'R':'Y');pixSet(f,lx,ly+2,k===2?'Y':'R');
   frames.push(pixText(f));}
 export default {

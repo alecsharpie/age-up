@@ -68,6 +68,9 @@ for(const f of [0.25,0.75]){port(sh.base.L,sh.base.Bm,f,true);port(sh.base.Bm,sh
 // loops in the lower shaft, mirrored
 for(const f of [0.25,0.75]){const p=lerpP(sh.base.L,sh.base.Bm,f);slit(g,Math.round(p[0])-1,Math.round(p[1])-12,5,true);const q=lerpP(sh.base.Bm,sh.base.Rr,f);slit(g,Math.round(q[0])-1,Math.round(q[1])-12,5,true)}
 inkOutline(g);
+// natural lines (formal, so lightly): worn merlons, the odd proud block, moss and grass at the foot, a little rubble
+wear(g,/[hqfaAmpHQnbBMP]/,{p:0.35,notch:0.04,bump:0.04,seed:51});
+moss(g,/[hqfaAmpHQnbBMP]/,{h:true?5:6,split:bx,dens:true?0.4:0.5,seed:52});tufts(g,{p:0.35,maxY:by,split:bx,rubble:0.05,seed:53});
 // ---- idle frames: a banner centred on each face under the gallery, smoke curling from the deck guns' muzzles
 const SMOKE=[[[0,0],[1,-2],[0,-4]],[[1,-1],[2,-3],[1,-6],[2,-8]],[[1,-2],[3,-5],[2,-8]],[[0,-1],[2,-4],[3,-7],[3,-10]]];
 const BW=8,BL=24;
@@ -80,5 +83,6 @@ for(let k=0;k<4;k++){const f=cloneG(g);
 export default {
   id:'btower',kind:'building',footprint:[W,H],anchor:[bx,by],
   palette:Object.assign({},FORT_PAL,{V:'#d8d4cc',X:'#aaa69e'}),
+  roofChars:'rstuz',   // the stair turret's slate cap (fort kit slate chars) leans with the engine's team roof tint
   frames:{idle:frames},
 };

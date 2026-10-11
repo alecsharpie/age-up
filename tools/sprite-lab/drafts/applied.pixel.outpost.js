@@ -4,10 +4,13 @@
 //            with team shields hung on it, a thatched roof on posts, a brazier on the deck, a torch and a banner below.
 //   Feudal   the same lookout on squared stone footings, taller plank screens round the deck with team-shuttered lookout holes, a
 //            higher brown oak shingle roof.
-//   Castle   the posts rise from a dressed-stone pier with a door and an arrow slit; a stone parapet with merlons round the
-//            deck; red clay tiles; the banner hangs on the pier.
+//   Castle   one structure: a slim dressed-stone shaft (door, arrow slits, moss at the foot) carries the timber lookout directly —
+//            a jettied plank deck on joists and knee braces, a boarded breastwork with loopholes and team shields, the roof posts
+//            and a single red clay tile roof; a long team banner hangs from an iron rod under the jetty.
 //   Imperial a slim limestone lantern tower: a tall shaft with gilt string courses and an arched door, a balustraded stone gallery,
-//            four stone piers framing the fire, a steep slate cap with gilt trim and an orb finial.
+//            four stone piers framing the fire, a steep slate cap with gilt trim and an orb finial; gilt-fringed banners.
+// Natural lines: Dark posts splay out at the foot, every age gets grass tufts and rubble at its feet, ragged / uneven eaves, moss
+// and worn edges on the stone.
 // Frames: idle 4 — a torch (or the lantern fire) flickers; a team banner ripples.
 // ---- fortification kit (local to this draft): ashlar faces, flagstones, shingles, parapets, ink outline, banners, flames ----
 // Age variants (gen/ages/wrap.mjs): the generator runs per age; AGE 0 Dark … 3 Imperial, AK = pixAgeKit(AGE).
@@ -163,6 +166,61 @@ function flagpole(g,x,y,h,ph,o={}){
     for(let r=0;r<len;r++){const tone=s>0.45?'L':s<-0.45?'D':'T';
       pixSet(g,x+c*dir,y0+r+d,r===len-1?'D':r===0&&tone==='T'?'L':tone)}}
 }
+// ---- natural lines (HOLISTIC.md): 1-px variation on formal stone; never a broken iso grid ----
+const NAT={g1:'ǥ',g2:'ǧ',g3:'ǩ',m1:'ʍ',m2:'ɯ',m3:'ɰ',r1:'ʀ',r2:'ʁ'};
+const INKC=c=>c==='k'||c==='K';
+/** Bottom-most opaque cell of every column (-1 if empty). */
+function bottoms(g){const out=[];for(let x=0;x<g[0].length;x++){let y=g.length-1;while(y>=0&&g[y][x]==='.')y--;out.push(y)}return out}
+/** Moss and lichen creeping up the foot of stone faces: clustered, thinning with height. stone = regex of stone chars;
+ *  o.h rows, o.split = the lit/shaded corner x, o.dens 0..1, o.ok(x,y) to skip cells. */
+function moss(g,stone,o={}){
+  const Hh=o.h||6,seed=o.seed||1,dens=o.dens??0.55,bot=bottoms(g),split=o.split??g[0].length/2;
+  for(let x=0;x<g[0].length;x++){const yb=bot[x];if(yb<0)continue;
+    for(let d=0;d<Hh;d++){const y=yb-d,c=g[y]&&g[y][x];if(!c||!stone.test(c)||(o.ok&&!o.ok(x,y)))continue;
+      const n=hash3(x>>1,(y+((x>>2)&1))>>1,seed),thr=dens*(1-d/Hh)*(0.6+0.8*hash3(x>>3,seed,5));
+      if(n<thr){const lit=x<split;g[y][x]=n<thr*0.35?(lit?NAT.m1:NAT.m2):(lit?NAT.m2:NAT.m3)}}}
+}
+/** Grass tufts over the foot of the building (they hide the hard bottom ink line in clumps) and a few rubble chips.
+ *  o.p clump density, o.maxY = lowest row allowed (the anchor row), o.ok(x,y) to skip columns, o.rubble chance. */
+function tufts(g,o={}){
+  const seed=o.seed||2,p=o.p??0.35,bot=bottoms(g),maxY=o.maxY??g.length-1,split=o.split??g[0].length/2;
+  const near=(x,yb)=>yb>=maxY-Math.abs(x-split)*0.5-(o.tol??3);   // only columns that stand on the ground (not an eave or a flag)
+  for(let x=0;x<g[0].length;x++){const yb=bot[x];if(yb<0||!near(x,yb)||(o.ok&&!o.ok(x,yb)))continue;
+    const cl=Math.floor((x+Math.floor(hash3(seed,9,1)*4))/4);if(hash3(cl,seed,77)>=p)continue;
+    const h=1+Math.floor(hash3(x,seed,78)*(x%2?2.5:4)),lit=x<split;
+    for(let d=0;d<h;d++){const y=yb-d;if(y<0)break;g[y][x]=d===0?NAT.g1:d===h-1?(lit?NAT.g3:NAT.g2):NAT.g2}
+    // blades spill a pixel past the foot where the ground beside it is open (never below the anchor row)
+    for(const dx of [-1,1]){const xx=x+dx;if(xx<0||xx>=g[0].length||g[yb][xx]!=='.'||hash3(xx,seed,80)<0.4)continue;
+      const hh=1+Math.floor(hash3(xx,seed,81)*2);for(let d=0;d<hh;d++)if(g[yb-d]&&g[yb-d][xx]==='.')g[yb-d][xx]=d===0?NAT.g1:(lit?NAT.g3:NAT.g2)}}
+  if(o.rubble)for(let x=1;x<g[0].length-2;x++){const yb=bot[x];if(yb<0||yb+1>maxY-1||!near(x,yb)||(o.ok&&!o.ok(x,yb)))continue;
+    if(hash3(x,seed,79)<o.rubble&&g[yb+1][x]==='.'&&g[yb+1][x+1]==='.'&&bot[x+1]>=0&&Math.abs(bot[x+1]-yb)<=1){g[yb+1][x]=NAT.r1;g[yb+1][x+1]=NAT.r2;x+=3}}
+}
+/** Wear on stone silhouettes: chipped corners on merlons and quoins, the odd notch along a top edge, the odd block standing proud
+ *  of a side edge by 1 px. Call after inkOutline. stone = regex of stone chars; o.solid(x,y) marks cells a neighbour covers. */
+function wear(g,stone,o={}){
+  const seed=o.seed||3,p=o.p??0.45,notch=o.notch??0.05,bump=o.bump??0.08,solid=o.solid,Hh=g.length,Ww=g[0].length;
+  const E=(x,y)=>(x<0||y<0||x>=Ww||y>=Hh||g[y][x]==='.')&&!(solid&&solid(x,y));
+  const inkAt=(x,y)=>E(x+1,y)||E(x,y+1)?'k':'K',acts=[];
+  for(let y=1;y<Hh-2;y++)for(let x=1;x<Ww-1;x++){const c=g[y][x];if(!INKC(c))continue;
+    if(E(x,y-1)&&stone.test(g[y+1][x])&&stone.test(g[y+2][x])){const cl=E(x-1,y),cr=E(x+1,y);
+      if((cl||cr)&&!(cl&&cr)&&hash3(x,y,seed)<p)acts.push(['c',x,y]);
+      else if(!cl&&!cr&&hash3(x>>1,y,seed+1)<notch&&!E(x-1,y+1)&&!E(x+1,y+1))acts.push(['c',x,y]);}
+    else if(bump&&y%4===1&&!E(x,y-1)&&!E(x,y+1)){const sl=E(x-1,y)&&stone.test(g[y][x+1]),sr=E(x+1,y)&&stone.test(g[y][x-1]);
+      if((sl||sr)&&hash3(x,y>>2,seed+2)<bump&&E(sl?x-1:x+1,y+1)&&E(sl?x-1:x+1,y-1))acts.push(['b',x,y,sl?-1:1]);}}
+  for(const [t,x,y,dir] of acts){
+    if(t==='c'){g[y][x]='.';if(stone.test(g[y+1][x]))g[y+1][x]=inkAt(x,y+1)}
+    else{const inner=g[y][x-dir];for(const yy of [y,y+1]){if(!INKC(g[yy][x]))continue;g[yy][x]=inner;g[yy][x+dir]='k'}}}
+}
+/** An uneven eave along the ink eave line A→B (call after the line is drawn): at chance p a cell drops 1 px — the roof colour above
+ *  it carries down and the ink moves below, so tiles / shingles get an uneven drip line. o.hang(x) may return a strand char to
+ *  hang a second pixel (thatch). */
+function eaveRag(g,A,B,p,seed,o={}){
+  for(let x=Math.ceil(A[0])+2;x<=Math.floor(B[0])-2;x++){const y=Math.round(A[1]+(x-A[0])*(B[1]-A[1])/(B[0]-A[0]));
+    if(hash3(x>>(o.pair?1:0),seed,31)>=p||!INKC(pixGet(g,x,y))||pixGet(g,x,y+1)==='.'||pixGet(g,x,y-1)==='.')continue;
+    const roof=o.fill?o.fill(x):pixGet(g,x,y-1);pixSet(g,x,y,roof);
+    const h=o.hang&&hash3(x,seed,32)<0.5&&pixGet(g,x,y+2)!=='.'?o.hang(x):null;
+    if(h){pixSet(g,x,y+1,h);pixSet(g,x,y+2,'k')}else pixSet(g,x,y+1,'k')}
+}
 const FORT_PAL={
   k:'#24180f',K:'#43382e',e:'#140d08',
   h:'#c4bba9',a:'#a69e8f',A:'#988f81',f:'#b0a798',m:'#6a6257',q:'#cfc6b3',p:'#7d7569',     // lit stone
@@ -173,6 +231,7 @@ const FORT_PAL={
   o:'#e1b12c',O:'#ffe28a',F:'#ffe9a8',Y:'#ffc84a',R:'#d9542a',g:'#cbb08a',G:'#dcc29a',       // gold, flame, torch glow
   r:'#8a95a1',s:'#6f7a87',t:'#59636f',u:'#434b56',z:'#2f353e',                            // slate roof
   T:'team',D:'teamdark',L:'teamlight',
+  'ǥ':'#355e24','ǧ':'#4f8030','ǩ':'#8cbc52','ʍ':'#808c4c','ɯ':'#62723a','ɰ':'#48572f','ʀ':'#a49c8e','ʁ':'#5e574d',   // grass, moss, rubble
 };
 // ---- end kit ----
 const W=1,H=1,PZ=[36,38,38,46][AGE];
@@ -190,13 +249,15 @@ function ageRoof(){const F={'6':[-0.5,2,1],'7':[0.5,3,1],'8':[0.5,0,0],'9':[-0.5
   for(let y=0;y<g.length;y++)for(let x=0;x<g[0].length;x++){const f=F[g[y][x]];if(f)g[y][x]=AK.roofXY(x,y,f[0],f[1],{flip:!!f[2]})}}
 const s=0.55, cy0=by-16;  // post square, tile centre
 const base={L:[bx-s*32,cy0],Bm:[bx,cy0+s*16],Rr:[bx+s*32,cy0],T:[bx,cy0-s*16]};
+// the stilts splay outward at the foot (Dark: rough logs, 2 px; Feudal: squared posts, 1 px)
+const SPL=[2,1,0,0][AGE],foot=P=>[P[0]+(P===base.L?-SPL:P===base.Rr?SPL:0),P[1]];
 // ground: trodden earth and stone pads under the posts (Feudal: squared footing blocks)
-if(AGE===0)for(const P of [base.L,base.Rr,base.Bm])pixStamp(g,Math.round(P[0])-2,Math.round(P[1])-1,`
+if(AGE===0)for(const P of [base.L,base.Rr,base.Bm].map(foot))pixStamp(g,Math.round(P[0])-2,Math.round(P[1])-1,`
 .hhh.
 pappP
 .PPP.
 `);
-if(AGE===1)for(const P of [base.L,base.Rr,base.Bm])pixStamp(g,Math.round(P[0])-3,Math.round(P[1])-3,`
+if(AGE===1)for(const P of [base.L,base.Rr,base.Bm].map(foot))pixStamp(g,Math.round(P[0])-3,Math.round(P[1])-3,`
 .kkkkk.
 khhhhhk
 kqaaAQk
@@ -225,23 +286,24 @@ else{pier([plat.T[0],plat.T[1]],false);pier([plat.L[0]+2,plat.L[1]],true);pier([
 const BRZ=(()=>{const p=lerpP(plat.L,plat.Bm,0.62);return [Math.round(p[0])+1,Math.round(p[1])-4]})();   // brazier on the deck, just inside the front parapet   // brazier on the deck centre
 if(AGE===3){// the lantern room: seen through the open bays, a dark interior lit warm from the fire on the deck
   const room=pixIsoBox(g,plat.Bm[0],plat.Bm[1],ps,ps,rz,1,{left:'4',right:'5'});
-  const fc=[plat.Bm[0],plat.Bm[1]-ps*16];
-  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const c=g[y][x];if(c!=='4'&&c!=='5')continue;const d=Math.hypot(x-fc[0],(y-fc[1]+3)*1.6);
-    g[y][x]=d<5?Gl[1]:d<9?Gl[0]:d<12&&((x+y)&1)?Gl[0]:c==='4'?'M':'e'}
+  // the fire burns in the brazier just inside the lit balustrade: its light pools in that bay only (no glow on the shaded side)
+  const fc=[BRZ[0],BRZ[1]-4];
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const c=g[y][x];if(c!=='4'&&c!=='5')continue;const d=Math.hypot(x-fc[0],(y-fc[1])*1.4);
+    g[y][x]=c==='4'&&d<3.5?Gl[1]:c==='4'&&d<6?Gl[0]:c==='4'&&d<8?'M':'e'}
 }
 pixStamp(g,BRZ[0]-3,BRZ[1]-3,`
 JiIIiJ
 .JiiJ.
 ..JJ..
 `);
-const PH=[6,9,8,7][AGE];
-const par=pixIsoBox(g,plat.Bm[0],plat.Bm[1],ps,0.08,PH,1,{left:'4',right:'5',top:AGE>=2?'h':'v'});
-const par2=pixIsoBox(g,plat.Bm[0],plat.Bm[1],0.08,ps,PH,1,{left:'4',right:'5',top:AGE>=2?'h':'v'});
-if(AGE<2){planks(g,'4',plat.L,plat.Bm,{l:'w',m:'v',s:'w',g:'x',r:'x'},{bw:3,rails:AGE?[4,8]:[5]});planks(g,'5',plat.Bm,plat.Rr,{m:'x',s:'v',g:'y',r:'y'},{bw:3,rails:AGE?[4,8]:[5]})}
+const PH=[6,9,10,7][AGE];
+const par=pixIsoBox(g,plat.Bm[0],plat.Bm[1],ps,0.08,PH,1,{left:'4',right:'5',top:AGE>=3?'h':'v'});
+const par2=pixIsoBox(g,plat.Bm[0],plat.Bm[1],0.08,ps,PH,1,{left:'4',right:'5',top:AGE>=3?'h':'v'});
+if(AGE<3){const rl=[[5],[4,8],[0,PH-1]][AGE];planks(g,'4',plat.L,plat.Bm,{l:'w',m:'v',s:'w',g:'x',r:'x'},{bw:3,rails:rl});planks(g,'5',plat.Bm,plat.Rr,{m:'x',s:'v',g:'y',r:'y'},{bw:3,rails:rl})}
 else{ashlar(g,'4',plat.L,plat.Bm,LIT,{ch:4,bl:6,seed:6,any:true,qL:false});ashlar(g,'5',plat.Bm,plat.Rr,SHD,{ch:4,bl:6,seed:7,any:true,qR:false})}
-if(AGE===2){// merlons on the stone parapet
-  for(const [A,B,c1,c2] of [[plat.L,plat.Bm,'a','h'],[plat.Bm,plat.Rr,'b','H']])for(const f of [0.02,0.4,0.78]){const p=lerpP(A,B,f),sl=(B[1]-A[1])/(B[0]-A[0]);
-    for(let c=0;c<6;c++){const x=Math.round(p[0])+c,y=Math.round(p[1]+c*sl)-PH;for(let r=1;r<=3;r++)pixSet(g,x,y-r,r===3?c2:c1)}}}
+if(AGE===2)for(const f of [0.16,0.82]){// loopholes in the breastwork
+  const p=lerpP(plat.L,plat.Bm,f);opening(g,Math.round(p[0]),Math.round(p[1])-3,2,5,0.5,{arch:false,sur:'y',jamb:'w'});
+  const q=lerpP(plat.Bm,plat.Rr,f);opening(g,Math.round(q[0])-1,Math.round(q[1])-3,2,5,-0.5,{arch:false,sur:'y',jamb:'v'})}
 if(AGE===3){// a gilt coping on the balustrade, dark balusters between pale posts
   for(const [A,B,lit] of [[plat.L,plat.Bm,true],[plat.Bm,plat.Rr,false]]){const sl=(B[1]-A[1])/(B[0]-A[0]);
     for(let x=Math.ceil(A[0]);x<=Math.floor(B[0]);x++){const u=x-Math.ceil(A[0]),y=Math.round(A[1]+(x-A[0])*sl);pixSet(g,x,y-PH,Au[lit?0:1]);
@@ -250,7 +312,7 @@ if(AGE<3){pixLine(g,plat.Bm[0],plat.Bm[1]-1,plat.Bm[0],plat.Bm[1]-7,'w');pixLine
 pixLine(g,plat.Bm[0],plat.Bm[1]-7,plat.Bm[0],plat.Bm[1]-rz,'w');pixLine(g,plat.Bm[0]+1,plat.Bm[1]-7,plat.Bm[0]+1,plat.Bm[1]-rz,'x');}
 else pier([plat.Bm[0],plat.Bm[1]],true);
 if(AGE===1){AK.windowAt(g,Math.round(lerpP(plat.L,plat.Bm,0.78)[0]),Math.round(lerpP(plat.L,plat.Bm,0.78)[1])-5,0.5,0);AK.windowAt(g,Math.round(lerpP(plat.Bm,plat.Rr,0.25)[0]),Math.round(lerpP(plat.Bm,plat.Rr,0.25)[1])-5,-0.5,1)}
-if(AGE<3){const p=lerpP(plat.L,plat.Bm,0.45);shield(g,Math.round(p[0])-3,Math.round(p[1])-7-(AGE?1:0));const q=lerpP(plat.Bm,plat.Rr,0.55);shield(g,Math.round(q[0])-2,Math.round(q[1])-7-(AGE?1:0))}
+if(AGE<3){const p=lerpP(plat.L,plat.Bm,0.45);shield(g,Math.round(p[0])-3,Math.round(p[1])-7-(AGE?1:0)-(AGE===2?1:0));const q=lerpP(plat.Bm,plat.Rr,0.55);shield(g,Math.round(q[0])-2,Math.round(q[1])-7-(AGE?1:0)-(AGE===2?1:0))}
 // roof: thatch (Dark), the age kit's shingles / tiles / slate later
 const ov=AGE===0?2:AGE===3?3:2;
 const roofTop={T:[plat.T[0],plat.T[1]-rz],Rr:[plat.Rr[0]+ov,plat.Rr[1]-rz+1],Bm:[plat.Bm[0],plat.Bm[1]-rz+2],L:[plat.L[0]-ov,plat.L[1]-rz+1]};
@@ -269,6 +331,9 @@ pixLine(g,roofTop.Bm[0],roofTop.Bm[1],ap[0],ap[1],'N');pixLine(g,roofTop.L[0],ro
   if(AGE===2)pixSet(g,ap[0],ap[1],Fe[1]);
 }
 pixLine(g,roofTop.L[0],roofTop.L[1],roofTop.Bm[0],roofTop.Bm[1],'k');pixLine(g,roofTop.Bm[0],roofTop.Bm[1],roofTop.Rr[0],roofTop.Rr[1],'k');
+// an uneven eave: thatch strands hang ragged (Dark), a lifted shingle or two (Feudal), an uneven tile drip line (Castle); Imperial stays crisp
+{const pr2=[0.45,0.16,0.14,0][AGE];if(pr2)for(const [A,B] of [[roofTop.L,roofTop.Bm],[roofTop.Bm,roofTop.Rr]])
+  eaveRag(g,A,B,pr2,AGE,{pair:AGE>0,fill:AGE===0?(x=>x<bx?'N':'U'):null,hang:AGE===0?(x=>x<bx?'N':'U'):null})}
 inkOutline(g);
 // legs drawn after the outline: 3-tone logs with their own ink edge (thin members would turn solid ink)
 // The posts stand inside the deck's footprint, so the deck is in front of their tops: everything drawn below is clipped to the
@@ -277,34 +342,25 @@ inkOutline(g);
 const underLegs=cloneG(g);
 const deckBottom=x=>x<=bx?plat.base.L[1]+(x-plat.base.L[0])*0.5:plat.base.Bm[1]-(x-bx)*0.5;
 // posts: back post thin, front posts two-tone logs (Feudal on: squared posts)
-const post=(P,th)=>{const C=th===1?['x']:AGE===0?['k','w','v','y']:['k','w','x','y'];for(let k=0;k<C.length;k++)pixLine(g,P[0]+k-1,P[1]-1-(AGE===1?2:0),P[0]+k-1,P[1]-PZ,C[k])};
+const post=(P,th)=>{const C=th===1?['x']:AGE===0?['k','w','v','y']:['k','w','x','y'],F=foot(P);for(let k=0;k<C.length;k++)pixLine(g,F[0]+k-1,P[1]-1-(AGE===1?2:0),P[0]+k-1,P[1]-PZ,C[k])};
 post(base.T,1);
 // cross bracing on the two front faces (behind the front posts)
 const brace=(A,B,c1,c2)=>{pixLine(g,A[0]+1,A[1]-6,B[0]-1,B[1]-PZ+8,c1);pixLine(g,A[0]+1,A[1]-PZ+8,B[0]-1,B[1]-6,c1);pixLine(g,A[0]+1,A[1]-5,B[0]-1,B[1]-PZ+9,c2);pixLine(g,A[0]+1,A[1]-PZ+9,B[0]-1,B[1]-5,c2)};
-const BZ=[0,0,20,PZ][AGE];   // stone pier height (Castle, Imperial)
+const BZ=[0,0,PZ,PZ][AGE];   // stone shaft height (Castle, Imperial): it runs right up under the deck
 if(AGE<2){brace(base.L,base.Bm,'v','y');brace(base.Bm,base.Rr,'x','y');}
-else if(AGE===2){// one X in the open stage between the pier and the deck
-  const b2=(A,B,c1)=>{pixLine(g,A[0]+1,A[1]-BZ-2,B[0]-1,B[1]-PZ+4,c1);pixLine(g,A[0]+1,A[1]-PZ+4,B[0]-1,B[1]-BZ-2,c1)};b2(base.L,base.Bm,'v');b2(base.Bm,base.Rr,'y')}
 if(AGE<2){pixLine(g,base.L[0],base.L[1]-18,base.Bm[0],base.Bm[1]-18,'x');pixLine(g,base.Bm[0],base.Bm[1]-18,base.Rr[0],base.Rr[1]-18,'y');} // mid ledger
 post(base.L,2);post(base.Rr,2);post(base.Bm,2);
-if(AGE===0)for(const P of [base.L,base.Rr,base.Bm])for(let y=6;y<PZ-4;y+=7){pixSet(g,P[0],P[1]-y,'x');pixSet(g,P[0]+1,P[1]-y,'k')}  // bark rings
+if(AGE===0)for(const P of [base.L,base.Rr,base.Bm])for(let y=6;y<PZ-4;y+=7){const F=foot(P),dx=Math.round((F[0]-P[0])*(1-y/PZ));pixSet(g,P[0]+dx,P[1]-y,'x');pixSet(g,P[0]+dx+1,P[1]-y,'k')}  // bark rings
 if(AGE===1)for(const P of [base.L,base.Rr,base.Bm])for(const y of [10,24]){pixSet(g,P[0]-1,P[1]-y,'i');pixSet(g,P[0],P[1]-y,'i')} // iron straps
 // ladder up the lit face: two rails, rungs every 4 px
 if(AGE<2)for(let k=0;k<PZ-3;k++){const y=base.L[1]+3-k,x0=Math.round(base.L[0]+9+k*0.1);pixSet(g,x0,y,'x');pixSet(g,x0+5,y+2,'y');if(k%4===2){pixLine(g,x0+1,y,x0+4,y+2,'w');pixLine(g,x0+1,y+1,x0+4,y+3,'y')}}
 for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(y+0.5<deckBottom(x+0.5))g[y][x]=underLegs[y][x];
 // Castle / Imperial: the stone pier in front of the post feet (Imperial: the whole shaft up to the gallery)
-let pr=null;
+let pr=null;const STNc=/[hqfaAmpHQnbBMP]/;
 if(BZ){const k=0.66;
   const ov=cloneG(g),withLegs=cloneG(g);
-  pr=pixIsoBox(g,bx,cy0+k*16,k,k,AGE===3?BZ-3+(ps-k)*16:BZ,1,{left:'1',right:'2'});
+  pr=pixIsoBox(g,bx,cy0+k*16,k,k,BZ-3+(ps-k)*16,1,{left:'1',right:'2'});
   ashlar(g,'1',pr.base.L,pr.base.Bm,LIT,{ch:AGE===3?4:5,bl:7,plinth:3,seed:2});ashlar(g,'2',pr.base.Bm,pr.base.Rr,SHD,{ch:AGE===3?4:5,bl:7,plinth:3,seed:3});
-  if(AGE===2){// a low tiled cap on the pier; the posts rise out of it
-    const ct={T:[pr.T[0],pr.T[1]-1],L:[pr.L[0]-2,pr.L[1]],Rr:[pr.Rr[0]+2,pr.Rr[1]],Bm:[pr.Bm[0],pr.Bm[1]+1]};
-    const cap=pixIsoRoof(g,ct,7,1,{left:'6',back:'7',front:'8',right:'9'});ageRoof();
-    pixLine(g,ct.Bm[0],ct.Bm[1],cap[0],cap[1],R[6]);pixLine(g,ct.L[0],ct.L[1],cap[0],cap[1],R[0]);
-    pixLine(g,ct.L[0],ct.L[1],ct.Bm[0],ct.Bm[1],'k');pixLine(g,ct.Bm[0],ct.Bm[1],ct.Rr[0],ct.Rr[1],'k');
-    for(let x=Math.ceil(pr.L[0]);x<=pr.Rr[0];x++){const y=Math.floor(x<=bx?pr.Bm[1]-(bx-x)*0.5:pr.Bm[1]-(x-bx)*0.5)+1;if(pixGet(g,x,y)!=='.')pixSet(g,x,y,x<=bx?'m':'M')}
-  }
   pixLine(g,pr.base.Bm[0],pr.base.Bm[1]-1,pr.Bm[0],pr.Bm[1],'K');
   if(AGE===3)for(const hh of [14,28]){for(let x=Math.ceil(pr.base.L[0]);x<=Math.floor(pr.base.Rr[0]);x++){                 // gilt string courses
     const y=Math.floor(x<=bx?pr.base.L[1]+(x-pr.base.L[0])*0.5:pr.base.Bm[1]-(x-bx)*0.5)-hh;if(pixGet(g,x,y)==='.')continue;pixSet(g,x,y,x<=bx?Au[0]:Au[1]);pixSet(g,x,y+1,x<=bx?Au[1]:Au[2])}}
@@ -312,31 +368,42 @@ if(BZ){const k=0.66;
   const dx=Math.round(pr.base.L[0]+9),dy=Math.round(pr.base.L[1]+9*0.5)-1;
   opening(g,dx,dy,5,AGE===3?10:9,0.5,{fill:(c,r,w,h)=>r===h-1?null:c===0?'x':(c+1)%2?'v':'w'});
   if(AGE===3){pixSet(g,dx+2,dy-10+1,Au[0])}
-  if(AGE===3){slit(g,bx+9,by-30,4,false);slit(g,bx-12,by-34,4,false)}else slit(g,bx+9,by-15,4,true);
+  if(AGE===3){slit(g,bx+9,by-30,4,false);slit(g,bx-12,by-34,4,false)}else{slit(g,bx+9,by-15,4,true);slit(g,bx-12,by-31,4,false)}
   // ink only on the pier's own silhouette
   const solid=(x,y)=>pixGet(ov,x,y)!=='.';
   const tmp=cloneG(g);inkOutline(tmp,null,solid);
   for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(tmp[y][x]!==g[y][x]&&ov[y][x]==='.')g[y][x]=tmp[y][x];
-  // Castle: the posts and braces above the cap (they stand on the pier, inside the cap's slope)
-  if(AGE===2){const clip=x=>x<=bx?base.L[1]+(x-base.L[0])*0.5-(BZ+3):base.Bm[1]-(x-bx)*0.5-(BZ+3);
-    for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(withLegs[y][x]!==underLegs[y][x]&&y+0.5<clip(x+0.5)&&y+0.5>=deckBottom(x+0.5))g[y][x]=withLegs[y][x];}
+  if(AGE===2){// the jettied deck: joist ends poke out over the shaft, which sits in the deck's shadow
+    for(let x=Math.ceil(pr.L[0])-1;x<=Math.floor(pr.Rr[0])+1;x++){const y=Math.ceil(deckBottom(x+0.5));if(pixGet(g,x,y)==='.')continue;
+      const lit=x<bx,u=Math.abs(x-bx);pixSet(g,x,y,u%4===1?(lit?'v':'x'):lit?'x':'y');pixSet(g,x,y+1,u%4===1?'y':(lit?'m':'M'));
+      if(STNc.test(pixGet(g,x,y+2)))pixSet(g,x,y+2,lit?'p':'P')}}
 }
+// natural lines: worn stone edges, moss at the foot, grass tufts and a little rubble round the feet
+const STN=/[hqfaAmpHQnbBMP]/;
+wear(g,STN,{p:0.4,notch:0.04,bump:AGE===3?0.05:0.12,seed:5});
+moss(g,STN,{h:AGE===3?5:8,split:bx,dens:AGE===3?0.35:0.6,seed:6});
+tufts(g,{p:AGE<2?0.7:0.45,maxY:by,split:bx,tol:AGE<2?10:3,rubble:AGE<2?0.1:0.06,seed:7});
 if(AGE===3)AK.finial(g,Math.round(ap[0]),Math.round(ap[1]));
 
 // idle: a torch on the front post (Imperial: the lantern fire) flickers; a team banner ripples (under the deck, or on the pier)
 const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
   if(AGE<2){const q=lerpP(plat.base.Bm,plat.base.Rr,0.22);banner(f,Math.round(q[0]),Math.round(q[1])+2,6,AGE?9:11,k,{sl:-0.5});}
-  else{const q=lerpP(pr.base.Bm,pr.base.Rr,0.4);const y0=Math.round(q[1])-BZ+(AGE===3?5:3),len=AGE===3?12:11;banner(f,Math.round(q[0]),y0,6,len,k,{sl:-0.5});
-    if(AGE===3){for(let c=-1;c<=6;c++){const y=y0+Math.floor((c+0.5)*-0.5);if(pixGet(f,Math.round(q[0])+c,y)==='y')pixSet(f,Math.round(q[0])+c,y,Au[1])}
-      for(let c=0;c<6;c++)for(let r=len+2;r>=1;r--){const x=Math.round(q[0])+c,y=y0+Math.floor((c+0.5)*-0.5)+r;if(/[TLD]/.test(pixGet(f,x,y))){pixSet(f,x,y,c%2?Au[1]:Au[0]);break}}}}
-  if(AGE<3){const tx=base.Bm[0]-2-(AGE===2?8:0),ty=base.Bm[1]-17+(AGE===2?2:0);torch(f,tx,ty,k);
+  else{// long banners hung from rods under the deck (Castle: iron rod, one on the shaded face; Imperial: gilt rod and fringe, one on each face)
+    const BN=AGE===3?[[pr.base.Bm,pr.base.Rr,0.42,-0.5,0],[pr.base.L,pr.base.Bm,0.18,0.5,2]]:[[pr.base.Bm,pr.base.Rr,0.4,-0.5,0]];
+    for(const [A,B,fr,sl,ph] of BN){const q=lerpP(A,B,fr),x0=Math.round(q[0]),y0=Math.round(q[1])-BZ+(AGE===3?5:4),len=AGE===3?15:15,w=AGE===3?6:6;
+      banner(f,x0,y0,w,len,k+ph,{sl});
+      for(let c=-1;c<=w;c++){const y=y0+Math.floor((c+0.5)*sl);if(pixGet(f,x0+c,y)==='y')pixSet(f,x0+c,y,AGE===3?Au[1]:'J')}
+      if(AGE===3)for(let c=0;c<w;c++)for(let r=len+2;r>=1;r--){const x=x0+c,y=y0+Math.floor((c+0.5)*sl)+r;if(/[TLD]/.test(pixGet(f,x,y))){pixSet(f,x,y,c%2?Au[1]:Au[0]);break}}}}
+  if(AGE<2){const tx=base.Bm[0]-2,ty=base.Bm[1]-17;torch(f,tx,ty,k);
     for(const [dx,dy] of [[2,-3],[2,-5],[3,-4],[2,1]])if(/[wvk]/.test(pixGet(f,tx+dx,ty+dy)))pixSet(f,tx+dx,ty+dy,(k+dy)%2?'G':'g');}
+  else if(AGE===2){const tx=base.Bm[0]-4,ty=base.Bm[1]-13;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,k)}
   else{flame(f,BRZ[0],BRZ[1]-2,k);}
   frames.push(pixText(f));}
 return {
   id:'outpost',kind:'building',footprint:[W,H],anchor:[bx,by],
   palette:Object.assign({},FORT_PAL,AK.pal,{d:'#e6c272',E:'#d8ab4f',l:'#c99a44',N:'#a07a34',U:'#6f5229'},STONE),
+  ...(AGE===0?{roofChars:'dElNU'}:{}),   // the Dark thatch is painted with its own chars: let the engine's team roof tint lean them
   ...(AGE?{flags:[[0,Math.round(ap[1]-by)-(AGE===3?6:3),12]]}:{}),
   frames:{idle:frames},
 };
