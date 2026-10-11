@@ -322,6 +322,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
           <label>Team positions</label><select id="s-teampos"><option value="together" selected>Together</option><option value="random">Random</option></select>
           <label>Diplomacy</label><select id="s-diplo"><option value="open" selected>Open: alliances can change</option><option value="locked">Locked teams</option></select>
           <label>Seed</label><input id="s-seed" type="text" placeholder="random">
+          <label title="How strongly building roofs take their owner's colour, so you can tell towns apart from far out. Only changes what you see.">Team roofs</label><select id="s-roofs"><option value="subtle">Subtle</option><option value="strong">Strong</option><option value="off">Off</option></select>
             </div>
           </div>
         </div>
@@ -357,7 +358,6 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
         </div></details>
         <button class="big" id="play">Play</button>
         <div id="dip" class="hidden" style="margin:8px 0"></div>
-        <div class="opts" id="artopts" style="margin:8px 0 0"><div class="opt" id="teamroofs" title="How strongly building roofs take their owner's colour, so you can tell towns apart from far out">Team roofs: Subtle</div></div>
         <details id="treewrap" class="hidden"><summary>Tech tree</summary><div id="tree" style="font-size:12px;line-height:1.5;max-height:40vh;overflow:auto"></div></details>
         <div class="opts" id="saveopts" style="margin:8px 0 0"><div class="opt hidden" id="save">Save game</div><div class="opt hidden" id="load">Load saved game</div><div class="opt hidden" id="restart" title="Start over on this same map with the same settings">Restart this map</div></div>
         <button class="big hidden" id="resign" style="background:#5a2a20;margin-top:6px">Resign</button>
@@ -34047,7 +34047,7 @@ function inviteLink(){return location.origin+location.pathname+'?join='+encodeUR
 function mpReady(){if(!NET.tr||NET.host||NET.active)return;NET.ready=!NET.ready;NET.send({t:'ready',on:NET.ready});renderLobby()}
 function seatTag(r,mine){if(r.type==='closed')return '';if(r.type==='ai')return `<span class="tag dim">${DIFF_NAMES[r.diff]||'Normal'}</span>`;if(r.type==='open')return '<span class="tag wait">Waiting</span>';
  if(r.type==='you'||r.row===0&&!NET.host)return '<span class="tag ok">Host</span>';if(!r.on)return '<span class="tag err">Disconnected</span>';return r.ready?'<span class="tag ok">Ready</span>':'<span class="tag wait">Not ready</span>'}
-function renderLobby(){const box=$('mp-lobby'),play=$('play');const ctl=document.querySelectorAll('#setupwrap select,#setupwrap input');$('setupwrap').classList.toggle('guest',!!(NET.tr&&!NET.host));
+function renderLobby(){const box=$('mp-lobby'),play=$('play');const ctl=document.querySelectorAll('#setupwrap select:not(#s-roofs),#setupwrap input');$('setupwrap').classList.toggle('guest',!!(NET.tr&&!NET.host));
  if(!NET.tr){box.classList.add('hidden');box.innerHTML='';$('mpwrap').classList.remove('hidden');play.disabled=false;if(!(G&&!G.over))play.textContent='Play';ctl.forEach(el=>{el.disabled=false});document.querySelectorAll('#prows .mponly').forEach(o=>o.classList.add('hidden'));for(let i=1;i<PROWS;i++)if($('pt-'+i).value==='open'){$('pt-'+i).value='ai';rowTypeChanged(i)}for(let i=0;i<PROWS;i++){const nm=$('pn-'+i);if(nm.tagName==='SPAN')rowTypeChanged(i)}$('pt-0').textContent='You';renderCivCards();return}
  box.classList.remove('hidden');$('mpwrap').classList.add('hidden');
  const rows=NET.host?rowModel():(NET.lobby&&NET.lobby.rows||[]);const S=NET.host?lobbySetup():(NET.lobby&&NET.lobby.setup);
@@ -34275,8 +34275,8 @@ function civDesc(k){k=k||myCiv();const c=CIVS[k];$('civdesc').innerHTML=c?`<b>${
 $('s-diff').addEventListener('change',()=>{for(let i=1;i<PROWS;i++)$('pd-'+i).value=$('s-diff').value});
 buildPlayerRows();try{$('pn-0').value=localStorage.getItem('ageup-name')||''}catch(e){}
 // Team roofs (menu): how far building roofs lean towards their owner's colour (pixTeamRoofs). Visual only, per browser.
-function syncTeamRoofs(){let m='subtle';try{m=localStorage.getItem('age-up-team-roofs')||'subtle'}catch(e){}const b=$('teamroofs');if(b)b.textContent='Team roofs: '+m[0].toUpperCase()+m.slice(1)}
-$('teamroofs').onclick=()=>{let m='subtle';try{m=localStorage.getItem('age-up-team-roofs')||'subtle'}catch(e){}m={subtle:'strong',strong:'off',off:'subtle'}[m]||'subtle';try{localStorage.setItem('age-up-team-roofs',m)}catch(e){}pixTeamRoofs.v=undefined;for(const k in PIX_CACHE)delete PIX_CACHE[k];syncTeamRoofs()};syncTeamRoofs();
+{let m='subtle';try{m=localStorage.getItem('age-up-team-roofs')||'subtle'}catch(e){}$('s-roofs').value=m}
+$('s-roofs').onchange=()=>{try{localStorage.setItem('age-up-team-roofs',$('s-roofs').value)}catch(e){}pixTeamRoofs.v=undefined;for(const k in PIX_CACHE)delete PIX_CACHE[k]};
 hudIcons();
 function startGame(setup){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();ui.mouse.in=false;ui.keys={};WATCHING=false;ui.menu=false;newGame(setup);terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};G.sel=[];const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall');if(th){const c=center(th);centerOn(c.x+1,c.y+1);setSel([th])}else{const v=G.units.find(u=>u.team===ME&&u.type==='villager');centerOn(v.x,v.y);setSel(G.units.filter(u=>u.team===ME&&u.type==='villager'));msg('Nomad start: you have no Town Hall. Pick a spot near wood and food and build one (T).')}updateTop();renderCmds();renderInfo();
  const foes=G.players.filter(p=>!allied(p.team,ME)).map(p=>TEAM[p.team].n+' ('+CIVS[p.civ].name+')').join(', ');msg(`${MAP_TYPES[G.mapType]} · you are ${CIVS[player(ME).civ].name}: ${CIVS[player(ME).civ].desc}`);msg(`Enemies: ${foes}. F1 for help.`);$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('setupwrap').classList.remove('hidden')}
