@@ -58,15 +58,31 @@ export function pixDraw(spec, frame, i, tc, x = 0, y = 0, o) { pixBlit(ctx, spec
  */
 export function pixUnit(u, spec, tc, o = {}) {
   const F = spec.frames, fps = spec.fps || {};
-  const moving = u.goal && u.state !== 'idle' && !(u.state === 'gather' && u.phase === 'gathering');
-  const working = (u.state === 'gather' && u.phase === 'gathering') || (u.state === 'build' && !u.goal);
-  let set = 'idle', i = (G.time + (u.id % 7) * 0.37) * (fps.idle || 4);
+  const SW = typeof SWING !== 'undefined' ? SWING : 0.3, HIT = typeof STRIKE !== 'undefined' ? STRIKE / TPS : 0.15;
+  const gathering = u.state === 'gather' && u.phase === 'gathering';
+  // walking = it actually moved on the last tick (a chase or a back-off steps without a path goal); the old goal test is the fallback
+  const moving = u.mv !== undefined ? (u.mv === G.tick && !gathering) : (u.goal && u.state !== 'idle' && !gathering);
+  const working = gathering || (u.state === 'build' && !u.goal);
+  let set = 'idle', i = (G.time + (u.id % 7) * 0.37) * (fps.idle || 4), ox = 0;
   if (o.set && F[o.set]) { set = o.set; i = (o.i !== undefined ? o.i : G.time * (fps[o.set] || 8)); }
+  else if (u.swing > 0 && F.attack) {
+    // The painted sets put the blow first for melee (frame 0 is the strike, with its smear; the last frame is the weapon
+    // raised again) and last for shooters (draw ... release). So: hold the wind-up pose until the sim lands the hit,
+    // snap to the impact frame and hold it a beat, then play the follow-through.
+    const n = F.attack.length, e = Math.max(0, SW - u.swing); set = 'attack';
+    const ranged = typeof UNITS !== 'undefined' && UNITS[u.type] && UNITS[u.type].proj;
+    if (ranged) { i = e < HIT ? Math.floor(e / HIT * Math.max(1, n - 1)) : n - 1; ox = e >= HIT && e < HIT + 0.1 ? -1 : 0; }
+    else { const rest = SW - HIT - 0.1; i = e < HIT ? n - 1 : e < HIT + 0.1 ? 0 : Math.min(n - 1, 1 + Math.floor((e - HIT - 0.1) / Math.max(0.01, rest) * (n - 1)));
+      // lean back on the wind-up, lunge into the blow, settle
+      ox = e < HIT ? -1 : Math.round(2 * Math.max(0, 1 - (e - HIT) / 0.2)); }
+  }
   else if (moving && F.walk) { set = 'walk'; i = u.anim * (fps.walk || 12); }
-  else if (u.swing > 0 && F.attack) { const n = F.attack.length; set = 'attack'; i = Math.min(n - 1, Math.floor((0.3 - u.swing) / 0.3 * n)); }
   else if (u.state === 'attack' && F.ready) { set = 'ready'; i = (G.time + (u.id % 7) * 0.37) * (fps.ready || fps.idle || 4); }
   else if (working && F[o.work || 'work']) { set = o.work || 'work'; i = u.anim * (fps.work || 8); }
-  pixDraw(spec, set, i, tc, 0, 0, u.flash > 0 ? { flash: true } : undefined);
+  // knocked back a pixel or two away from whoever hit it, while the hit flash lasts (the context is mirrored by facing)
+  if (u.flash > 0 && u.hitFrom) { const s = (u.x - u.hitFrom.x) - (u.y - u.hitFrom.y); if (Math.abs(s) > 0.01) ox += Math.round(Math.min(1, u.flash / 0.15) * 2) * (s < 0 ? -1 : 1) * (u.face || 1); }
+  // the white flash is a short pulse at the start of the hit, so the struck unit's own pose stays readable
+  pixDraw(spec, set, i, tc, ox, 0, u.flash > 0.07 ? { flash: true } : undefined);
   return set;
 }
 /** Death: play `death` once at fps.death (default 10) from time t0, then hold the last frame (the corpse). */

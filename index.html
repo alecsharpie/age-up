@@ -601,23 +601,59 @@ function packThen(u,c){if(c.k==='attack'){if(!c.t||c.t.dead)stop(u);else cmdAtta
 function packStep(u){if(--u.packT>0)return;u.packed=u.packGoal;const nx=u.packTo;u.packTo=null;u.state='idle';if(nx)packThen(u,nx)}
 // true when the order has to wait for the engine to pack up first
 function packGuard(u,c){if(!UNITS[u.type].packs||u.packed&&u.state!=='pack')return false;if(u.state==='pack'&&u.packGoal===true&&u.packed===false){u.packTo=c;return true}if(u.packed===false||u.state==='pack'){beginPack(u,true,c);return true}return false}
-function stop(u){if(u.state==='gather')releaseGather(u);u.state='idle';u.target=null;u.path=null;u.goal=null;u.resume=null;u.patrol=null}
+// Facing is a screen-space flip, so it follows the projected direction (x-y on the iso grid), not world x.
+function faceTo(u,x,y){const s=(x-u.x)-(y-u.y);if(Math.abs(s)>0.02)u.face=s<0?-1:1}
+function stop(u){u.flee=null;if(u.state==='gather')releaseGather(u);u.state='idle';u.target=null;u.path=null;u.goal=null;u.resume=null;u.patrol=null}
+// Progress watch: true when the unit has moved under a quarter tile over the last second while trying to walk, i.e. it is
+// being jostled in place by a crowd. Call it every tick a unit is walking; a gap in the calls restarts the watch.
+function stalled(u){if(u.pwT===G.tick)return false;if(u.pwT===G.tick-1){u.pwN++}else{u.pwN=0;u.pwX=u.x;u.pwY=u.y}u.pwT=G.tick;if(u.pwN<20)return false;const s=Math.hypot(u.x-u.pwX,u.y-u.pwY)<0.25;u.pwN=0;u.pwX=u.x;u.pwY=u.y;return s}
 function step(u){
  if(!u.goal)return true;
  const sp=unitStat(u,'speed')*DT;
  if(!u.path){const r=findPath(Math.floor(u.x),Math.floor(u.y),u.goal,u.adj,u.team,u.naval);u.path=r.path;u.pi=0;u.complete=r.complete;u.stuck=0;
   if(!u.path.length){ if(!u.adj){const gx=(u.goal.x0+u.goal.x1)/2,gy=(u.goal.y0+u.goal.y1)/2; if(Math.hypot(gx-u.x,gy-u.y)<0.05)return true; u.path=[{x:gx,y:gy}];} else return true }}
- if(u.pi>=u.path.length){ if(!u.adj){const gx=(u.goal.x0+u.goal.x1)/2,gy=(u.goal.y0+u.goal.y1)/2;const d=Math.hypot(gx-u.x,gy-u.y);if(d<0.08||!lineWalkable(u.x,u.y,gx,gy,u.team,u.naval))return true;const k=Math.min(1,sp/d);u.x+=(gx-u.x)*k;u.y+=(gy-u.y)*k;u.anim+=DT;u.face=(gx-u.x)<0?-1:1;return d<=sp} return true }
+ // a crowd sent to one point: once close and no longer getting closer for a second, the others are standing on it
+ if(!u.adj&&stalled(u)&&Math.hypot((u.goal.x0+u.goal.x1)/2-u.x,(u.goal.y0+u.goal.y1)/2-u.y)<1.6)return true;
+ if(u.pi>=u.path.length){ if(!u.adj){const gx=(u.goal.x0+u.goal.x1)/2,gy=(u.goal.y0+u.goal.y1)/2;const d=Math.hypot(gx-u.x,gy-u.y);if(d<0.08||!lineWalkable(u.x,u.y,gx,gy,u.team,u.naval))return true;const k=Math.min(1,sp/d);u.x+=(gx-u.x)*k;u.y+=(gy-u.y)*k;u.anim+=DT;faceTo(u,gx,gy);return d<=sp} return true }
  if(u.pi<u.path.length-1&&(G.tick+u.id)%5===0){let j=u.pi+1;let last=u.pi;while(j<u.path.length&&j<=u.pi+4){if(lineWalkable(u.x,u.y,u.path[j].x,u.path[j].y,u.team,u.naval))last=j;else break;j++}u.pi=last}
  const w=u.path[u.pi];const dx=w.x-u.x,dy=w.y-u.y;const d=Math.hypot(dx,dy);
  if(!isWalkable(Math.floor(w.x),Math.floor(w.y),u.team,u.naval)){u.path=null;u.stuck=(u.stuck||0)+1;return u.stuck>4}
  if(d<=sp){u.x=w.x;u.y=w.y;u.pi++;if(u.pi>=u.path.length&&u.adj)return true}
- else{u.x+=dx/d*sp;u.y+=dy/d*sp;if(Math.abs(dx)>0.01)u.face=dx<0?-1:1}
+ else{u.x+=dx/d*sp;u.y+=dy/d*sp;faceTo(u,w.x,w.y)}
  u.anim+=DT;return false}
 function arrived(u,target,range){return entDist(u,target)<=range+0.05}
-function goNear(u,t,range){if(arrived(u,t,range))return 'there';if(!u.goal)moveTo(u,rectOf(t),t.kind!=='unit');if(!step(u))return 'moving';
- const c=center(t);const d=Math.hypot(c.x-u.x,c.y-u.y)||0.001;const sp=unitStat(u,'speed')*DT;const nx=u.x+(c.x-u.x)/d*sp,ny=u.y+(c.y-u.y)/d*sp;
- if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny;u.anim+=DT;u.face=(c.x-u.x)<0?-1:1;return 'moving'}u.path=null;u.goal=null;return 'stuck'}
+function goNear(u,t,range,strict){if(arrived(u,t,range)){return 'there'}
+ // a unit jostled in place within a quarter tile of its range is being crowded out of the last steps by others already
+ // working there, so it counts as arrived instead of pushing forever
+ const dd=entDist(u,t);if(!strict&&dd<=range+0.25&&stalled(u)){u.path=null;u.goal=null;return 'there'}
+ if(!u.goal)moveTo(u,rectOf(t),t.kind!=='unit');if(!step(u))return 'moving';
+ // the path is done but we are not in range yet: close in on the nearest point of the target's footprint (its centre may be
+ // behind a corner from a diagonal cell)
+ const r=rectOf(t);const c={x:Math.min(Math.max(u.x,r.x0),r.x1),y:Math.min(Math.max(u.y,r.y0),r.y1)};const d=Math.hypot(c.x-u.x,c.y-u.y)||0.001;const sp=unitStat(u,'speed')*DT;const nx=u.x+(c.x-u.x)/d*sp,ny=u.y+(c.y-u.y)/d*sp;
+ if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny;u.anim+=DT;faceTo(u,c.x,c.y);return 'moving'}u.path=null;u.goal=null;if(!strict&&dd<=range+0.5){return 'there'}return 'stuck'}
+// A free place to stand while working on t (a tree, mine, bush, foundation or damaged building): a walkable cell touching
+// its footprint, preferring cells nobody is working from, then the nearest. The point sits 0.3 from the footprint's edge,
+// so workers stand right against what they work on and spread around it instead of queueing on one cell.
+function workSpot(u,t){const r=rectOf(t);let best=null,bs=1e9;const x0=Math.floor(r.x0),y0=Math.floor(r.y0),x1=Math.ceil(r.x1),y1=Math.ceil(r.y1);
+ for(let y=y0-1;y<=y1;y++)for(let x=x0-1;x<=x1;x++){if(x>=x0&&x<x1&&y>=y0&&y<y1)continue;if(!walk(u,x,y))continue;
+  const px=Math.min(Math.max(x+0.5,r.x0-0.3),r.x1+0.3),py=Math.min(Math.max(y+0.5,r.y0-0.3),r.y1+0.3);
+  let crowd=0;forNear(px,py,0.55,v=>{if(v!==u&&!v.naval&&!isAnimal(v))crowd++});
+  const sc=Math.hypot(px-u.x,py-u.y)+crowd*4;if(sc<bs){bs=sc;best={x:px,y:py}}}
+ return best}
+// A spot inside a farm plot: farmers work standing on their field, each on its own patch (by unit id).
+function farmSpot(u,f){const k=u.id%4;return{x:f.tx+0.6+(k&1)*(f.w-1.2),y:f.ty+0.6+(k>>1)*(f.h-1.2)}}
+// goNear for workers: walk to a free spot against the target (or onto a farm) and report 'there' once standing on it.
+function goWork(u,t,range){const farm=t.kind==='bld'&&t.type==='farm';const onIt=()=>farm?rectDist(u.x,u.y,rectOf(t))<0.01:arrived(u,t,range);
+ if(u.workAt===t.id&&onIt())return 'there';if(u.spotFail===t.id&&!farm)return goNear(u,t,range);
+ if(!u.spot||u.spotT!==t.id){const sp=farm?farmSpot(u,t):workSpot(u,t);if(!sp)return goNear(u,t,range);u.spot=sp;u.spotT=t.id;u.goal=null}
+ if(!u.goal){u.goal={x0:u.spot.x,y0:u.spot.y,x1:u.spot.x,y1:u.spot.y};u.adj=false;u.path=null}
+ const ds=Math.hypot(u.spot.x-u.x,u.spot.y-u.y);
+ const done=()=>{u.workAt=t.id;u.spot=null;u.path=null;u.goal=null;return 'there'};
+ if(ds<0.1)return done();
+ // jostled off the spot: work from here if close enough, otherwise pick another spot
+ if(stalled(u)){if(onIt())return done();u.spot=null;return 'moving'}
+ if(step(u)){if(onIt())return done();u.spot=null;u.goal=null;u.path=null;u.spotFail=t.id;return 'moving'}
+ return 'moving'}
 
 function findResource(team,kind,x,y,maxD,opts){let best=null,bd=1e9;const naval=opts&&opts.naval;
  for(const r of G.resources){if(r.res!==kind||r.dead||r.cliff)continue;if(!!r.fish!==!!naval)continue;const d=Math.hypot(r.tx+0.5-x,r.ty+0.5-y);if(d>maxD||d>=bd)continue;if(r.gatherers>=(kind==='wood'?2:r.carcass?6:3))continue;
@@ -637,7 +673,7 @@ function cmdGather(u,r){if(u.type!=='villager'&&u.type!=='fishing')return;if(u.t
 function cmdHunt(u,a){releaseGather(u);u.state='hunt';u.target=a;a.hunters=(a.hunters||0)+1;u.carryKind='food';u.path=null;u.goal=null}
 function cmdBuild(u,b){if(u.type!=='villager')return;if(u.state==='gather'&&u.target&&!u.target.dead)u.prev={k:'gather',t:u.target};else if(u.state!=='build')u.prev=null;releaseGather(u);u.state='build';u.target=b;moveTo(u,rectOf(b),true)}
 function cmdRepair(u,b){if(u.type!=='villager')return;releaseGather(u);u.state='repair';u.target=b;u.path=null;u.goal=null}
-function cmdMove(u,x,y){if(packGuard(u,{k:'move',x,y}))return;releaseGather(u);u.state='move';u.target=null;u.patrol=null;const tx=Math.floor(x),ty=Math.floor(y);const blocked=!isWalkable(tx,ty,u.team,u.naval);moveTo(u,{x0:blocked?tx:x,y0:blocked?ty:y,x1:blocked?tx+1:x,y1:blocked?ty+1:y},blocked)}
+function cmdMove(u,x,y){if(packGuard(u,{k:'move',x,y}))return;u.flee=null;releaseGather(u);u.state='move';u.target=null;u.patrol=null;const tx=Math.floor(x),ty=Math.floor(y);const blocked=!isWalkable(tx,ty,u.team,u.naval);moveTo(u,{x0:blocked?tx:x,y0:blocked?ty:y,x1:blocked?tx+1:x,y1:blocked?ty+1:y},blocked)}
 function cmdAttackMove(u,x,y){if(packGuard(u,{k:'amove',x,y}))return;releaseGather(u);u.state='amove';u.target=null;u.amDest={x,y};const tx=Math.floor(x),ty=Math.floor(y);const blocked=!isWalkable(tx,ty,u.team,u.naval);moveTo(u,{x0:blocked?tx:x,y0:blocked?ty:y,x1:blocked?tx+1:x,y1:blocked?ty+1:y},blocked)}
 function cmdPatrol(u,x,y){if(packGuard(u,{k:'patrol',x,y}))return;cmdAttackMove(u,x,y);u.patrol={a:{x:u.x,y:u.y},b:{x,y},to:'b'}}
 // Explore: keep walking to unexplored ground until the map is known or another order arrives.
@@ -654,7 +690,7 @@ function tradeStep(u){const m=u.target;if(!m||m.dead){stop(u);return}
  else{const hm=(u.home&&!u.home.dead)?u.home:nearestBuilding(u.team,'market',u.x,u.y);if(!hm){stop(u);return}const g=goNear(u,hm,1.0);if(g==='there'){const p=player(u.team);p.res.gold+=u.carry;p.stats.gathered+=u.carry;stat(p,'trade',u.carry);u.carry=0;u.phase='go';u.path=null;u.goal=null}else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;stop(u)}}}}
 function cmdRelic(u,r){if(u.type!=='monk'||r.holder||r.temple)return;u.state='relic';u.target=r;u.path=null;u.goal=null}
 function releaseGather(u){if(u.target&&u.target.kind==='res'&&u.state==='gather')u.target.gatherers=Math.max(0,u.target.gatherers-1);if(u.target&&u.target.kind==='bld'&&u.target.type==='farm'&&u.target.worker===u)u.target.worker=null;if(u.state==='hunt'&&u.target)u.target.hunters=Math.max(0,(u.target.hunters||0)-1);u.phase=null}
-function issue(u,cmd,queue){if(u.inside)return;if(queue&&u.state!=='idle'){u.cmds.push(cmd);return}u.cmds.length=0;runCmd(u,cmd)}
+function issue(u,cmd,queue){if(u.inside)return;u.flee=null;if(queue&&u.state!=='idle'){u.cmds.push(cmd);return}u.cmds.length=0;runCmd(u,cmd)}
 function runCmd(u,c){if(c.k!=='explore')u.explore=false;switch(c.k){case'explore':cmdExplore(u);break;case'move':cmdMove(u,c.x,c.y);break;case'amove':cmdAttackMove(u,c.x,c.y);break;case'patrol':cmdPatrol(u,c.x,c.y);break;case'gather':if(c.t.dead){stop(u);break}cmdGather(u,c.t);break;case'build':if(c.t.dead||c.t.built){stop(u);break}cmdBuild(u,c.t);break;case'repair':if(c.t.dead){stop(u);break}cmdRepair(u,c.t);break;case'attack':if(c.t.dead){stop(u);break}cmdAttack(u,c.t);break;case'follow':if(c.t.dead){stop(u);break}cmdFollow(u,c.t);break;case'garrison':if(c.t.dead){stop(u);break}cmdGarrison(u,c.t);break;case'relic':cmdRelic(u,c.t);break;case'trade':if(c.t.dead){stop(u);break}cmdTrade(u,c.t);break}}
 
 // ---- combat ----
@@ -667,19 +703,44 @@ function damageOf(att,target){const d=att.kind==='unit'?UNITS[att.type]:BUILDING
  const ranged=att.kind==='bld'||!!d.proj;let armor=0;if(target.kind==='unit')armor=ranged?unitStat(target,'parmor'):unitStat(target,'armor');else armor=target.type==='wall'||target.type==='gate'||target.type==='tower'||target.type==='keep'||target.type==='wonder'?(ranged?8:2):(ranged?3:1);
  const ca=center(att),ct=center(target);const dh=heightAt(ca.x,ca.y)-heightAt(ct.x,ct.y);const hg=dh>0.5?1.25:dh<-0.5?0.75:1;
  return Math.max(1,Math.round((atk+bonus)*hg)-armor)}
-function applyDamage(t,amt,att){if(t.dead)return;t.hp-=amt;t.flash=0.15;if(att&&att.team>=0&&t.team>=0&&att.team!==t.team){const tp=player(t.team);tp.lastHit=tp.lastHit||{};tp.lastHit[att.team]=G.time}
+function applyDamage(t,amt,att){if(t.dead)return;t.hp-=amt;t.flash=0.15;if(att&&att.kind==='unit'&&t.kind==='unit')t.hitFrom={x:att.x,y:att.y};if(att&&att.team>=0&&t.team>=0&&att.team!==t.team){const tp=player(t.team);tp.lastHit=tp.lastHit||{};tp.lastHit[att.team]=G.time}
  if(t.team===ME&&att&&!isAnimal(att)){const p=player(ME);if(G.time-p.alertT>8){p.alertT=G.time;const c=center(t);G.pings.push({x:c.x,y:c.y,t:G.time,kind:'alert'});msg(t.kind==='unit'?(t.type==='villager'?'A villager is under attack!':'Your army is fighting.'):(BUILDINGS[t.type].name+' is under attack!'));sfx('alert')}}
  if(t.hp<=0)kill(t,att)
  else if(t.kind==='unit'&&att&&att.kind==='unit'&&!allied(att.team,t.team)){
   if(isAnimal(t)){if(t.type==='boar'&&t.state!=='attack'){t.state='attack';t.target=att;t.resume=null}else if(t.type==='deer'||t.type==='sheep'){fleeFrom(t,att)}}
-  else if(isMil(t)&&!UNITS[t.type].onlyBuildings&&(t.state==='idle'||t.state==='amove'||(t.state==='attack'&&t.target&&t.target.kind==='bld')))cmdAttack(t,att,t.state==='amove'?{amove:t.amDest,patrol:t.patrol}:null);
-  else if(t.type==='villager'&&att.type==='villager'&&t.state==='idle')cmdAttack(t,att);}}
+  else if(isMil(t)&&!UNITS[t.type].onlyBuildings&&!isAnimal(att))answerHit(t,att);
+  else if(t.type==='villager'&&att.type==='villager'){if(t.state==='idle')cmdAttack(t,att)}
+  else if(t.type==='villager'&&isMil(att))villFlee(t,att);}
+ else if(t.kind==='unit'&&att&&att.kind==='bld'&&!allied(att.team,t.team)){t.hitFrom={x:center(att).x,y:center(att).y};if(isMil(t)&&!UNITS[t.type].onlyBuildings)answerHit(t,att);else if(t.type==='villager')villFlee(t,att)}}
+// A soldier that is hit turns on its attacker unless it is under a direct order (move, garrison, pack...) or already
+// trading blows with someone it can reach.
+function answerHit(t,att){const s=t.state,cur=t.target;
+ if(t.stance==='ground'&&entDist(t,att)>unitStat(t,'range')+0.05)return;
+ if(s==='idle'||s==='amove'||s==='follow'){cmdAttack(t,att,s==='amove'?{amove:t.amDest,patrol:t.patrol}:s==='follow'&&cur&&!cur.dead?{follow:cur}:null);return}
+ if(s!=='attack'||!cur||cur===att||att.kind==='bld')return;
+ if(cur.kind==='bld'){cmdAttack(t,att,t.resume);return}
+ // chasing a unit it cannot reach yet: take on the nearer attacker instead
+ if(entDist(t,cur)>unitStat(t,'range')+0.05&&(entDist(t,att)<entDist(t,cur)||entDist(t,att)<=UNITS[t.type].los))cmdAttack(t,att,t.resume)}
+// A villager hit by a soldier or a tower runs from it, then goes back to what it was doing (see fleeDone).
+function villFlee(u,att){if(u.inside||u.state==='attack'||u.state==='hunt'||u.state==='garrison'||u.state==='pack'||(u.state==='move'&&!u.flee))return;
+ if(!u.flee){const k=u.state==='gather'||u.state==='build'||u.state==='repair'?u.state:'idle';const f={k,t:u.target&&!u.target.dead?u.target:null,kind:u.carryKind,n:0};releaseGather(u);u.flee=f}
+ u.flee.n++;const c=center(att);const far=att.kind==='bld'?(BUILDINGS[att.type].range||6)+2:4;const base=Math.atan2(u.y-c.y,u.x-c.x);
+ // straight away if the way is clear, else the clear heading nearest to it, so a villager against trees or a wall does not run into them
+ for(const off of [0,0.5,-0.5,1,-1,1.6,-1.6,2.3,-2.3,3.1])for(const dd of [far,far*0.6,1.8]){const nx=u.x+Math.cos(base+off)*dd,ny=u.y+Math.sin(base+off)*dd;
+  if(inMap(Math.floor(nx),Math.floor(ny))&&isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)&&lineWalkable(u.x,u.y,nx,ny,u.team,u.naval)){u.state='move';u.target=null;u.phase=null;u.path=null;u.goal={x0:nx,y0:ny,x1:nx,y1:ny};u.adj=false;return}}}
+// End of a flight: run again if a soldier is still close (a few times), otherwise resume the job.
+function fleeDone(u){const f=u.flee;let e=null;forNear(u.x,u.y,4,v=>{if(!e&&v.team>=0&&!allied(v.team,u.team)&&isMil(v))e=v});
+ if(e&&f.n<4){villFlee(u,e);if(u.state==='move'&&u.goal)return}
+ stop(u);
+ if(f.k==='gather'){if(f.t&&!f.t.dead&&!(f.t.kind==='res'&&f.t.amount<=0))cmdGather(u,f.t);else if(f.kind){u.state='gather';u.target=null;u.carryKind=f.kind;u.phase='toRes'}}
+ else if(f.k==='build'&&f.t&&!f.t.dead&&!f.t.built)cmdBuild(u,f.t);
+ else if(f.k==='repair'&&f.t&&!f.t.dead)cmdRepair(u,f.t)}
 function fleeFrom(u,att){const ang=Math.atan2(u.y-att.y,u.x-att.x)+R(-0.6,0.6);for(let d=5;d>=2;d--){const nx=u.x+Math.cos(ang)*d,ny=u.y+Math.sin(ang)*d;if(isWalkable(Math.floor(nx),Math.floor(ny))){u.state='move';u.target=null;moveTo(u,{x0:nx,y0:ny,x1:nx,y1:ny},false);return}}}
 function kill(t,att){if(t.dead)return;t.dead=true;
  if(t.kind==='unit'){if(t.cargo&&t.cargo.length)ejectAll(t,true);if(t.team>=0){const p=player(t.team);p.pop-=UNITS[t.type].pop;if(!isAnimal(t))p.stats.lost++}if(att&&att.team>=0&&!isAnimal(t))player(att.team).stats.kills++;releaseGather(t);
   if(isAnimal(t)){const tx=Math.floor(t.x),ty=Math.floor(t.y);const r={id:nextId++,kind:'res',res:'food',tx,ty,amount:UNITS[t.type].food,max:UNITS[t.type].food,v:0,gatherers:0,carcass:t.type,x:t.x,y:t.y};G.resources.push(r);if(!G.rAt[idx(tx,ty)])G.rAt[idx(tx,ty)]=r;
    for(const u of G.units)if(u.state==='hunt'&&u.target===t){u.target=null;u.state='gather';u.carryKind='food';r.gatherers++;u.target=r;u.phase='toRes';u.drop=null;moveTo(u,rectOf(r),true)}}
-  else G.effects.push({k:'corpse',x:t.x,y:t.y,t:G.time,type:t.type,team:t.team,face:t.face||1});
+  else{if(att){const c=center(att);faceTo(t,c.x,c.y)}G.effects.push({k:'corpse',x:t.x,y:t.y,t:G.time,type:t.type,team:t.team,face:t.face||1})}
   if(t.relic){const rl=G.relics.find(r=>r.holder===t);if(rl){rl.holder=null;rl.x=t.x;rl.y=t.y}}
   if(G.sel)G.sel=G.sel.filter(e=>e!==t)}
  else{if(att&&att.team>=0){player(att.team).stats.razed++;if(t.team>=0&&t.team!==att.team)stat(player(t.team),'bldLost',1)}G.effects.push({k:'rubble',x:t.tx,y:t.ty,w:t.w,h:t.h,t:G.time});removeBuilding(t);if(t.type==='townhall'){msg(t.team===ME?'Your Town Hall has fallen!':TEAM[t.team].n+' Town Hall destroyed!')}if(t.type==='wonder')msg(TEAM[t.team].n+' Wonder has been destroyed!');
@@ -693,12 +754,28 @@ function attackStep(u){const t=u.target;const d=UNITS[u.type];
  const range=unitStat(u,'range');const dist=entDist(u,t);
  if(d.packs&&u.packed===false&&(dist>range||(d.minRange&&dist<d.minRange))){if(u.stance==='ground'&&!(u.resume&&u.resume.amove)){stop(u);return}beginPack(u,true,{k:'attack',t,resume:u.resume});return}
  if(d.packs&&u.packed&&dist<=range&&!(d.minRange&&dist<d.minRange)){beginPack(u,false,{k:'attack',t,resume:u.resume});return}
- if(d.minRange&&dist<d.minRange){const c=center(t);const ang=Math.atan2(u.y-c.y,u.x-c.x);const nx=u.x+Math.cos(ang)*1.5,ny=u.y+Math.sin(ang)*1.5;if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.goal={x0:nx,y0:ny,x1:nx,y1:ny};u.adj=false;u.path=null;step(u)}else{u.wait=(u.wait||0)+1;if(u.wait>40){u.wait=0;stop(u)}}return}
- if(dist<=range){u.path=null;u.goal=null;const tc=center(t);u.face=tc.x-u.x<0?-1:1;if(u.cool<=0){u.cool=d.rof*((d.proj&&!d.onlyBuildings&&u.type!=='catapult'&&player(u.team).techs.thumbring)?0.85:1);u.swing=0.3;fireAt(u,t)}return}
+ // a swing or a shot: the blow lands STRIKE ticks later (updateUnit), on the frame the animation shows the impact
+ const shoot=()=>{u.path=null;u.goal=null;const tc=center(t);faceTo(u,tc.x,tc.y);
+  // melee steps in to arm's length while trading blows, so fighters stand engaged rather than a tile apart
+  if(!d.proj&&t.kind==='unit'&&dist>0.4){const dx=t.x-u.x,dy=t.y-u.y,l=Math.hypot(dx,dy)||1,sp=unitStat(u,'speed')*DT*0.5,nx=u.x+dx/l*sp,ny=u.y+dy/l*sp;if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny}}if(u.cool<=0&&!u.strike){u.cool=d.rof*((d.proj&&!d.onlyBuildings&&u.type!=='catapult'&&player(u.team).techs.thumbring)?0.85:1);u.swing=SWING;u.strike=STRIKE;u.strikeT=t}};
+ if(d.minRange&&dist<d.minRange){const c=center(t);faceTo(u,c.x,c.y);
+  // too close to fire: switch to an enemy at a range we can shoot, else back off while there is room
+  if((G.tick+u.id)%10===0){let alt=null,ad=1e9;forNear(u.x,u.y,range+0.3,e=>{if(allied(e.team,u.team)||isAnimal(e))return;const ed=entDist(u,e);if(ed>=d.minRange&&ed<=range&&ed<ad){ad=ed;alt=e}});if(alt){u.target=alt;u.kite=0;return}}
+  u.kite=(u.kite||0)+1;
+  if(u.kite<=30&&u.stance!=='ground'){const ang=Math.atan2(u.y-c.y,u.x-c.x);const sp=unitStat(u,'speed')*DT;const nx=u.x+Math.cos(ang)*sp,ny=u.y+Math.sin(ang)*sp;if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny;u.anim+=DT;u.path=null;u.goal=null;return}u.kite=31}
+  // cornered or outpaced: a foot skirmisher fights at point blank; siege can only wait
+  if(!d.splash&&!d.packs){shoot();return}
+  u.path=null;u.goal=null;return}
+ u.kite=0;
+ if(dist<=range+0.05){shoot();return} // the same reach goNear calls arrived
  if(u.stance==='ground'&&!(u.resume&&u.resume.amove)){stop(u);return}
  if(isAnimal(u)&&dist>8){stop(u);u.state='move';moveTo(u,{x0:u.home.x,y0:u.home.y,x1:u.home.x,y1:u.home.y},false);return}
- const r=rectOf(t);if(!u.goal||u.goal.x0!==r.x0||u.goal.y0!==r.y0||(t.kind==='unit'&&(G.tick+u.id)%20===0)){u.goal=r;u.adj=t.kind!=='unit';u.path=null;if(t.kind==='unit'){u.goal={x0:Math.floor(t.x),y0:Math.floor(t.y),x1:Math.floor(t.x)+1,y1:Math.floor(t.y)+1};u.adj=false}}
- const g=goNear(u,t,range);if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>40){u.wait=0;if(u.resume&&u.resume.amove)cmdAttackMove(u,u.resume.amove.x,u.resume.amove.y);else stop(u)}}else u.wait=0}
+ if(t.kind==='unit'){const tdx=t.x-u.x,tdy=t.y-u.y,td=Math.hypot(tdx,tdy);
+  // close and in the open: run straight at it (a path to its tile lags behind a moving target, so a faster hunter never caught up)
+  if(td<5&&td>0.05&&lineWalkable(u.x,u.y,t.x,t.y,u.team,u.naval)){const sp=Math.min(unitStat(u,'speed')*DT,Math.max(0,td-0.35));const nx=u.x+tdx/td*sp,ny=u.y+tdy/td*sp;if(sp>0&&isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny;u.anim+=DT;faceTo(u,t.x,t.y);u.path=null;u.goal=null;u.wait=0;return}}
+  const gx=Math.floor(t.x),gy=Math.floor(t.y);if(!u.goal||u.adj||u.goal.x0!==gx||u.goal.y0!==gy){u.goal={x0:gx,y0:gy,x1:gx+1,y1:gy+1};u.adj=false;u.path=null}}
+ else{const r=rectOf(t);if(!u.goal||!u.adj||u.goal.x0!==r.x0||u.goal.y0!==r.y0){u.goal=r;u.adj=true;u.path=null}}
+ const g=goNear(u,t,range,true);if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>40){u.wait=0;if(u.resume&&u.resume.amove)cmdAttackMove(u,u.resume.amove.x,u.resume.amove.y);else stop(u)}}else u.wait=0}
 
 // ---- villager work ----
 function gatherStep(u){let r=u.target;const kind=u.carryKind;
@@ -707,7 +784,7 @@ function gatherStep(u){let r=u.target;const kind=u.carryKind;
   const nr=findResource(u.team,kind,u.x,u.y,12,{naval:u.naval});
   if(nr){if(nr.kind==='unit'){u.target=null;cmdHunt(u,nr);return}u.target=nr;if(nr.kind==='res')nr.gatherers++;else nr.worker=u;u.phase=u.carry>=unitStat(u,'carry')?'toDrop':'toRes';if(u.phase==='toRes')moveTo(u,rectOf(nr),true);else u.path=null;return}
   if(u.carry>0){u.target=null;u.phase='toDrop';u.path=null}else{if(kind==='food'&&r&&r.kind==='res'&&!r.carcass){msg('Berries are gone — build Farms for food.',u.team)}stop(u);return}}
- if(u.phase==='toRes'){const g=goNear(u,r,1.0);if(g==='there'){u.phase='gathering';u.path=null;u.goal=null;u.wait=0;const c=center(r);u.face=c.x-u.x<0?-1:1}else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>20){u.wait=0;releaseGather(u);u.target=null;u.carryKind=kind;u.phase='toRes';gatherStep(u)}}}
+ if(u.phase==='toRes'){const g=goWork(u,r,1.0);if(g==='there'){u.phase='gathering';u.path=null;u.goal=null;u.wait=0;const c=center(r);faceTo(u,c.x,c.y)}else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>20){u.wait=0;releaseGather(u);u.target=null;u.carryKind=kind;u.phase='toRes';gatherStep(u)}}}
  else if(u.phase==='gathering'){const p=player(u.team);let rate=r.kind==='bld'?GATHER.farm*(1+(p.techs.plough||0)*0.2):kind==='food'?(r.carcass?0.8:GATHER.berry):GATHER[kind];
   if(kind==='wood')rate*=1+(p.techs.axe||0)*0.2;if(kind==='gold'||kind==='stone')rate*=1+(p.techs.pick||0)*0.2;if(p.ai)rate*=AI_DIFF[G.diff].eco;const cg=civ(p).gather;if(cg){const ck=r.kind==='bld'?'farm':(r.fish?'fish':kind);rate*=cg[ck]||1}
   const cap=unitStat(u,'carry');let take=Math.min(rate*DT,cap-u.carry);if(r.kind==='res'){take=Math.min(take,r.amount);r.amount-=take;if(r.amount<=0.001)removeResource(r)}u.carry+=take;u.anim+=DT;
@@ -718,15 +795,15 @@ function gatherStep(u){let r=u.target;const kind=u.carryKind;
   else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;u.drop=null}}}}
 function huntStep(u){const a=u.target;if(!a||a.dead){releaseGather(u);const r=findResource(u.team,'food',u.x,u.y,6);if(r&&r.kind==='res'&&r.carcass){u.target=null;cmdGather(u,r)}else stop(u);return}
  if(u.carry>=unitStat(u,'carry')){u.state='gather';u.phase='toDrop';u.target=null;u.path=null;u.goal=null;return}
- const range=unitStat(u,'range');if(entDist(u,a)<=range){u.path=null;u.goal=null;u.face=a.x-u.x<0?-1:1;if(u.cool<=0){u.cool=UNITS.villager.rof;u.swing=0.3;applyDamage(a,a.type==='sheep'?99:unitStat(u,'atk')+3,u)}return}
+ const range=unitStat(u,'range');if(entDist(u,a)<=range){u.path=null;u.goal=null;faceTo(u,a.x,a.y);if(u.cool<=0){u.cool=UNITS.villager.rof;u.swing=SWING;applyDamage(a,a.type==='sheep'?99:unitStat(u,'atk')+3,u)}return}
  if(!u.goal||(G.tick+u.id)%10===0){u.goal={x0:Math.floor(a.x),y0:Math.floor(a.y),x1:Math.floor(a.x)+1,y1:Math.floor(a.y)+1};u.adj=false;u.path=null}
  if(goNear(u,a,range)==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;stop(u)}}}
 function buildStep(u){const b=u.target;if(!b||b.dead){stop(u);return}
  if(b.built){const d=BUILDINGS[b.type];if(b.type==='farm'){cmdGather(u,b)}else if(d.drop&&d.drop.length<4){const c=center(b);let r=null,rd=1e9;for(const kind of d.drop){const f=findResource(u.team,kind,c.x,c.y,8,{noAnimals:true});if(!f)continue;const fd=rectDist(f.tx+0.5,f.ty+0.5,rectOf(b));if(fd<rd){rd=fd;r=f}}if(r)cmdGather(u,r);else stop(u)}else if(u.prev&&u.prev.t&&!u.prev.t.dead&&!u.cmds.length){const pv=u.prev;u.prev=null;runCmd(u,pv)}else stop(u);return}
- const g=goNear(u,b,1.0);if(g==='there'){b.builders++;u.anim+=DT;u.path=null;u.goal=null;u.wait=0;const c=center(b);u.face=c.x-u.x<0?-1:1}
+ const g=goWork(u,b,1.0);if(g==='there'){b.builders++;u.anim+=DT;u.path=null;u.goal=null;u.wait=0;const c=center(b);faceTo(u,c.x,c.y)}
  else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;stop(u)}}}
 function repairStep(u){const b=u.target;if(!b||b.dead){stop(u);return}const max=b.kind==='bld'?bldHp(b):unitStat(b,'maxhp');if(b.hp>=max){stop(u);return}
- const g=goNear(u,b,1.0);if(g==='there'){const p=player(u.team);const d=b.kind==='bld'?BUILDINGS[b.type]:UNITS[b.type];const rate=max/Math.max(10,d.time)*DT;let ok=true;const frac=rate/max*0.5;for(const k in d.cost){if(p.res[k]<d.cost[k]*frac)ok=false}if(!ok){msg('Not enough resources to repair.',u.team);stop(u);return}
+ const g=b.kind==='bld'?goWork(u,b,1.0):goNear(u,b,1.0);if(g==='there'){const p=player(u.team);const d=b.kind==='bld'?BUILDINGS[b.type]:UNITS[b.type];const rate=max/Math.max(10,d.time)*DT;let ok=true;const frac=rate/max*0.5;for(const k in d.cost){if(p.res[k]<d.cost[k]*frac)ok=false}if(!ok){msg('Not enough resources to repair.',u.team);stop(u);return}
   for(const k in d.cost)p.res[k]-=d.cost[k]*frac;b.hp=Math.min(max,b.hp+rate);u.anim+=DT;u.path=null;u.goal=null}
  else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;stop(u)}}}
 function followStep(u){const t=u.target;if(!t||t.dead||t.inside){stop(u);return}const d=UNITS[u.type];
@@ -737,7 +814,7 @@ function followStep(u){const t=u.target;if(!t||t.dead||t.inside){stop(u);return}
  if(!u.goal||(G.tick+u.id)%20===0){u.goal={x0:t.x,y0:t.y,x1:t.x,y1:t.y};u.adj=false;u.path=null}step(u)}
 function monkIdle(u){let best=null,bd=1e9;forNear(u.x,u.y,UNITS.monk.range,e=>{if(!allied(e.team,u.team)||e===u||isAnimal(e)||e.hp>=unitStat(e,'maxhp'))return;const dd=Math.hypot(e.x-u.x,e.y-u.y);if(dd<bd){bd=dd;best=e}});if(best){best.hp=Math.min(unitStat(best,'maxhp'),best.hp+6*DT);u.anim+=DT}}
 function convertStep(u){const t=u.target;if(!t||t.dead||t.inside||allied(t.team,u.team)){stop(u);return}if(u.faith>0){goNear(u,t,UNITS.monk.range);return}
- const range=UNITS.monk.range+2;if(entDist(u,t)<=range){u.path=null;u.goal=null;u.face=t.x-u.x<0?-1:1;u.conv+=DT;u.anim+=DT;if((G.tick+u.id)%10===0)G.effects.push({k:'holy',x:t.x,y:t.y,t:G.time});
+ const range=UNITS.monk.range+2;if(entDist(u,t)<=range){u.path=null;u.goal=null;faceTo(u,t.x,t.y);u.conv+=DT;u.anim+=DT;if((G.tick+u.id)%10===0)G.effects.push({k:'holy',x:t.x,y:t.y,t:G.time});
   if(u.conv>=u.convNeed){const from=t.team;if(from>=0){player(from).pop-=UNITS[t.type].pop;player(from).stats.lost++}t.team=u.team;player(u.team).pop+=UNITS[t.type].pop;player(u.team).stats.converted++;releaseGather(t);t.state='idle';t.target=null;t.path=null;t.goal=null;t.cmds=[];t.flash=0.5;if(G.sel)G.sel=G.sel.filter(e=>e!==t);u.faith=40;msg(u.team===ME?'Unit converted!':'One of your units was converted!',u.team===ME?ME:(from===ME?ME:undefined));stop(u)}return}
  if(!u.goal||(G.tick+u.id)%20===0){u.goal={x0:Math.floor(t.x),y0:Math.floor(t.y),x1:Math.floor(t.x)+1,y1:Math.floor(t.y)+1};u.adj=false;u.path=null}if(goNear(u,t,range)==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;stop(u)}}}
 function garrisonStep(u){const b=u.target;if(!b||b.dead||(b.kind==='bld'&&!b.built)){stop(u);return}const d=b.kind==='unit'?UNITS[b.type]:BUILDINGS[b.type];const list=b.kind==='unit'?b.cargo:b.garrison;const drop=u.relic&&b.type==='temple';if(list.length>=d.garrison&&!drop){stop(u);return}
@@ -756,17 +833,21 @@ function animalStep(u){const d=UNITS[u.type];
  if(u.type==='sheep'){if(u.team<0){let cap=null;forNear(u.x,u.y,2.5,e=>{if(cap||e.team<0||isAnimal(e))return;cap=e});if(cap){u.team=cap.team;msg('Sheep captured!',cap.team);cmdFollow(u,cap);u.owner=cap;return}}
   else if(u.state==='follow'){const t=u.target;if(!t||t.dead||t.inside){stop(u);return}const th=nearestBuilding(u.team,'townhall',u.x,u.y);if(th&&rectDist(u.x,u.y,rectOf(th))<4){stop(u);u.home={x:u.x,y:u.y};return}
    const dist=Math.hypot(t.x-u.x,t.y-u.y);if(dist<1.5){u.path=null;u.goal=null;return}if(!u.goal||(G.tick+u.id)%20===0){u.goal={x0:t.x,y0:t.y,x1:t.x,y1:t.y};u.adj=false;u.path=null}step(u);return}}
- if(u.state==='move'){if(step(u))stop(u);return}
+ if(u.state==='move'){if(step(u)){stop(u);u.home={x:u.x,y:u.y}}return}
+ if(u.state==='idle'&&u.cmds.length){runCmd(u,u.cmds.shift());return}
  if(u.state==='attack'){attackStep(u);return}
  if(u.state==='idle'&&(G.tick+u.id)%80===0&&rnd()<0.5){const h=u.home||{x:u.x,y:u.y};const nx=h.x+R(-2.5,2.5),ny=h.y+R(-2.5,2.5);if(isWalkable(Math.floor(nx),Math.floor(ny))){u.state='move';moveTo(u,{x0:nx,y0:ny,x1:nx,y1:ny},false)}}
  if(u.type==='deer'&&(G.tick+u.id)%10===0){let th=null;forNear(u.x,u.y,3,e=>{if(th||isAnimal(e))return;th=e});if(th)fleeFrom(u,th)}}
 
-function updateUnit(u){if(u.inside){if(u.hp<unitStat(u,'maxhp'))u.hp=Math.min(unitStat(u,'maxhp'),u.hp+1.5*DT);return}u.cool=Math.max(0,u.cool-DT);if(u.flash>0)u.flash-=DT;if(u.swing>0)u.swing-=DT;if(u.faith>0)u.faith-=DT;if(u.packed===false&&u.goal&&u.state!=='attack'&&u.state!=='pack'){const g=u.goal;beginPack(u,true,{k:'move',x:(g.x0+g.x1)/2,y:(g.y0+g.y1)/2})}
+const SWING=0.45,STRIKE=4; // attack animation length (s) and the tick of impact within it
+function updateUnit(u){const ox=u.x,oy=u.y;updateUnit1(u);if(u.x!==ox||u.y!==oy)u.mv=G.tick}
+function updateUnit1(u){if(u.inside){if(u.hp<unitStat(u,'maxhp'))u.hp=Math.min(unitStat(u,'maxhp'),u.hp+1.5*DT);return}u.cool=Math.max(0,u.cool-DT);
+ if(u.strike>0&&--u.strike===0){const t=u.strikeT;u.strikeT=null;if(t&&!t.dead&&!t.inside&&entDist(u,t)<=unitStat(u,'range')+0.6)fireAt(u,t)}if(u.flash>0)u.flash-=DT;if(u.swing>0)u.swing-=DT;if(u.faith>0)u.faith-=DT;if(u.packed===false&&u.goal&&u.state!=='attack'&&u.state!=='pack'){const g=u.goal;beginPack(u,true,{k:'move',x:(g.x0+g.x1)/2,y:(g.y0+g.y1)/2})}
  if(isAnimal(u)){animalStep(u);return}
  switch(u.state){
   case'pack':packStep(u);break;
   case'idle':if(u.cmds.length){runCmd(u,u.cmds.shift());break}if(u.explore&&(G.tick+u.scan)%10===0){exploreNext(u);break}if(isMil(u)&&(G.tick+u.scan)%10===0){const e=findEnemy(u,u.stance==='ground'||u.packed===false?unitStat(u,'range'):Math.max(UNITS[u.type].los,UNITS[u.type].proj?unitStat(u,'range'):0),!UNITS[u.type].onlyBuildings);if(e&&!(UNITS[u.type].onlyBuildings&&e.kind!=='bld'))cmdAttack(u,e)}if(u.type==='monk')monkIdle(u);break;
-  case'move':if(step(u))stop(u);break;
+  case'move':if(step(u)){if(u.flee)fleeDone(u);else stop(u)}break;
   case'amove':if((G.tick+u.scan)%10===0){const e=findEnemy(u,Math.max(UNITS[u.type].los,UNITS[u.type].proj?unitStat(u,'range'):0),false);if(e){cmdAttack(u,e,{amove:u.amDest,patrol:u.patrol});break}}if(step(u)){if(u.patrol){const p=u.patrol;const nxt=p.to==='b'?p.a:p.b;p.to=p.to==='b'?'a':'b';cmdAttackMove(u,nxt.x,nxt.y);u.patrol=p}else stop(u)}break;
   case'attack':attackStep(u);break;
   case'gather':gatherStep(u);break;
@@ -800,9 +881,14 @@ function updateProjectiles(){const keep=[];for(const pr of G.projectiles){const 
   else if(t&&!t.dead&&!t.inside){applyDamage(t,pr.dmg,pr.src);G.effects.push({k:'hit',x:tx,y:ty,t:G.time})} continue}
  pr.x+=dx/d*sp;pr.y+=dy/d*sp;pr.ang=Math.atan2(dy,dx);keep.push(pr)}G.projectiles=keep}
 
+const planted=u=>(u.state==='gather'&&u.phase==='gathering')||((u.state==='build'||u.state==='repair')&&!u.goal);
 function separation(){const us=G.units;
- for(const u of us){if(u.inside||u.dead||(u.state==='gather'&&u.phase==='gathering')||(u.state==='build'&&!u.goal))continue;let px=0,py=0;
-  const min=u.naval?1.0:(isMil(u)?0.55:0.45);forNear(u.x,u.y,min,v=>{if(v===u||!!v.naval!==!!u.naval)return;const ddx=u.x-v.x,ddy=u.y-v.y;const d=Math.hypot(ddx,ddy);if(d<0.001){px+=R(-0.02,0.02);py+=R(-0.02,0.02)}else{const f=(min-d)/min*0.06;px+=ddx/d*f;py+=ddy/d*f}});
+ for(const u of us){if(u.inside||u.dead||planted(u))continue;let px=0,py=0;
+  // a worker walking up to its job slips past the ones already working there instead of being shoved back
+  const toWork=u.state==='gather'||u.state==='build'||u.state==='repair';
+  // walkers also sidestep (everyone keeps to the same hand), so two units meeting head-on in a lane slip past each other
+  const walking=!!u.goal;
+  const min=u.naval?1.0:(isMil(u)?0.55:0.45);forNear(u.x,u.y,min,v=>{if(v===u||!!v.naval!==!!u.naval||(toWork&&planted(v)))return;const ddx=u.x-v.x,ddy=u.y-v.y;const d=Math.hypot(ddx,ddy);if(d<0.001){px+=R(-0.02,0.02);py+=R(-0.02,0.02)}else{const f=(min-d)/min*0.06;px+=ddx/d*f;py+=ddy/d*f;if(walking){px-=ddy/d*f*0.6;py+=ddx/d*f*0.6}}});
   if(px||py){const nx=u.x+px,ny=u.y+py;if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny}}}}
 
 // spatial hash of live, outside units (rebuilt each tick)
@@ -887,7 +973,9 @@ function unwireCmd(c){if(!c||typeof c.k!=='string')return null;const o={k:c.k};i
 function hasBuilt(seat,type){return G.buildings.some(b=>b.team===seat&&b.type===type&&b.built)}
 function applyCmd(seat,c){const p=G.players[seat];if(!p||!c||p.dead)return false;if(CMDLOG)CMDLOG.push({tick:G.tick,seat,c});
  switch(c.v){
- case'orders':{let n=0;for(const o of c.list||[]){const u=entById(o.id);if(!own(seat,u)||u.kind!=='unit'||isAnimal(u))continue;const cc=unwireCmd(o.c);if(!cc)continue;issue(u,cc,!!c.q);n++}return n>0}
+ case'orders':{let n=0;for(const o of c.list||[]){const u=entById(o.id);if(!own(seat,u)||u.kind!=='unit')continue;const cc=unwireCmd(o.c);if(!cc)continue;
+  // a sheep that is yours can be walked about (or told to follow), nothing else
+  if(isAnimal(u)&&!(u.type==='sheep'&&(cc.k==='move'||cc.k==='follow')))continue;issue(u,cc,!!c.q);n++}return n>0}
  case'stop':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit'){u.explore=false;stop(u)}}return true}
  case'pack':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit'&&UNITS[u.type].packs){if(u.state!=='pack')stop(u);beginPack(u,!!c.on,null)}}return true}
  case'stance':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit')u.stance=c.s==='ground'?'ground':'aggr'}return true}
@@ -1188,15 +1276,31 @@ function pixDeath(c2d, spec, t0, tc) {
 }
 function pixUnit(u, spec, tc, o = {}) {
   const F = spec.frames, fps = spec.fps || {};
-  const moving = u.goal && u.state !== 'idle' && !(u.state === 'gather' && u.phase === 'gathering');
-  const working = (u.state === 'gather' && u.phase === 'gathering') || (u.state === 'build' && !u.goal);
-  let set = 'idle', i = (G.time + (u.id % 7) * 0.37) * (fps.idle || 4);
+  const SW = typeof SWING !== 'undefined' ? SWING : 0.3, HIT = typeof STRIKE !== 'undefined' ? STRIKE / TPS : 0.15;
+  const gathering = u.state === 'gather' && u.phase === 'gathering';
+  // walking = it actually moved on the last tick (a chase or a back-off steps without a path goal); the old goal test is the fallback
+  const moving = u.mv !== undefined ? (u.mv === G.tick && !gathering) : (u.goal && u.state !== 'idle' && !gathering);
+  const working = gathering || (u.state === 'build' && !u.goal);
+  let set = 'idle', i = (G.time + (u.id % 7) * 0.37) * (fps.idle || 4), ox = 0;
   if (o.set && F[o.set]) { set = o.set; i = (o.i !== undefined ? o.i : G.time * (fps[o.set] || 8)); }
+  else if (u.swing > 0 && F.attack) {
+    // The painted sets put the blow first for melee (frame 0 is the strike, with its smear; the last frame is the weapon
+    // raised again) and last for shooters (draw ... release). So: hold the wind-up pose until the sim lands the hit,
+    // snap to the impact frame and hold it a beat, then play the follow-through.
+    const n = F.attack.length, e = Math.max(0, SW - u.swing); set = 'attack';
+    const ranged = typeof UNITS !== 'undefined' && UNITS[u.type] && UNITS[u.type].proj;
+    if (ranged) { i = e < HIT ? Math.floor(e / HIT * Math.max(1, n - 1)) : n - 1; ox = e >= HIT && e < HIT + 0.1 ? -1 : 0; }
+    else { const rest = SW - HIT - 0.1; i = e < HIT ? n - 1 : e < HIT + 0.1 ? 0 : Math.min(n - 1, 1 + Math.floor((e - HIT - 0.1) / Math.max(0.01, rest) * (n - 1)));
+      // lean back on the wind-up, lunge into the blow, settle
+      ox = e < HIT ? -1 : Math.round(2 * Math.max(0, 1 - (e - HIT) / 0.2)); }
+  }
   else if (moving && F.walk) { set = 'walk'; i = u.anim * (fps.walk || 12); }
-  else if (u.swing > 0 && F.attack) { const n = F.attack.length; set = 'attack'; i = Math.min(n - 1, Math.floor((0.3 - u.swing) / 0.3 * n)); }
   else if (u.state === 'attack' && F.ready) { set = 'ready'; i = (G.time + (u.id % 7) * 0.37) * (fps.ready || fps.idle || 4); }
   else if (working && F[o.work || 'work']) { set = o.work || 'work'; i = u.anim * (fps.work || 8); }
-  pixDraw(spec, set, i, tc, 0, 0, u.flash > 0 ? { flash: true } : undefined);
+  // knocked back a pixel or two away from whoever hit it, while the hit flash lasts (the context is mirrored by facing)
+  if (u.flash > 0 && u.hitFrom) { const s = (u.x - u.hitFrom.x) - (u.y - u.hitFrom.y); if (Math.abs(s) > 0.01) ox += Math.round(Math.min(1, u.flash / 0.15) * 2) * (s < 0 ? -1 : 1) * (u.face || 1); }
+  // the white flash is a short pulse at the start of the hit, so the struck unit's own pose stays readable
+  pixDraw(spec, set, i, tc, ox, 0, u.flash > 0.07 ? { flash: true } : undefined);
   return set;
 }
 const PIXELS={};const PIX_CACHE={};
@@ -28756,7 +28860,7 @@ function drawUnit(u,sel){const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);const tc=TEAM[u.t
  ctx.fillStyle=d.naval?'rgba(0,30,60,0.25)':'rgba(0,0,0,0.25)';ctx.beginPath();ctx.ellipse(wx,wy,r,r*0.5,0,0,7);ctx.fill();
  if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(wx,wy,r+2,(r+2)*0.5,0,0,7);ctx.stroke();ctx.lineWidth=1}
  ctx.save();ctx.translate(wx,wy);ctx.scale(u.face,1);if(u.flash>0&&!PIXELS[u.type])ctx.globalAlpha=0.7;
- const swing=u.swing>0?Math.sin(u.swing/0.3*Math.PI):0;const working=(u.state==='gather'&&u.phase==='gathering')||(u.state==='build'&&!u.goal);const wph=working?Math.sin(u.anim*10):0;
+ const swing=u.swing>0?Math.sin(u.swing/SWING*Math.PI):0;const working=(u.state==='gather'&&u.phase==='gathering')||(u.state==='build'&&!u.goal);const wph=working?Math.sin(u.anim*10):0;
  switch(u.type){
   case'villager':{
    const S=PIXELS.villager;
@@ -28937,7 +29041,7 @@ function render(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fill
  const selSet=new Set(G.sel||[]);
  // ground effects
  for(const e of G.effects){if(e.k==='rubble'){const cx=wpx(e.x,e.y),cy=wpy(e.x,e.y);const c=corners(cx,cy,e.w,e.h,0);ctx.globalAlpha=Math.max(0,1-(G.time-e.t)/30);poly([c.T,c.Rr,c.Bm,c.L],'#5a5048');ctx.fillStyle='#3a3430';for(let k=0;k<e.w*3;k++){ctx.fillRect(cx+(e.w-e.h)*HW/2+Math.sin(k*7.3)*e.w*12,cy+(e.w+e.h)*HH/2+Math.cos(k*5.1)*e.h*6,4,3)}ctx.globalAlpha=1}
-  else if(e.k==='corpse'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);if(!onscreen(wx,wy)||!exploredBy(ME,e.x,e.y))continue;const dsp=PIXELS[e.type];if(dsp&&dsp.frames.death){ctx.globalAlpha=Math.max(0,Math.min(1,(12-(G.time-e.t))/4));ctx.save();ctx.translate(wx,wy);ctx.scale(e.face||1,1);pixDeath(ctx,dsp,e.t,TEAM[e.team]||WILD);ctx.restore();ctx.globalAlpha=1;continue}ctx.globalAlpha=Math.max(0,1-(G.time-e.t)/12)*0.8;ctx.fillStyle=TEAM[e.team].d;ctx.beginPath();ctx.ellipse(wx,wy-2,9,3.5,0,0,7);ctx.fill();ctx.fillStyle='#e8c39e';ctx.beginPath();ctx.arc(wx+9,wy-3,2.5,0,7);ctx.fill();ctx.globalAlpha=1}}
+  else if(e.k==='corpse'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);if(!onscreen(wx,wy)||!exploredBy(ME,e.x,e.y))continue;const dsp=PIXELS[e.type];if(dsp&&dsp.frames.death){ctx.globalAlpha=Math.max(0,Math.min(1,(12-(G.time-e.t))/4));ctx.save();ctx.translate(wx,wy);ctx.scale(e.face||1,1);ctx.translate(-Math.round(Math.min(1,(G.time-e.t)/0.25)*3),0);pixDeath(ctx,dsp,e.t,TEAM[e.team]||WILD);ctx.restore();ctx.globalAlpha=1;continue}ctx.globalAlpha=Math.max(0,1-(G.time-e.t)/12)*0.8;ctx.fillStyle=TEAM[e.team].d;ctx.beginPath();ctx.ellipse(wx,wy-2,9,3.5,0,0,7);ctx.fill();ctx.fillStyle='#e8c39e';ctx.beginPath();ctx.arc(wx+9,wy-3,2.5,0,7);ctx.fill();ctx.globalAlpha=1}}
  // forest floor: one dark path over every visible wood tile, a little larger than the tile so neighbours merge (one fill, so overlaps don't stack)
  ctx.fillStyle='rgba(18,34,14,0.38)';ctx.beginPath();for(const r of G.resources){if(r.res!=='wood'||r.fish||r.cliff||r.carcass)continue;const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(!onscreen(wx,wy)||G.vis[ME][idx(r.tx,r.ty)]===0)continue;ctx.moveTo(wx+HW+6,wy);ctx.ellipse(wx,wy,HW+6,HH+4,0,0,Math.PI*2)}ctx.fill();
  // farms first (flat)
@@ -29109,6 +29213,7 @@ function entityAt(sx,sy){const w=s2w(sx,sy);let best=null,bd=1e9;
  for(let k=0;k<3;k++){const x=tx-k,y=ty-k;if(!inMap(x,y))continue;const i=idx(x,y);if(G.vis[ME][i]===0)continue;const b=G.bAt[i];if(b)return b;const r=G.rAt[i];if(r)return r;if(k>0){const b2=G.bAt[idx(x+1,y)]||G.bAt[idx(x,y+1)];if(b2&&k===1)return b2}}
  return null}
 function ownUnits(){return G.units.filter(u=>u.team===ME&&!u.inside&&!isAnimal(u))}
+function ownSheep(){return G.units.filter(u=>u.team===ME&&u.type==='sheep'&&!u.dead)}
 // Formations are worked out on the ordering player's machine and sent as ordinary move orders, so they need no sim state.
 // The group faces the way it is heading; melee takes the front rank, ranged the next, villagers, monks and siege the back.
 const FORMS=[['line','Line','A wide, shallow line facing the target. Melee in front, ranged behind.'],['box','Box','A compact block.'],['stag','Staggered','Spread out with gaps, so splash damage hits fewer units.'],['flank','Flank','Two groups that split to either side of the target.']];
@@ -29131,9 +29236,10 @@ function formation(units,x,y,type){type=type||formKind();const n=units.length;if
   out[ui_]={x:tx,y:ty}});return out}
 function rightClick(sx,sy,shift){const s=G.sel||[];if(!s.length||s[0].team!==ME)return;const w=s2w(sx,sy);const e=entityAt(sx,sy);
  if(s[0].kind==='bld'){const ids=s.filter(b=>b.kind==='bld'&&(BUILDINGS[b.type].trains||BUILDINGS[b.type].garrison)).map(b=>b.id);if(ids.length)submit({v:'rally',ids,x:w.x,y:w.y,t:e?e.id:null});sfx('order');return}
- const units=s.filter(u=>u.kind==='unit'&&!isAnimal(u));const list=[];const pts=formation(units,w.x,w.y);
+ const units=s.filter(u=>u.kind==='unit'&&u.team===ME&&(!isAnimal(u)||u.type==='sheep'));const list=[];const pts=formation(units,w.x,w.y);
  units.forEach((u,i)=>{let c=null;const pt=pts[i];
-  if(e&&e.kind==='relic')c=u.type==='monk'?{k:'relic',t:e}:{k:'move',x:pt.x,y:pt.y};
+  if(isAnimal(u))c=e&&e.kind==='unit'&&e!==u&&allied(e.team,ME)&&!isAnimal(e)?{k:'follow',t:e}:{k:'move',x:pt.x,y:pt.y}; // your sheep only walk
+  else if(e&&e.kind==='relic')c=u.type==='monk'?{k:'relic',t:e}:{k:'move',x:pt.x,y:pt.y};
   else if(e&&e.kind==='unit'&&e.type==='transport'&&allied(e.team,ME)&&!u.naval)c={k:'garrison',t:e};
   else if(e&&e.kind==='bld'&&e.type==='market'&&e.built&&e.team!==ME&&allied(e.team,ME)&&u.type==='tradecart')c={k:'trade',t:e};
   else if(e&&e.kind==='res'&&e.fish)c=u.type==='fishing'?{k:'gather',t:e}:{k:'move',x:pt.x,y:pt.y};
@@ -29147,10 +29253,11 @@ function rightClick(sx,sy,shift){const s=G.sel||[];if(!s.length||s[0].team!==ME)
   else c={k:'move',x:pt.x,y:pt.y};
   list.push({id:u.id,c:wireCmd(c)})});
  if(list.length){submit({v:'orders',list,q:!!shift});sfx('order');G.pings.push({x:w.x,y:w.y,t:G.time,kind:'order'})}}
-function selectBox(x0,y0,x1,y1,shift){const lx=Math.min(x0,x1),ly=Math.min(y0,y1),hx=Math.max(x0,x1),hy=Math.max(y0,y1);const got=[];for(const u of ownUnits()){const s=w2s(u.x,u.y);if(s.x>=lx&&s.x<=hx&&s.y-10>=ly&&s.y-10<=hy)got.push(u)}
+function selectBox(x0,y0,x1,y1,shift){const lx=Math.min(x0,x1),ly=Math.min(y0,y1),hx=Math.max(x0,x1),hy=Math.max(y0,y1);let got=[];for(const u of ownUnits().concat(ownSheep())){const s=w2s(u.x,u.y);if(s.x>=lx&&s.x<=hx&&s.y-10>=ly&&s.y-10<=hy)got.push(u)}
+ if(got.some(u=>!isAnimal(u)))got=got.filter(u=>!isAnimal(u)); // sheep only when the box holds nothing else
  if(!got.length)return;let list=shift?(G.sel||[]).filter(e=>e.kind==='unit'&&e.team===ME).concat(got):got;list=[...new Set(list)];setSel(list)}
 function clickSelect(sx,sy,shift,dbl){const e=entityAt(sx,sy);if(!e){if(!shift)setSel([]);return}
- if(dbl&&e.kind==='unit'&&e.team===ME&&!isAnimal(e)){const same=ownUnits().filter(u=>u.type===e.type&&(()=>{const s=w2s(u.x,u.y);return s.x>=0&&s.x<=W&&s.y>=0&&s.y<=H})());setSel(same);return}
+ if(dbl&&e.kind==='unit'&&e.team===ME&&(!isAnimal(e)||e.type==='sheep')){const same=(isAnimal(e)?ownSheep():ownUnits()).filter(u=>u.type===e.type&&(()=>{const s=w2s(u.x,u.y);return s.x>=0&&s.x<=W&&s.y>=0&&s.y<=H})());setSel(same);return}
  if(shift&&G.sel&&G.sel.length&&G.sel[0].kind===e.kind&&e.team===ME){const i=G.sel.indexOf(e);if(i>=0)G.sel.splice(i,1);else G.sel.push(e);setSel(G.sel.slice());return}
  setSel([e])}
 function aimBuild(w){const d=BUILDINGS[ui.build.type];ui.build.tx=Math.floor(w.x-(d.w-1)/2);ui.build.ty=Math.floor(w.y-(d.h-1)/2)}
