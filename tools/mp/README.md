@@ -19,6 +19,8 @@ simulation; only player commands cross the network.
 - Transports: `localTransport` (BroadcastChannel, two tabs of the same browser, needs an http origin) and
   `wsTransport` (a WebSocket to the relay server in `server/`, one Cloudflare Durable Object per room code).
 - A hidden tab keeps ticking through a Worker timer (`startBgTicker`) because requestAnimationFrame pauses.
+- Lobby: guests toggle Ready (`{t:'ready'}`, informational: the host can always start); the host can copy the room code or an invite link (`?join=CODE` prefills the Join box). Each computer seat has its own level in `setup.diffs` (by seat; missing means `setup.diff`), so it travels with the shared setup.
+- Resign is a lockstep command; resigning while the game is paused resumes it first so the command can run.
 - Pause and chat are network messages, not sim commands. Game speed is locked to 1x. Cheats are refused.
 
 ## Scripts (need the system Chrome; Playwright comes from `~/me/agentic-evals/node_modules`)

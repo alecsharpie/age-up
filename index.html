@@ -25,7 +25,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 .btn:hover{border-color:var(--gold)}
 .btn.disabled{opacity:.4}
 .btn.active{border-color:#fff;background:#4a3826}
-#tip{position:fixed;z-index:60;max-width:300px;background:rgba(28,21,15,.97);border:2px solid var(--gold);border-radius:5px;padding:7px 9px;font:12px Georgia,serif;color:var(--text);pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.5);line-height:1.35}#tip div+div{margin-top:3px}#tip .tt-h b{color:var(--gold);font-size:13px}#tip .tt-k{color:var(--muted);font-size:10.5px;border:1px solid var(--edge);border-radius:3px;padding:0 3px}#tip .tt-m{color:var(--muted)}#tip .tt-e{color:#a6e39a}#tip .tt-x{color:#ff8a70}
+#tip{position:fixed;z-index:60;max-width:300px;background:rgba(28,21,15,.97);border:2px solid var(--gold);border-radius:5px;padding:7px 9px;font:12px Georgia,serif;color:var(--text);pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.5);line-height:1.35}#tip div+div{margin-top:3px}#tip .tt-h b{color:var(--gold);font-size:13px}#tip .tt-k{color:var(--muted);font-size:10.5px;border:1px solid var(--edge);border-radius:3px;padding:0 3px}#tip .tt-m{color:var(--muted)}#tip .tt-e{color:#a6e39a}#tip .tt-x{color:#ff8a70}#tip .tt-cv{line-height:1.45}#tip .tt-cv b,#info .cv b{font-weight:normal;color:var(--text)}.cv-s{color:#a6e39a}.cv-w{color:#ff9a80}#info .row.cv{font-size:11px;line-height:1.35;margin-top:2px}
 .btn>img{grid-row:1/3;width:28px;height:28px;image-rendering:pixelated;justify-self:center}
 .btn .lbl{align-self:end;overflow-wrap:anywhere}
 .btn .key{position:absolute;top:1px;right:4px;font-size:9px;color:var(--gold)}
@@ -49,7 +49,58 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 #mkt .ci{color:var(--text)}
 #age{color:var(--gold)}#score{margin-left:auto;color:var(--muted)}#timers{margin-left:12px}
 #netbar{margin-left:12px;font-size:13px;color:#9fd8c8;white-space:nowrap}#netbar.wait{color:#ffb86b}
-#mp-lobby{border:1px solid var(--edge);background:var(--panel2);padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.6}
+#mp-lobby{border:2px solid var(--gold);background:#33261a;padding:12px 14px;margin:12px 0 4px;font-size:13px;line-height:1.45;border-radius:5px}
+#mpwrap .mp-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 8px}
+#mpwrap .mp-card{border:1px solid var(--edge);background:rgba(0,0,0,.18);padding:10px 12px;border-radius:4px;display:flex;flex-direction:column;gap:6px}
+#mpwrap .mp-card h5{margin:0;font:15px Georgia,serif;color:var(--gold)}
+#mpwrap .mp-card p{margin:0 0 4px;font-size:12.5px;color:var(--muted);line-height:1.4;flex:1}
+#mpwrap .mp-joinrow{display:flex;gap:6px}
+#mpwrap #mp-code{flex:1;min-width:0;font:18px Georgia,serif;letter-spacing:3px;text-transform:uppercase;padding:5px 8px}
+#mpwrap #mp-code::placeholder{text-transform:none;letter-spacing:0;font-size:14px;color:#8a7a62}
+#mpwrap .mp-foot{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+#mpwrap .mp-foot label{display:flex;gap:6px;align-items:center;color:var(--muted)}
+#mpwrap .mp-foot select{font-size:12px;padding:3px 4px}
+.mpb{font:14px Georgia,serif;padding:7px 14px;border-radius:4px;cursor:pointer;border:2px solid var(--edge);background:var(--panel2);color:var(--text);white-space:nowrap}
+.mpb:hover:not(:disabled){border-color:var(--gold)}
+.mpb.go{background:#5a4530;border-color:var(--gold);color:#fff}
+.mpb.go:hover:not(:disabled){background:#6e5538}
+.mpb.on{background:#2f5a34;border-color:#8fd694;color:#fff}
+.mpb:disabled{opacity:.5;cursor:default}
+.mpb.sm{font-size:12.5px;padding:4px 10px}
+#mp-lobby .lb-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#mp-lobby .lb-top h3{margin:0;font:18px Georgia,serif;color:var(--gold);font-weight:normal}
+#mp-lobby .lb-top .mpb{margin-left:auto}
+#mp-lobby .lb-state{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:2px 10px;border-radius:12px;border:1px solid}
+#mp-lobby .lb-state i{width:8px;height:8px;border-radius:50%;background:currentColor}
+#mp-lobby .lb-state.ok{color:#9be3a3;border-color:#3f6e45;background:rgba(60,120,70,.18)}
+#mp-lobby .lb-state.wait{color:#ffcf7a;border-color:#7a6030;background:rgba(150,110,40,.18)}
+#mp-lobby .lb-state.wait i{animation:lbPulse 1.2s ease-in-out infinite}
+#mp-lobby .lb-state.err{color:#ffab9a;border-color:#8a3a2a;background:rgba(150,50,30,.22)}
+@keyframes lbPulse{50%{opacity:.25}}
+#mp-lobby .lb-msg{margin:8px 0 0;color:var(--text)}
+#mp-lobby .lb-msg.err{color:#ffab9a}
+#mp-lobby .lb-code{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:8px 10px;background:rgba(0,0,0,.25);border-radius:4px}
+#mp-lobby .lb-code .lab{color:var(--muted);font-size:12px}
+#mp-lobby .lb-code .code{font:26px Georgia,serif;letter-spacing:5px;color:var(--gold);user-select:all;-webkit-user-select:all}
+#mp-lobby .lb-code .copied{color:#9be3a3;font-size:12px}
+#mp-lobby .lb-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin-top:10px}
+#mp-lobby .seat{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--edge);border-radius:4px;background:rgba(0,0,0,.18);min-width:0}
+#mp-lobby .seat .sw{width:12px;height:12px;border-radius:3px;border:1px solid #000;flex-shrink:0}
+#mp-lobby .seat .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+#mp-lobby .seat .nm small{color:var(--muted)}
+#mp-lobby .seat.empty{border-style:dashed}
+#mp-lobby .seat.empty .nm{color:var(--muted);font-style:italic}
+#mp-lobby .tag{font-size:11px;padding:1px 7px;border-radius:9px;white-space:nowrap;border:1px solid}
+#mp-lobby .tag.ok{color:#9be3a3;border-color:#3f6e45}
+#mp-lobby .tag.wait{color:#ffcf7a;border-color:#7a6030}
+#mp-lobby .tag.err{color:#ffab9a;border-color:#8a3a2a}
+#mp-lobby .tag.dim{color:var(--muted);border-color:var(--edge)}
+#mp-lobby .lb-sum{margin-top:8px;font-size:12px;color:var(--muted)}
+#mp-lobby .lb-act{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+#mp-lobby .lb-act span{color:var(--muted);font-size:12.5px}
+#setupwrap.guest select:disabled,#setupwrap.guest input:disabled{opacity:.55;cursor:not-allowed}
+#overlay .prow .plev.off{visibility:hidden}
+@media (max-width:820px){#mpwrap .mp-pick{grid-template-columns:1fr}}
 #clock{min-width:50px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 #view{flex:1;position:relative;overflow:hidden;cursor:default;min-height:0}
 canvas#c{display:block;width:100%;height:100%}
@@ -68,14 +119,14 @@ canvas#c{display:block;width:100%;height:100%}
 canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--edge);cursor:pointer}
 #overlay{position:absolute;inset:0;background:rgba(10,7,4,.88);display:flex;align-items:center;justify-content:center;z-index:5;overflow:auto;padding:8px 0}
 #overlay .card{background:var(--panel);border:3px solid var(--edge);padding:22px 30px;max-width:900px;width:96%;box-shadow:0 10px 40px #000;margin:auto}
-#overlay .lobby{display:grid;grid-template-columns:1fr 290px;gap:12px;margin:10px 0 8px;align-items:start}
+#overlay .lobby{display:grid;grid-template-columns:minmax(0,1fr) 284px;gap:12px;margin:10px 0 8px;align-items:start}
 #overlay .lobby .left{display:flex;flex-direction:column;gap:12px}
 #overlay .panel{border:1px solid var(--edge);background:rgba(0,0,0,.18);padding:8px 10px}
 #overlay .panel h4{margin:0 0 6px;font-size:13px;color:var(--gold);font-weight:normal;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
 #overlay .panel h4 .presets{margin-left:auto;display:flex;gap:4px}
 #overlay .panel h4 .presets span{font-size:11px;text-transform:none;letter-spacing:0;color:var(--muted);border:1px solid var(--edge);padding:1px 6px;cursor:pointer;border-radius:3px}
 #overlay .panel h4 .presets span:hover{color:var(--gold);border-color:var(--gold)}
-#overlay .prow{display:grid;grid-template-columns:22px 84px 1fr 130px 96px 56px;gap:6px;align-items:center;padding:4px 0;border-top:1px solid rgba(255,255,255,.05);font-size:12px}
+#overlay .prow{display:grid;grid-template-columns:16px 80px minmax(56px,1fr) 78px 108px 88px 46px;gap:6px;align-items:center;padding:4px 0;border-top:1px solid rgba(255,255,255,.05);font-size:12px}
 #overlay .prow.head{color:var(--muted);font-size:11px;border-top:0;padding-bottom:2px}
 #overlay .prow .num{color:var(--muted);text-align:center;font-size:11px}
 #overlay .prow .swatch{width:14px;height:14px;border-radius:3px;border:1px solid #000;display:inline-block;vertical-align:middle;margin-right:4px}
@@ -110,7 +161,8 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay .opt{flex:1;padding:8px;border:2px solid var(--edge);background:var(--panel2);cursor:pointer;text-align:center;border-radius:4px}
 #overlay .opt.on{border-color:var(--gold);color:var(--gold)}
 #overlay .big{display:block;width:100%;padding:12px;font:18px Georgia,serif;background:#5a4530;color:#fff;border:2px solid var(--gold);cursor:pointer;border-radius:4px;margin-top:8px}
-#overlay .big:hover{background:#6e5538}
+#overlay .big:hover:not(:disabled){background:#6e5538}
+#overlay .big:disabled{opacity:.6;cursor:default;border-color:var(--edge)}
 #overlay table{font-size:13px;border-collapse:collapse;margin:8px 0;width:100%}
 #overlay td{padding:2px 8px 2px 0;color:var(--muted)}
 #overlay td:first-child{color:var(--text)}
@@ -126,10 +178,34 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay table.st td{padding:3px 10px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(255,255,255,.04)}
 #overlay table.st td:first-child{text-align:left;color:var(--text)}
 #overlay table.st td.best{color:var(--gold)}
+#overlay .hint{border-bottom:1px dotted var(--muted);cursor:help}#overlay .hint small{color:var(--muted);font-size:11px}
+#overlay .stnote{font-size:12px;color:var(--muted);margin:-4px 0 8px;line-height:1.5}
 #overlay table.st tr.total td{color:var(--text);border-top:1px solid var(--edge);font-size:14px}
 #overlay table.st tr.total td.best{color:var(--gold)}
 #overlay table.st tr.sec td{color:var(--gold);padding-top:10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:0}
-#overlay .tl{display:block;width:100%;height:240px;background:rgba(0,0,0,.25);border:1px solid var(--edge);margin:4px 0 8px}
+#endBody{position:relative}
+#overlay .tl-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 8px}
+#overlay .tl-seg{display:inline-flex;border:1px solid var(--edge);border-radius:4px;overflow:hidden}
+#overlay .tl-seg button{font:12.5px Georgia,serif;background:var(--panel2);color:var(--muted);border:0;padding:4px 12px;cursor:pointer}
+#overlay .tl-seg button+button{border-left:1px solid var(--edge)}
+#overlay .tl-seg button.on{background:#4a3826;color:var(--gold)}
+#overlay .tl-leg{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--text)}
+#overlay .tl-leg i,#tl-tip i,#overlay .tl-h i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#overlay .tl-cap{margin-left:auto;font-size:11.5px;color:var(--muted)}
+#overlay .tl-grid{display:grid;gap:10px}#overlay .tl-grid.two{grid-template-columns:1fr 1fr}
+#overlay .tl-p{background:rgba(0,0,0,.25);border:1px solid var(--edge);border-radius:4px;padding:6px 6px 2px}
+#overlay .tl-h{display:flex;align-items:baseline;gap:6px;font-size:13px;margin:0 0 2px 4px}
+#overlay .tl-h b{font-weight:normal;color:var(--text)}#overlay .tl-h span{color:var(--muted);font-size:11.5px}#overlay .tl-h .tot{margin-left:auto;color:var(--text);font-size:13px;font-variant-numeric:tabular-nums;padding-right:6px}
+#overlay .tl-svg{display:block;width:100%;height:auto;overflow:visible;cursor:crosshair}
+#overlay .tl-svg .g{stroke:rgba(255,255,255,.07);stroke-width:1;vector-effect:non-scaling-stroke}#overlay .tl-svg .g.z{stroke:rgba(255,255,255,.22)}
+#overlay .tl-svg .yl{fill:#b9a78a;font:10px Georgia,serif;text-anchor:end}#overlay .tl-svg .xl{fill:#b9a78a;font:10px Georgia,serif;text-anchor:middle}
+#overlay .tl-svg .ar{stroke:#211912;stroke-width:1.5;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+#overlay .tl-svg .age{stroke:rgba(241,230,207,.35);stroke-dasharray:2 3;vector-effect:non-scaling-stroke}#overlay .tl-svg .al{fill:#f1e6cf;font:bold 9px Georgia,serif}
+#overlay .tl-svg .xh{stroke:#f1e6cf;stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
+#tl-tip{position:absolute;z-index:3;min-width:160px;background:rgba(20,15,10,.96);border:1px solid var(--gold);border-radius:4px;padding:6px 8px;font-size:12px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+#tl-tip .tt-t{color:var(--muted);font-size:11px;margin-bottom:3px}#tl-tip .tt-n{color:var(--text);margin-bottom:3px}
+#tl-tip .tt-r{display:flex;align-items:center;color:var(--text);line-height:1.5}#tl-tip .tt-r b{margin-left:auto;padding-left:12px;font-weight:normal;font-variant-numeric:tabular-nums}
+#tl-tip .tt-r.tot{border-top:1px solid var(--edge);margin-top:3px;padding-top:2px;color:var(--gold)}
 #overlay .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px}
 #overlay .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 #game.nogame #top,#game.nogame #bottom,#game.nogame #scoreboard{display:none}
@@ -145,12 +221,40 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #start.ingame #treewrap{order:3}
 #start.ingame #howto{order:4}
 #start.ingame #saveopts{order:5}
-#start.ingame #resign{order:6}
+#start.ingame #resign,#start.ingame #resign-ask{order:6}
+#resign-ask{display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;border:2px solid #b0503a;background:#3a1d16;border-radius:4px;font-size:14px}
+#resign-ask>span{flex:1;color:#ffd9cf}
+#resign-ask button{font:15px Georgia,serif;padding:8px 14px;border-radius:4px;cursor:pointer;border:2px solid var(--edge);background:var(--panel2);color:var(--text)}
+#resign-ask button:hover{border-color:var(--gold)}
+#resign-ask #resign-yes{background:#8a2f20;border-color:#e0806a;color:#fff}
+#resign-ask #resign-yes:hover{background:#a23a28}
 #start.ingame #dip h2{font-size:16px;margin:8px 0 4px}
-#start.ingame #dip .prow2{display:grid;grid-template-columns:90px 130px 80px 60px 1fr;gap:8px;align-items:center;margin:3px 0;font-size:13px}
-#start.ingame #dip .prow2 .opt{padding:3px 8px;font-size:12px}
-#start.ingame #dip .tribs{display:flex;gap:4px;flex-wrap:wrap}
-#start.ingame #dip .tribs .opt{padding:2px 6px;font-size:11px;flex:0 0 auto}
+#dip .dlist{display:flex;flex-direction:column;gap:6px}
+#dip .drow{display:grid;grid-template-columns:minmax(0,1.3fr) 64px 118px minmax(0,1.6fr);gap:12px;align-items:center;padding:8px 10px;border:1px solid var(--edge);border-left:5px solid var(--pc);background:rgba(0,0,0,.2);border-radius:4px}
+#dip .drow.dead{opacity:.5}
+#dip .dwho b{display:block;font-weight:normal;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dip .dwho b i{display:inline-block;width:11px;height:11px;border-radius:2px;background:var(--pc);border:1px solid #000;margin-right:6px;vertical-align:0}
+#dip .dwho small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+#dip .dscore{text-align:right;font-size:14px;color:var(--text);font-variant-numeric:tabular-nums}
+#dip .dscore small{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+#dip .dst{justify-self:start;font-size:13px;padding:3px 10px;border-radius:12px;border:1px solid;white-space:nowrap}
+#dip .dst.ally{color:#c8f5cc;background:#2c5a33;border-color:#5fa868}
+#dip .dst.enemy{color:#ffd6cc;background:#6a2a1e;border-color:#b0503a}
+#dip .dst.pend{color:#ffe2a8;background:#5a4520;border-color:#a8843a}
+#dip .dst.gone{color:var(--muted);background:transparent;border-color:var(--edge)}
+#dip .dact{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+#dip .dact .note{font-size:12.5px;color:var(--muted)}
+#dip .dbtn{font:13px Georgia,serif;color:var(--text);background:var(--panel2);border:1px solid var(--edge);border-radius:4px;padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+#dip .dbtn:hover:not(:disabled){border-color:var(--gold);background:#4a3826}
+#dip .dbtn:disabled{opacity:.45;cursor:default}
+#dip .dbtn.go{background:#2c5a33;border-color:#5fa868;color:#fff}
+#dip .dbtn.go:hover{background:#357040}
+#dip .dbtn.warn{background:#5a2a20;border-color:#b0503a;color:#fff}
+#dip .dbtn img{width:16px;height:16px;image-rendering:pixelated}
+#dip .dtrib{display:flex;gap:4px;align-items:center}
+#dip .dtrib>span{font-size:11px;color:var(--muted);margin-right:2px}
+#dip .dnote{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.5}
+@media (max-width:820px){#dip .drow{grid-template-columns:1fr auto;}#dip .dact{grid-column:1/-1;justify-content:flex-start}}
 #info .sgrid{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
 #info .su{width:30px;height:34px;border:1px solid var(--edge);background:var(--panel2);border-radius:3px;position:relative;cursor:pointer;display:flex;align-items:flex-start;justify-content:center;padding-top:2px}
 #info .su:hover{border-color:var(--gold)}
@@ -190,11 +294,12 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
         <h1>Age Up</h1>
         <p class="sub">A real-time strategy skirmish. Gather, build, age up, and wipe out your rivals.</p>
         <div id="setupwrap">
+        <div id="mp-lobby" class="hidden"></div>
         <div class="lobby">
           <div class="left">
           <div class="panel">
             <h4>Players <span class="presets" title="Quick setups"><span onclick="preset('1v1')">1v1</span><span onclick="preset('2v2')">2v2</span><span onclick="preset('ffa')">FFA</span><span onclick="preset('1vall')">You vs all</span></span></h4>
-            <div class="prow head"><span></span><span>Type</span><span>Name</span><span>Culture</span><span>Colour</span><span>Team</span></div>
+            <div class="prow head"><span></span><span>Type</span><span>Name</span><span title="Computer players only">Level</span><span>Culture</span><span>Colour</span><span>Team</span></div>
             <div id="prows"></div>
           </div>
           <div class="panel">
@@ -206,7 +311,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
           <div class="panel">
             <h4>Game settings</h4>
             <div class="settings">
-          <label>Difficulty</label><select id="s-diff"><option value="0">Easiest</option><option value="1">Easy</option><option value="2" selected>Normal</option><option value="3">Hard</option><option value="4">Hardest</option></select>
+          <label title="Sets every computer player; change one player's level in its row">AI difficulty (all)</label><select id="s-diff"><option value="0">Easiest</option><option value="1">Easy</option><option value="2" selected>Normal</option><option value="3">Hard</option><option value="4">Hardest</option></select>
           <label>Map</label><select id="s-map"><option value="random">Random</option><option value="plains">Open Plains</option><option value="forest">Deep Forest</option><option value="walled">Walled Start</option><option value="lakes">Lakelands</option><option value="coastal">Coastal</option><option value="islands">Islands</option><option value="highlands">Highlands</option><option value="nomad">Nomad</option></select>
           <label>Map size</label><select id="s-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select>
           <label>Population</label><select id="s-pop"><option value="75">75</option><option value="125" selected>125</option><option value="200">200</option></select>
@@ -220,14 +325,12 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
             </div>
           </div>
         </div>
-        <details id="mpwrap"><summary>Multiplayer: play against another person</summary>
-          <div class="settings" style="margin:8px 0;grid-template-columns:auto 1fr auto 1fr">
-            <label>Connection</label><select id="mp-tr"><option value="online">Online (share a room code)</option><option value="local">Same browser (two tabs, for testing)</option></select>
-            <label>Room code (to join)</label><input id="mp-code" type="text" maxlength="8" placeholder="e.g. K7PQ2" style="text-transform:uppercase">
+        <details id="mpwrap"><summary>Multiplayer: play with other people</summary>
+          <div class="mp-pick">
+            <div class="mp-card"><h5>Host a game</h5><p>Get a room code to share. You pick the map, the seats and the settings above.</p><button class="mpb go" id="mp-host">Host a game</button></div>
+            <div class="mp-card"><h5>Join a game</h5><p>Type the room code your host sent you.</p><div class="mp-joinrow"><input id="mp-code" type="text" maxlength="8" placeholder="Room code" autocomplete="off" spellcheck="false"><button class="mpb go" id="mp-join">Join</button></div></div>
           </div>
-          <div class="opts" style="margin:4px 0"><div class="opt" id="mp-host">Host a game</div><div class="opt" id="mp-join">Join a game</div></div>
-          <div id="mp-lobby" class="hidden"></div>
-          <p class="sub" style="font-size:12px;margin:4px 0">The host sets seats to Open for people to join; empty Open seats are filled by the AI at start. Everyone runs the same simulation and only orders travel over the network, so a desync is detected by hash and repaired from the host.</p>
+          <div class="mp-foot"><label>Connection <select id="mp-tr"><option value="online">Online (room code)</option><option value="local">Same browser, two tabs (testing)</option></select></label><span>You play as the name in row 1. Empty Open seats are filled by computers when the game starts.</span></div>
         </details>
         </div>
         <details id="howto"><summary>How to play &amp; hotkeys</summary>
@@ -257,6 +360,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
         <details id="treewrap" class="hidden"><summary>Tech tree</summary><div id="tree" style="font-size:12px;line-height:1.5;max-height:40vh;overflow:auto"></div></details>
         <div class="opts" id="saveopts" style="margin:8px 0 0"><div class="opt hidden" id="save">Save game</div><div class="opt hidden" id="load">Load saved game</div><div class="opt hidden" id="restart" title="Start over on this same map with the same settings">Restart this map</div></div>
         <button class="big hidden" id="resign" style="background:#5a2a20;margin-top:6px">Resign</button>
+        <div id="resign-ask" class="hidden"><span>Resign this game? You will be defeated<span id="resign-mp"> and your units removed for everyone</span>.</span><button id="resign-yes">Yes, resign</button><button id="resign-no">Keep playing</button></div>
       </div>
       <div class="card hidden" id="end">
         <h1 id="endTitle">Victory</h1>
@@ -709,7 +813,7 @@ function gatherStep(u){let r=u.target;const kind=u.carryKind;
   if(u.carry>0){u.target=null;u.phase='toDrop';u.path=null}else{if(kind==='food'&&r&&r.kind==='res'&&!r.carcass){msg('Berries are gone — build Farms for food.',u.team)}stop(u);return}}
  if(u.phase==='toRes'){const g=goNear(u,r,1.0);if(g==='there'){u.phase='gathering';u.path=null;u.goal=null;u.wait=0;const c=center(r);u.face=c.x-u.x<0?-1:1}else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>20){u.wait=0;releaseGather(u);u.target=null;u.carryKind=kind;u.phase='toRes';gatherStep(u)}}}
  else if(u.phase==='gathering'){const p=player(u.team);let rate=r.kind==='bld'?GATHER.farm*(1+(p.techs.plough||0)*0.2):kind==='food'?(r.carcass?0.8:GATHER.berry):GATHER[kind];
-  if(kind==='wood')rate*=1+(p.techs.axe||0)*0.2;if(kind==='gold'||kind==='stone')rate*=1+(p.techs.pick||0)*0.2;if(p.ai)rate*=AI_DIFF[G.diff].eco;const cg=civ(p).gather;if(cg){const ck=r.kind==='bld'?'farm':(r.fish?'fish':kind);rate*=cg[ck]||1}
+  if(kind==='wood')rate*=1+(p.techs.axe||0)*0.2;if(kind==='gold'||kind==='stone')rate*=1+(p.techs.pick||0)*0.2;if(p.ai)rate*=aiDiff(p).eco;const cg=civ(p).gather;if(cg){const ck=r.kind==='bld'?'farm':(r.fish?'fish':kind);rate*=cg[ck]||1}
   const cap=unitStat(u,'carry');let take=Math.min(rate*DT,cap-u.carry);if(r.kind==='res'){take=Math.min(take,r.amount);r.amount-=take;if(r.amount<=0.001)removeResource(r)}u.carry+=take;u.anim+=DT;
   if(u.carry>=cap-0.001){u.phase='toDrop';u.path=null;u.goal=null}}
  else if(u.phase==='toDrop'){const d=(u.drop&&!u.drop.dead)?u.drop:(u.drop=nearestDrop(u.team,u.naval?'fish':kind,u.x,u.y));if(!d){stop(u);return}
@@ -782,7 +886,7 @@ function updateUnit(u){if(u.inside){if(u.hp<unitStat(u,'maxhp'))u.hp=Math.min(un
 function updateBuilding(b){const d=BUILDINGS[b.type];const p=player(b.team);if(b.flash>0)b.flash-=DT;
  if(!b.built){if(b.builders>0){b.lastProg=G.time;const rate=(b.builders+2)/3*(p.techs.crane?1.2:1);b.progress+=DT/d.time*rate;b.hp=Math.max(b.hp,Math.round(bldHp(b)*(0.1+0.9*b.progress)));if(b.progress>=1){b.built=true;b.progress=1;b.hp=bldHp(b);b.builtAt=G.time;recalcPop(p);updateVis();if(b.type==='wonder')stat(p,'wonders',1);if(b.type==='keep')stat(p,'keeps',1);if(b.team===ME&&!(b.type==='wall'||b.type==='farm'))sfx('built');if(b.type==='wonder'){msg(TEAM[b.team].n+' has built a Wonder! It must fall within 5 minutes.');sfx('age')}}}b.builders=0;return}
  if(b.relics>0){p.res.gold+=0.4*b.relics*DT;stat(p,'relicGold',0.4*b.relics*DT)}
- if(b.queue.length){const q=b.queue[0];let tt=q.unit?UNITS[q.unit].time*(MILITARY.has(q.unit)&&p.techs.conscript?0.75:1):q.age?AGE_TIME[q.age]:TECHS[q.tech].time[q.lvl];if(p.ai)tt/=AI_DIFF[G.diff].eco;q.t+=DT;q.total=tt;
+ if(b.queue.length){const q=b.queue[0];let tt=q.unit?UNITS[q.unit].time*(MILITARY.has(q.unit)&&p.techs.conscript?0.75:1):q.age?AGE_TIME[q.age]:TECHS[q.tech].time[q.lvl];if(p.ai)tt/=aiDiff(p).eco;q.t+=DT;q.total=tt;
   if(q.t>=tt){b.queue.shift();
    if(q.unit){const s=spawnSpot(b,b.rally?b.rally:{x:b.tx+b.w+1,y:b.ty+b.h+1},!!UNITS[q.unit].naval);p.pop-=UNITS[q.unit].pop;const u=makeUnit(q.unit,b.team,s.x,s.y);p.stats.trained++;
     if(b.rally){if(b.rally.t&&!b.rally.t.dead){const rt=b.rally.t;if(rt.kind==='res'||(rt.kind==='bld'&&rt.type==='farm')||(rt.kind==='unit'&&rt.type==='sheep')){if(!(rt.kind==='res'&&rt.fish)===!u.naval)cmdGather(u,rt);else cmdMove(u,b.rally.x,b.rally.y)}else if(rt.kind==='bld'&&!rt.built)cmdBuild(u,rt);else if(rt.kind==='bld'&&BUILDINGS[rt.type].garrison&&allied(rt.team,u.team))cmdGarrison(u,rt);else if(!allied(rt.team,u.team))cmdAttack(u,rt);else cmdMove(u,b.rally.x,b.rally.y)}else cmdMove(u,b.rally.x,b.rally.y)}}
@@ -852,7 +956,9 @@ function update(){for(const r of G.relics)if(r.holder&&!r.holder.inside){r.x=r.h
  if(G.tick%20===0)checkWin();
  if(G.tick%100===0){const mil=[],vil=[];for(const u of G.units){if(u.team<0)continue;if(u.type==='villager')vil[u.team]=(vil[u.team]||0)+1;else if(isMil(u))mil[u.team]=(mil[u.team]||0)+1}
   for(const p of G.players){p.score=computeScore(p);const st=p.stats;st.armyHigh=Math.max(st.armyHigh||0,mil[p.team]||0);st.villHigh=Math.max(st.villHigh||0,vil[p.team]||0)}
-  if(G.tick%600===0){G.timeline=G.timeline||[];G.timeline.push({t:G.time,s:G.players.map(p=>p.score)})}}}
+  if(G.tick%600===0)timelineSample()}}
+// Score history for the post-game Timeline: total per player (s) plus its four parts (p: [military, economy, technology, society]).
+function timelineSample(){G.timeline=G.timeline||[];G.timeline.push({t:G.time,s:G.players.map(p=>p.score),p:G.players.map(p=>{const q=scoreParts(p);return[q.military,q.economy,q.technology,q.society]})})}
 function playerAlive(p){return !p.dead}
 
 // ---- player actions ----
@@ -944,12 +1050,17 @@ function chatSubmit(txt){txt=txt.trim();if(!txt)return;const n=parseInt(txt);
  if(n>=1&&n<=TAUNTS.length){submit({v:'taunt',n});return}
  const w=txt.toLowerCase();if(['bounty','lantern','ageup','hasten'].includes(w)){if(NET.active)msg('Cheats are disabled in multiplayer.');else submit({v:'cheat',w});updateTop();return}
  if(NET.active)NET.chat(txt);else msg('You: '+txt);updateTop()}
-function resign(){if(G&&!G.over)submit({v:'resign'})}
+// Resigning in multiplayer is a lockstep command: it only runs when the next turn does, so a paused game is resumed first.
+function resign(){if(!G||G.over||player(ME).dead)return false;if(NET.active&&G.paused)setPaused(false);return submit({v:'resign'})!==false}
 
 // ================= AI =================
+const DIFF_NAMES=['Easiest','Easy','Normal','Hard','Hardest'];
+// Each computer seat has its own level (setup.diffs, by seat); games and saves without it use the global setup.diff.
+function aiLevel(p){const ds=G.setup&&G.setup.diffs;const d=ds?ds[p.team]:undefined;return d>=0&&d<AI_DIFF.length?d|0:G.diff}
+function aiDiff(p){return AI_DIFF[aiLevel(p)]||AI_DIFF[2]}
 const AI_DIFF=[{eco:0.6,army:18,vill:[12,16,20,24]},{eco:0.8,army:14,vill:[14,20,26,30]},{eco:1.0,army:12,vill:[20,30,44,54]},{eco:1.25,army:10,vill:[24,38,56,68]},{eco:1.5,army:9,vill:[26,44,66,80]}];
 function builderCount(b){let n=0;for(const u of G.units)if(u.state==='build'&&u.target===b)n++;return n}
-function aiThink(p){const t=p.team,S=p.aiState,D=AI_DIFF[G.diff];S.n=(S.n||0)+1;const my=G.units.filter(u=>u.team===t&&!u.inside);const vills=my.filter(u=>u.type==='villager');const army=my.filter(isMil);const blds=G.buildings.filter(b=>b.team===t);
+function aiThink(p){const t=p.team,S=p.aiState,D=aiDiff(p);S.n=(S.n||0)+1;const my=G.units.filter(u=>u.team===t&&!u.inside);const vills=my.filter(u=>u.type==='villager');const army=my.filter(isMil);const blds=G.buildings.filter(b=>b.team===t);
  const th=blds.find(b=>b.type==='townhall'&&b.built)||blds.find(b=>b.type==='townhall');const home=th?center(th):(blds[0]?center(blds[0]):{x:MAP/2,y:MAP/2});
  const foes=G.players.filter(q=>!q.dead&&!allied(q.team,t));const foeTH=[];for(const q of foes){const b=G.buildings.find(b=>b.team===q.team&&b.type==='townhall')||G.buildings.find(b=>b.team===q.team&&b.type!=='wall'&&b.type!=='farm')||G.buildings.find(b=>b.team===q.team);if(b)foeTH.push(b)}
  foeTH.sort((a,b)=>rectDist(home.x,home.y,rectOf(a))-rectDist(home.x,home.y,rectOf(b)));let enemyTH=foeTH[0];
@@ -28871,6 +28982,21 @@ function drawUnit(u,sel){const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);const tc=TEAM[u.t
  if(u.state==='convert'||u.faith>0){ctx.strokeStyle='rgba(255,230,120,0.6)';ctx.beginPath();ctx.arc(0,-24,2.5,0,7);ctx.stroke()}
  ctx.restore();ctx.globalAlpha=1;
  const maxhp=unitStat(u,'maxhp');if(sel||u.hp<maxhp){const bw=18;const x=wx-bw/2,y=wy-(d.pop>1?30:28);ctx.fillStyle='#000';ctx.fillRect(x-1,y-1,bw+2,4);ctx.fillStyle=u.hp/maxhp>0.5?'#4caf50':u.hp/maxhp>0.25?'#e6b800':'#d33';ctx.fillRect(x,y,bw*u.hp/maxhp,2)}}
+// Build placement preview. The building is drawn into its own layer and washed green (fits) or red (blocked), so the
+// verdict reads at a glance whatever the player colour; each blocked footprint tile is also marked red.
+const ghostCv=document.createElement('canvas');
+function drawPlacementGhost(){const g=ui.build;const d=BUILDINGS[g.type];const tiles=g.tiles||[{x:g.tx,y:g.ty}];const main=ctx;const Tm=main.getTransform();
+ const gw=main.canvas.width,gh=main.canvas.height;if(ghostCv.width!==gw||ghostCv.height!==gh){ghostCv.width=gw;ghostCv.height=gh}const gx=ghostCv.getContext('2d');
+ const verdict=tiles.map(t=>canPlace(g.type,t.x,t.y,ME));
+ tiles.forEach((t,k)=>{const ok=verdict[k];const c=corners(wpx(t.x,t.y),wpy(t.x,t.y),d.w,d.h,0);
+  ctx.lineWidth=2;poly([c.T,c.Rr,c.Bm,c.L],ok?'rgba(70,200,90,0.30)':'rgba(230,50,40,0.30)',ok?'#7dff8a':'#ff5a4a');ctx.lineWidth=1;
+  if(!ok&&tiles.length===1){for(let y=t.y;y<t.y+d.h;y++)for(let x=t.x;x<t.x+d.w;x++){const i=inMap(x,y)?idx(x,y):-1;const bad=i<0||G.vis[ME][i]===0||G.block[i]||G.bAt[i]||relicOn(x,y)||(d.water?G.terrain[i]!==2:G.terrain[i]===2);if(bad){const q=corners(wpx(x,y),wpy(x,y),1,1,0);poly([q.T,q.Rr,q.Bm,q.L],'rgba(255,40,30,0.38)',null)}}}});
+ // one layer per verdict (a wall line can be dozens of tiles): draw the buildings, wash them, composite once
+ for(const ok of[true,false]){if(!verdict.includes(ok))continue;
+  gx.setTransform(1,0,0,1,0,0);gx.clearRect(0,0,gw,gh);gx.setTransform(Tm);ctx=gx;
+  try{tiles.forEach((t,k)=>{if(verdict[k]===ok)drawBuilding({type:g.type,tx:t.x,ty:t.y,w:d.w,h:d.h,team:ME,built:true,progress:1,hp:1e9,id:0,flash:0,garrison:[],queue:[]},false)})}finally{ctx=main}
+  gx.setTransform(1,0,0,1,0,0);gx.globalCompositeOperation='source-atop';gx.fillStyle=ok?'rgba(60,210,90,0.42)':'rgba(235,45,35,0.62)';gx.fillRect(0,0,gw,gh);gx.globalCompositeOperation='source-over';
+  main.save();main.setTransform(1,0,0,1,0,0);main.globalAlpha=ok?0.7:0.6;main.drawImage(ghostCv,0,0);main.restore()}}
 // Units standing behind a building show through it as a team-colour silhouette, masked to the building's own pixels
 const xrA=document.createElement('canvas'),xrB=document.createElement('canvas'),xrC=document.createElement('canvas');
 function xraySilhouettes(items,z){const units=[],blds=[];for(const it of items){if(it.e.kind==='unit')units.push(it);else if(it.e.kind==='bld')blds.push(it)}if(!units.length||!blds.length)return;
@@ -28976,7 +29102,7 @@ function render(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fill
   else if(e.k==='holy'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);const f=(G.time-e.t)/0.5;ctx.strokeStyle=`rgba(255,240,150,${1-f})`;ctx.beginPath();ctx.arc(wx,wy-14-f*10,4+f*4,0,7);ctx.stroke()}
   else if(e.k==='boom'){const wx=wpx(e.x,e.y),wy=wpy(e.x,e.y);const f=(G.time-e.t)/0.5;ctx.fillStyle=`rgba(120,90,50,${0.6*(1-f)})`;ctx.beginPath();ctx.ellipse(wx,wy,14+f*22,7+f*11,0,0,7);ctx.fill()}}
  // build ghost
- if(ui.build){const g=ui.build;const d=BUILDINGS[g.type];const tiles=g.tiles||[{x:g.tx,y:g.ty}];for(const t of tiles){const ok=canPlace(g.type,t.x,t.y,ME);const cx=wpx(t.x,t.y),cy=wpy(t.x,t.y);const c=corners(cx,cy,d.w,d.h,0);poly([c.T,c.Rr,c.Bm,c.L],ok?'rgba(80,220,80,0.35)':'rgba(220,60,60,0.4)',ok?'#5f5':'#f55');if(ok){ctx.globalAlpha=0.45;drawBuilding({type:g.type,tx:t.x,ty:t.y,w:d.w,h:d.h,team:0,built:true,progress:1,hp:1e9,id:0,flash:0},false);ctx.globalAlpha=1}}}
+ if(ui.build&&ui.build.tx!==undefined)drawPlacementGhost();
  // rally points
  for(const b of (G.sel||[]))if(b.kind==='bld'&&b.rally){if(b.rally.t===b){const c=center(b);const p=w2sLocal(c.x,c.y);flag(p.x,p.y-8,ME,16);continue}const c=center(b);const a=w2sLocal(c.x,c.y),p=w2sLocal(b.rally.x,b.rally.y);ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(a.x,a.y-20);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([]);flag(p.x,p.y,ME,16)}
  // pings
@@ -29076,13 +29202,20 @@ function techEffect(p,k,lvl){const T=TECHS[k];const L=[];const sg=v=>(v>0?'+':''
  if(T.gather){const now=lvl*T.pct*100;L.push(`${sg(T.pct*100)}% ${T.gather==='mine'?'gold & stone':T.gather==='farm'?'farm':T.gather} gather rate`+(now?` (${sg(now)}% → ${sg(now+T.pct*100)}%)`:''))}
  const tg=techTargets(p,k);if(tg&&tg.length)L.push('Affects: '+tg.map(ATTR_NAMES).join(', ')+(T.ranged||T.tower?', towers':''));
  return L}
+// Counters: a unit's bonus map is extra damage it deals to those targets; "weak vs" lists the units whose bonus names this one.
+const BONUS_TARGET={building:'buildings',tower:'towers & keeps'};
+function bonusName(k){return BONUS_TARGET[k]||(UNITS[k]?UNITS[k].name:k)}
+function strongVs(t){const b=UNITS[t]&&UNITS[t].bonus;if(!b)return[];return Object.entries(b).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({k,n:bonusName(k),v}))}
+function weakVs(t){const out=[];for(const k in UNITS){const d=UNITS[k];if(d.animal||!d.bonus)continue;const v=d.bonus[t]||0;if(v>0)out.push({k,n:d.name,v})}return out.sort((a,b)=>b.v-a.v)}
+function counterLines(t,max){const s=strongVs(t),w=weakVs(t);max=max||6;const f=l=>l.slice(0,max).map(x=>`${x.n} <b>+${x.v}</b>`).join(', ')+(l.length>max?', …':'');const r=[];
+ if(s.length)r.push(`<span class="cv-s">Strong vs</span> ${f(s)}`);if(w.length)r.push(`<span class="cv-w">Weak vs</span> ${f(w)}`);return r}
 function unitTipStats(p,t){const d=UNITS[t];const fake={type:t,team:ME};const r=[`HP ${unitStat(fake,'maxhp')}`];if(d.atk)r.push(`Attack ${unitStat(fake,'atk')}`);if(d.range>1)r.push(`Range ${unitStat(fake,'range')}${d.minRange?' (min '+d.minRange+')':''}`);r.push(`Armour ${unitStat(fake,'armor')}/${unitStat(fake,'parmor')}`);return r.join(' · ')}
 function tipHtml(b){const p=player(ME);let h=`<div class="tt-h"><b>${b.label}</b> <span class="tt-k">${b.key}</span></div>`;
  if(b.cost&&Object.keys(b.cost).length)h+=`<div class="tt-c">${costStr(b.cost)}${b.tk?` <span class="tt-m">· ${TECHS[b.tk].time[b.tl]}s</span>`:b.ut?` <span class="tt-m">· ${UNITS[b.ut].time}s</span>`:''}</div>`;
  const short=b.cost&&!canAfford(p,b.cost)?Object.keys(b.cost).filter(k=>p.res[k]<b.cost[k]).map(k=>`${b.cost[k]-Math.floor(p.res[k])} ${k}`):null;
  let desc=b.tip||'';if(b.tk){const T=TECHS[b.tk];desc=T.line||T.atk||T.armor||T.gather?'':T.desc}else if(b.ut)desc=UNITS[b.ut].desc;else if(b.bt)desc=BUILDINGS[b.bt].desc;if(desc)h+=`<div>${desc}</div>`;
  if(b.tk){const lines=techEffect(p,b.tk,b.tl);if(lines.length)h+=`<div class="tt-e">${lines.join('<br>')}</div>`;const T=TECHS[b.tk];if(p.age<T.age[b.tl])h+=`<div class="tt-x">Requires ${AGES[T.age[b.tl]]}</div>`}
- if(b.ut){h+=`<div class="tt-e">${unitTipStats(p,b.ut)}</div>`;const u=UNITS[b.ut];if(p.age<u.age)h+=`<div class="tt-x">Requires ${AGES[u.age]}</div>`;else if(u.needs&&!p.techs[u.needs])h+=`<div class="tt-x">Requires ${TECHS[u.needs].name[0]}</div>`}
+ if(b.ut){h+=`<div class="tt-e">${unitTipStats(p,b.ut)}</div>`;const cl=counterLines(b.ut);if(cl.length)h+=`<div class="tt-cv">${cl.join('<br>')}</div><div class="tt-m" style="font-size:10.5px">+n = extra damage per hit</div>`;const u=UNITS[b.ut];if(p.age<u.age)h+=`<div class="tt-x">Requires ${AGES[u.age]}</div>`;else if(u.needs&&!p.techs[u.needs])h+=`<div class="tt-x">Requires ${TECHS[u.needs].name[0]}</div>`}
  if(b.bt){const d=BUILDINGS[b.bt];if(d.trains&&d.trains.length)h+=`<div class="tt-e">Trains: ${d.trains.map(ATTR_NAMES).join(', ')}</div>`;if(p.age<d.age)h+=`<div class="tt-x">Requires ${AGES[d.age]}</div>`}
  if(short&&short.length)h+=`<div class="tt-x">Need ${short.join(', ')} more</div>`;return h}
 function marketTable(p){const g=iconUrl('res','gold');return `<table id="mkt"><tr><th></th><th>Buy 100 costs</th><th>Sell 100 gives</th></tr>${['wood','food','stone'].map(k=>`<tr><td><span class="ci"><img src="${iconUrl('res',k)}" alt="">${k[0].toUpperCase()+k.slice(1)}</span></td><td><span class="ci"><img src="${g}" alt="">${buyPrice(p,k)}</span></td><td><span class="ci"><img src="${g}" alt="">${sellPrice(p,k)}</span></td></tr>`).join('')}</table>`}
@@ -29094,7 +29227,7 @@ function renderInfo(){const s=G.sel||[];const el=$('info');if(!s.length){el.inne
  if(e.kind==='res'&&e.cliff){el.innerHTML='<h3>Cliff</h3><div class="row">Impassable rock. Find a gap.</div>';return}
  if(e.kind==='res'){el.innerHTML=`<h3>${e.carcass?UNITS[e.carcass].name+' carcass':e.res==='wood'?'Tree':e.res==='food'?'Berry bush':e.res==='gold'?'Gold mine':'Stone mine'}</h3><div class="row">${fmt(e.amount)} ${e.res} left${e.carcass?' (decaying)':''}</div>`;return}
  if(e.kind==='relic'){el.innerHTML='<h3>Relic</h3><div class="row">Send a Monk to pick it up and carry it to a Temple for a steady gold trickle.</div>';return}
- if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div><div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?' · Food '+d.food:' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range')+(d.minRange?' (min '+d.minRange+')':''):'')+(d.packs?' · '+(e.state==='pack'?(e.packGoal?'Packing…':'Unpacking…'):e.packed===false?'Deployed: fires, cannot move':'Packed: moves, cannot fire'):'')}</div><div class="row">${e.explore?'Exploring':e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>`;return}
+ if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div><div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?' · Food '+d.food:' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range')+(d.minRange?' (min '+d.minRange+')':''):'')+(d.packs?' · '+(e.state==='pack'?(e.packGoal?'Packing…':'Unpacking…'):e.packed===false?'Deployed: fires, cannot move':'Packed: moves, cannot fire'):'')}</div><div class="row">${e.explore?'Exploring':e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>${d.animal?'':counterLines(e.type,4).map(l=>`<div class="row cv" title="+n is extra damage per hit">${l}</div>`).join('')}`;return}
  const d=BUILDINGS[e.type];const maxhp=bldHp(e);let q='';if(e.queue.length&&allied(e.team,ME))q='<div class="q">'+e.queue.map((x,i)=>{const n=x.unit?UNITS[x.unit].name:x.age?AGES[x.age]:TECHS[x.tech].name[x.lvl];return `<span>${n}${i===0?' '+Math.floor(100*x.t/(x.total||1))+'%':''}</span>`}).join('')+'</div>';
  el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*(e.built?e.hp/maxhp:e.progress)}%;background:${e.built?'#4caf50':'#aaa'}"></i></div><div class="row">${e.built?'HP '+Math.ceil(e.hp)+'/'+maxhp:'Building '+Math.floor(e.progress*100)+'%'+(e.builders?'':' — needs a villager')}${e.garrison&&e.garrison.length&&allied(e.team,ME)?' · '+e.garrison.length+'/'+d.garrison+' inside':''}${e.relics?' · '+e.relics+' relic'+(e.relics>1?'s':''):''}</div>${e.type==='market'&&e.team===ME?marketTable(player(ME)):''}${e.built&&(d.trains||d.garrison)&&e.team===ME?'<div class="row" style="font-size:11px">Right-click to set a rally point'+(d.garrison?' · right-click with units to garrison':'')+'</div>':''}<div class="row" style="font-size:11px">${d.desc}</div>${q}`}
 function setSel(list){G.sel=list;renderCmds();renderInfo();if(list.length&&list[0].team===ME)sfx('select')}
@@ -29220,7 +29353,7 @@ window.addEventListener('blur',()=>{ui.keys={}});
 const TURN_TICKS=4, MAX_LEAD=6, HASH_EVERY=5;
 let WATCHING=false;
 const NET={active:false,host:false,hostId:null,tr:null,mode:'online',room:'',name:'',lobby:null,peers:new Map(),inbox:[],turns:new Map(),hashes:new Map(),waiting:null,rtt:0,desync:0};
-function netReset(){NET.active=false;NET.host=false;NET.hostId=null;NET.lobby=null;NET.peers.clear();NET.inbox.length=0;NET.turns.clear();NET.hashes.clear();NET.waiting=null;NET.rtt=0;NET.desync=0;if(NET.tr){try{NET.tr.close()}catch(e){}NET.tr=null}ME=0;stopBgTicker()}
+function netReset(){NET.active=false;NET.host=false;NET.hostId=null;NET.lobby=null;NET.peers.clear();NET.inbox.length=0;NET.turns.clear();NET.hashes.clear();NET.waiting=null;NET.rtt=0;NET.desync=0;NET.ready=false;if(NET.tr){try{NET.tr.close()}catch(e){}NET.tr=null}ME=0;stopBgTicker()}
 NET.leave=function(){if(NET.tr&&!NET.host)NET.send({t:'leave'});netReset();renderLobby();netStatus()};
 NET.send=function(body,to){if(!NET.tr)return;NET.tr.send(to===undefined?(NET.host?null:NET.hostId):to,body)};
 NET.submit=function(c){if(NET.host)NET.inbox.push({seat:ME,c,at:Math.floor(G.tick/TURN_TICKS)+fairDelay()});else NET.send({t:'cmd',c})};
@@ -29231,7 +29364,7 @@ NET.chat=function(text){if(NET.host)netChat(ME,text);else NET.send({t:'chat',tex
 function esc(t){return String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]))}
 function chatName(seat){const p=G&&G.players[seat];return TEAM[seat].n+(p&&p.name?' ('+esc(p.name)+')':'')}
 function netChat(seat,text){text=String(text).slice(0,200);if(NET.host)NET.send({t:'chat',seat,text});msg(chatName(seat)+': '+esc(text));updateTop()}
-function openMenu(){if(!G||G.over)return;$('overlay').classList.remove('hidden');$('start').classList.remove('hidden');$('end').classList.add('hidden');$('play').textContent='Resume';$('start').classList.add('ingame');$('resign').classList.remove('hidden');$('save').classList.toggle('hidden',NET.active);refreshMenu();$('setupwrap').classList.add('hidden');ui.menu=true;if(!NET.active)G.paused=true}
+function openMenu(){if(!G||G.over)return;$('overlay').classList.remove('hidden');$('start').classList.remove('hidden');$('end').classList.add('hidden');$('play').textContent='Resume';$('start').classList.add('ingame');$('resign').classList.toggle('hidden',!!player(ME).dead);$('resign').textContent='Resign';$('resign').disabled=false;$('resign-ask').classList.add('hidden');$('save').classList.toggle('hidden',NET.active);refreshMenu();$('setupwrap').classList.add('hidden');ui.menu=true;if(!NET.active)G.paused=true}
 function setPaused(on){if(!G)return;if(NET.active){if(NET.host){G.paused=!!on;NET.send({t:'pause',on:G.paused})}else NET.send({t:'pause',on:!!on})}else G.paused=!!on;updateTop()}
 // -- transports: same interface, {id, send(to|null, body), close()} plus handlers {open, peer, msg, close, error}
 function localTransport(room,h){const bc=new BroadcastChannel('ageup-mp-'+room);const id='L'+Math.random().toString(36).slice(2,8);
@@ -29264,31 +29397,50 @@ function mpName(){const n=($('pn-0').value.trim()||'Player').slice(0,16);try{loc
 function randCode(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=A[Math.floor(Math.random()*A.length)];return c}
 function mpHost(){NET.mode=$('mp-tr').value;netOpen(true,mpName(),NET.mode==='local'?'local':randCode())}
 function mpJoin(){NET.mode=$('mp-tr').value;const code=$('mp-code').value.trim().toUpperCase();if(NET.mode!=='local'&&!code){$('mp-code').focus();return}netOpen(false,mpName(),NET.mode==='local'?'local':code)}
-function netOpen(isHost,name,room){netReset();NET.host=isHost;NET.name=name;NET.room=room;NET.lobby={status:isHost?'Starting…':'Connecting…'};const civ=()=>myCiv();
+function netOpen(isHost,name,room){netReset();NET.host=isHost;NET.name=name;NET.room=room;NET.lobby={status:isHost?'Opening a room…':'Connecting to the game server…',state:'wait'};NET.ready=false;const civ=()=>myCiv();
  if(isHost){document.querySelectorAll('#prows .mponly').forEach(o=>o.classList.remove('hidden'));for(let i=1;i<PROWS;i++)if($('pt-'+i).value==='ai'||i===1){$('pt-'+i).value='open';rowTypeChanged(i)}}
- const h={open:id=>{NET.lobby.status=isHost?(NET.mode==='local'?'Open this page in another tab and press Join':'Share the room code, then press Start when everyone is in'):'Looking for the host…';if(!isHost&&NET.mode==='local')NET.send({t:'join',name,civ:civ()},null);renderLobby()},
+ const h={open:id=>{if(isHost)lobbyState('ok',NET.mode==='local'?'':'Send the room code or invite link to the people you want to play with.');else lobbyState('wait','Looking for the host of room '+room+'…');if(!isHost&&NET.mode==='local')NET.send({t:'join',name,civ:civ()},null);renderLobby()},
   peer:pid=>{if(!isHost){NET.hostId=pid;NET.send({t:'join',name,civ:civ()},pid)}},
   msg:(from,m)=>{if(!m||typeof m!=='object')return;try{if(isHost)hostMsg(from,m);else clientMsg(from,m)}catch(e){console.error('net',e)}},
-  close:pid=>{if(isHost)hostPeerClosed(pid);else{if(NET.lobby)NET.lobby.status='Lost the connection to the host';if(NET.active){NET.waiting='the host (disconnected)';msg('Connection to the host was lost.')}renderLobby()}},
-  error:e=>{NET.lobby=NET.lobby||{};NET.lobby.status='Error: '+(e&&e.type==='peer-unavailable'?'no game with that code':e&&e.type==='unavailable-id'?'that room code is taken, host again':e&&e.type==='room-full'?'that game is full':(e&&(e.message||e.type))||e);renderLobby()}};
+  close:pid=>{if(isHost)hostPeerClosed(pid);else{lobbyState('err','Lost the connection to the host');if(NET.active){NET.waiting='the host (disconnected)';msg('Connection to the host was lost.')}renderLobby()}},
+  error:e=>{lobbyState('err');NET.lobby.status='Error: '+(e&&e.type==='peer-unavailable'?'no game with that code':e&&e.type==='unavailable-id'?'that room code is taken, host again':e&&e.type==='room-full'?'that game is full':(e&&(e.message||e.type))||e);renderLobby()}};
  NET.tr=NET.mode==='local'?localTransport(room,h):wsTransport(room,isHost,h);renderLobby()}
 function lobbySetup(){const S=readSetup();delete S.seed;const rows=rowModel();S.humans=[];for(const r of rows)if(r.type==='you'||r.type==='human')S.humans.push(seatOfRow(rows,r.row));S.names[0]=NET.name||S.names[0];return S}
 function sendLobby(){const S=lobbySetup();const rows=rowModel();for(const [pid,q] of NET.peers)NET.send({t:'lobby',rows,setup:S,you:seatOfRow(rows,q.row),yourRow:q.row,hostName:NET.name},pid);renderLobby()}
 function hostStart(){if(!NET.host||NET.active||!NET.tr)return;const S=lobbySetup();S.seed=readSetup().seed;const rows=rowModel();for(const [pid,q] of NET.peers)if(q.on)NET.send({t:'start',setup:S,you:seatOfRow(rows,q.row)},pid);netBegin(S,0)}
 function netBegin(S,seat){if(NET.host){const rows=rowModel();for(const q of NET.peers.values())q.seat=seatOfRow(rows,q.row)}ME=seat;NET.active=true;NET.turns.clear();NET.inbox.length=0;NET.hashes.clear();NET.waiting=null;for(const q of NET.peers.values()){q.ack=-1;q.lastSeen=performance.now()}startGame(S);G.speed=1;startBgTicker();renderLobby()}
-function summarizeSetup(S){return (MAP_TYPES[S.mapType]||S.mapType)+' · '+S.mapSize+' · pop '+S.pop+' · '+AGES[S.startAge]+' start · '+S.startRes+' resources · teams '+(S.teams||'?')+' · victory: '+S.victory+(S.diplo==='locked'?' · teams locked':'')+(S.teamPos==='random'?' · random positions':'')+' · AI: '+['Easiest','Easy','Normal','Hard','Hardest'][S.diff]}
-function renderLobby(){const box=$('mp-lobby'),play=$('play');const ctl=document.querySelectorAll('#setupwrap select,#setupwrap input');
- if(!NET.tr){box.classList.add('hidden');$('mp-host').classList.remove('hidden');$('mp-join').classList.remove('hidden');play.disabled=false;if(!(G&&!G.over))play.textContent='Play';ctl.forEach(el=>{el.disabled=false});document.querySelectorAll('#prows .mponly').forEach(o=>o.classList.add('hidden'));for(let i=1;i<PROWS;i++)if($('pt-'+i).value==='open'){$('pt-'+i).value='ai';rowTypeChanged(i)}for(let i=0;i<PROWS;i++){const nm=$('pn-'+i);if(nm.tagName==='SPAN')rowTypeChanged(i)}$('pt-0').textContent='You';renderCivCards();return}
- box.classList.remove('hidden');$('mp-host').classList.add('hidden');$('mp-join').classList.add('hidden');$('mpwrap').open=true;
+function summarizeSetup(S){return (MAP_TYPES[S.mapType]||S.mapType)+' · '+S.mapSize+' · pop '+S.pop+' · '+AGES[S.startAge]+' start · '+S.startRes+' resources · teams '+(S.teams||'?')+' · victory: '+S.victory+(S.diplo==='locked'?' · teams locked':'')+(S.teamPos==='random'?' · random positions':'')+' · AI: '+aiSummary(S)}
+function aiSummary(S){const ds=S.diffs;if(!ds)return DIFF_NAMES[S.diff]||'Normal';const hum=S.humans||[0];const lv=[...new Set(ds.filter((d,i)=>!hum.includes(i)))];return lv.length===0?'none':lv.length===1?DIFF_NAMES[lv[0]]:'mixed levels'}
+function lobbyState(st,status){NET.lobby=NET.lobby||{};NET.lobby.state=st;if(status!==undefined)NET.lobby.status=status}
+function copyText(t,el){const done=()=>{if(el){el.textContent='Copied';clearTimeout(el._t);el._t=setTimeout(()=>{el.textContent=''},1800)}};
+ try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(done,()=>fallback());return}}catch(e){}fallback();
+ function fallback(){const i=document.createElement('textarea');i.value=t;i.style.position='fixed';i.style.opacity='0';document.body.appendChild(i);i.select();try{document.execCommand('copy');done()}catch(e){}i.remove()}}
+function inviteLink(){return location.origin+location.pathname+'?join='+encodeURIComponent(NET.room)}
+function mpReady(){if(!NET.tr||NET.host||NET.active)return;NET.ready=!NET.ready;NET.send({t:'ready',on:NET.ready});renderLobby()}
+function seatTag(r,mine){if(r.type==='closed')return '';if(r.type==='ai')return `<span class="tag dim">${DIFF_NAMES[r.diff]||'Normal'}</span>`;if(r.type==='open')return '<span class="tag wait">Waiting</span>';
+ if(r.type==='you'||r.row===0&&!NET.host)return '<span class="tag ok">Host</span>';if(!r.on)return '<span class="tag err">Disconnected</span>';return r.ready?'<span class="tag ok">Ready</span>':'<span class="tag wait">Not ready</span>'}
+function renderLobby(){const box=$('mp-lobby'),play=$('play');const ctl=document.querySelectorAll('#setupwrap select,#setupwrap input');$('setupwrap').classList.toggle('guest',!!(NET.tr&&!NET.host));
+ if(!NET.tr){box.classList.add('hidden');box.innerHTML='';$('mpwrap').classList.remove('hidden');play.disabled=false;if(!(G&&!G.over))play.textContent='Play';ctl.forEach(el=>{el.disabled=false});document.querySelectorAll('#prows .mponly').forEach(o=>o.classList.add('hidden'));for(let i=1;i<PROWS;i++)if($('pt-'+i).value==='open'){$('pt-'+i).value='ai';rowTypeChanged(i)}for(let i=0;i<PROWS;i++){const nm=$('pn-'+i);if(nm.tagName==='SPAN')rowTypeChanged(i)}$('pt-0').textContent='You';renderCivCards();return}
+ box.classList.remove('hidden');$('mpwrap').classList.add('hidden');
  const rows=NET.host?rowModel():(NET.lobby&&NET.lobby.rows||[]);const S=NET.host?lobbySetup():(NET.lobby&&NET.lobby.setup);
- if(NET.host){for(const r of rows){const nm=$('pn-'+r.row);if(nm.tagName==='SPAN'){if(r.type==='human'){nm.textContent=r.name+(r.on?'':' (disconnected)');nm.className='pname'}else rowTypeChanged(r.row)}if(r.type==='human')$('pc-'+r.row).value=r.civ}ctl.forEach(el=>{el.disabled=false});rows.forEach(r=>{if(r.type==='human')$('pc-'+r.row).disabled=true})}
+ if(NET.host){for(const r of rows){const nm=$('pn-'+r.row);if(nm.tagName==='SPAN'){if(r.type==='human'){nm.textContent=r.name+(r.on?'':' (disconnected)');nm.className='pname'}else rowTypeChanged(r.row)}if(r.type==='human')$('pc-'+r.row).value=r.civ;if(r.row>0)$('pd-'+r.row).classList.toggle('off',r.type!=='ai'&&r.type!=='open')}ctl.forEach(el=>{el.disabled=false});rows.forEach(r=>{if(r.type==='human')$('pc-'+r.row).disabled=true})}
  else{$('pt-0').textContent='Host';const mine=myCivSel();ctl.forEach(el=>{el.disabled=el!==mine});if(S){for(const k of['diff','map','size','pop','age','res','reveal','victory','teampos','diplo']){const id='s-'+k;const v={diff:S.diff,map:S.mapType,size:S.mapSize,pop:S.pop,age:S.startAge,res:S.startRes,reveal:S.reveal,victory:S.victory,teampos:S.teamPos||'together',diplo:S.diplo||'open'}[k];$(id).value=v}}
-  for(const r of rows){const i=r.row;if(i>0){$('pt-'+i).value=r.type==='human'?'open':r.type;$('prow-'+i).classList.toggle('closed',r.type==='closed')}const nm=$('pn-'+i);const isMe=i===(NET.lobby&&NET.lobby.yourRow);if(nm.tagName==='INPUT'){nm.value=r.name}else{nm.textContent=r.type==='human'?r.name+(isMe?' (you)':'')+(r.on?'':' (disconnected)'):r.type==='ai'?'Computer':r.type==='open'?'Open seat':'—';nm.className='pname'+(r.type==='human'?'':' ai')}
+  for(const r of rows){const i=r.row;if(i>0){$('pt-'+i).value=r.type==='human'?'open':r.type;$('prow-'+i).classList.toggle('closed',r.type==='closed');if(r.diff!==undefined)$('pd-'+i).value=r.diff;$('pd-'+i).classList.toggle('off',r.type!=='ai'&&r.type!=='open')}const nm=$('pn-'+i);const isMe=i===(NET.lobby&&NET.lobby.yourRow);if(nm.tagName==='INPUT'){nm.value=r.name}else{nm.textContent=r.type==='human'?r.name+(isMe?' (you)':'')+(r.on?'':' (disconnected)'):r.type==='ai'?'Computer':r.type==='open'?'Open seat':'—';nm.className='pname'+(r.type==='human'?'':' ai')}
    $('pc-'+i).value=r.civ;$('pk-'+i).value=r.color;$('ps-'+i).style.background=PALETTE[r.color].c;$('pm-'+i).value=r.team}}
  renderCivCards();
- let h='<div class="lobbybar"><b style="color:var(--gold)">'+(NET.host?'Hosting':'Joined')+'</b>'+(NET.mode==='local'?'<span class="sub">same-browser room</span>':'<span>Room code <b style="font-size:20px;letter-spacing:2px;color:var(--gold)">'+esc(NET.room)+'</b></span>')+'<span class="sub">'+esc(NET.lobby&&NET.lobby.status||'')+'</span><div class="opt" style="flex:0 0 auto;padding:4px 10px;margin-left:auto" onclick="NET.leave()">Leave</div></div>';
- if(S)h+='<div class="sub" style="font-size:12px">'+esc(summarizeSetup(S))+'</div>';box.innerHTML=h;
- if(!NET.active){play.textContent=NET.host?'Start multiplayer game':'Waiting for the host to start…';play.disabled=!NET.host}}
+ const L=NET.lobby||{};const st=L.state||'wait';const stLabel={ok:'Connected',wait:'Connecting',err:'Not connected'}[st];const myRow=NET.host?0:L.yourRow;
+ const guests=rows.filter(r=>r.type==='human');const openSeats=rows.filter(r=>r.type==='open').length;const notReady=guests.filter(r=>r.on&&!r.ready);
+ let h=`<div class="lb-top"><h3>${NET.host?'You are hosting':L.hostName?'Joined '+esc(L.hostName)+'’s game':st==='err'?'Could not join'+(NET.mode==='local'?'':' room '+esc(NET.room)):'Joining'+(NET.mode==='local'?'…':' room '+esc(NET.room)+'…')}</h3><span class="lb-state ${st}"><i></i>${stLabel}</span><button class="mpb sm" onclick="NET.leave()">Leave</button></div>`;
+ if(L.status)h+=`<div class="lb-msg${st==='err'?' err':''}">${esc(L.status)}</div>`;
+ if(st==='err')h+=`<div class="lb-act"><button class="mpb go sm" onclick="${NET.host?'mpHost()':'mpJoin()'}">Try again</button></div>`;
+ if(NET.mode==='local'){if(NET.host)h+=`<div class="lb-code"><span class="lab">Same-browser room: open this page in another tab and press Join.</span></div>`}
+ else if(NET.host||st!=='err')h+=`<div class="lb-code"><span class="lab">Room code</span><span class="code">${esc(NET.room)}</span><button class="mpb sm" onclick="copyText(NET.room,$('lb-copied'))">Copy code</button>${NET.host?`<button class="mpb sm" onclick="copyText(inviteLink(),$('lb-copied'))" title="${esc(inviteLink())}">Copy invite link</button>`:''}<span class="copied" id="lb-copied"></span></div>`;
+ if(rows.length&&st!=='err'){h+='<div class="lb-seats">'+rows.filter(r=>r.type!=='closed').map(r=>{const nm=r.type==='you'||r.type==='human'?esc(r.name||'Player')+(r.row===myRow?' <small>(you)</small>':''):r.type==='ai'?'Computer':'Open seat';return `<div class="seat${r.type==='open'?' empty':''}"><span class="sw" style="background:${PALETTE[r.color]?PALETTE[r.color].c:'#888'}"></span><span class="nm">${nm}</span>${seatTag(r)}</div>`}).join('')+'</div>'}
+ if(S)h+='<div class="lb-sum">'+esc(summarizeSetup(S))+'</div>';
+ if(!NET.host&&st==='ok')h+=`<div class="lb-act"><button class="mpb ${NET.ready?'on':'go'}" onclick="mpReady()">${NET.ready?'✓ Ready':'I’m ready'}</button><span>${NET.ready?'The host can start whenever they like.':'Pick your culture, then tell the host you are ready. Only the host changes the settings.'}</span></div>`;
+ if(NET.host&&st!=='err')h+=`<div class="lb-act"><span>${!guests.length?(openSeats?'Nobody has joined yet. Each Open seat takes one player; add more by setting a row\u2019s Type to Open.':'Set a row\u2019s Type to Open so someone can join.'):notReady.length?esc(notReady.map(r=>r.name).join(', '))+(notReady.length>1?' are':' is')+' not ready yet. You can still start.':'Everyone is ready.'}${openSeats&&guests.length?' Empty Open seats will be computers.':''}</span></div>`;
+ if(box.innerHTML!==h)box.innerHTML=h;
+ if(!NET.active){play.textContent=NET.host?(guests.length&&!notReady.length?'Start game':guests.length?'Start game (not everyone is ready)':'Start game'):st==='ok'?'Waiting for the host to start…':'Not connected';play.disabled=!NET.host||st==='err'}}
 // -- host side
 function hostMsg(from,m){const pr=NET.peers.get(from);if(pr)pr.lastSeen=performance.now();switch(m.t){
  case'join':{if(pr){pr.on=true;if(NET.active){pr.needState=true;NET.send({t:'resume',setup:G.setup,you:pr.seat},from)}else sendLobby();break}
@@ -29298,6 +29450,7 @@ function hostMsg(from,m){const pr=NET.peers.get(from);if(pr)pr.lastSeen=performa
   NET.peers.set(from,{seat,row:seat,name,civ:String(m.civ||'random'),ack:-1,on:true,needState:false,lastSeen:performance.now()});
   if(NET.active){NET.peers.get(from).needState=true;NET.send({t:'resume',setup:G.setup,you:seat},from);msg(name+' rejoined.')}else sendLobby();break}
  case'civ':if(pr&&!NET.active){pr.civ=String(m.civ||'random');sendLobby()}break;
+ case'ready':if(pr&&!NET.active){pr.ready=!!m.on;sendLobby()}break;
  case'cmd':if(pr&&pr.on&&NET.active&&m.c&&typeof m.c==='object')NET.inbox.push({seat:pr.seat,c:m.c});break;
  case'ack':if(pr){pr.ack=Math.max(pr.ack,m.n|0);if(m.rtt!==undefined)pr.rtt=Math.max(0,Math.min(5000,+m.rtt||0));if(m.h!==undefined&&!pr.needState){const h=NET.hashes.get(m.n|0);if(h!==undefined&&h!==m.h){pr.needState=true;NET.desync++;msg('Out of sync with '+esc(pr.name)+' at turn '+m.n+', resending the state.');NET.send({t:'desync',n:m.n},from)}}}break;
  case'ping':NET.send({t:'pong',at:m.at},from);break;
@@ -29307,8 +29460,8 @@ function hostMsg(from,m){const pr=NET.peers.get(from);if(pr)pr.lastSeen=performa
 function hostPeerClosed(pid){const pr=NET.peers.get(pid);if(!pr)return;pr.on=false;if(!NET.active){NET.peers.delete(pid);sendLobby()}else{msg(esc(pr.name)+' disconnected. They can rejoin with the room code.');renderLobby()}}
 // -- client side
 function clientMsg(from,m){switch(m.t){
- case'lobby':NET.hostId=NET.hostId||from;NET.lobby={status:'In the lobby. The host starts the game.',rows:m.rows,setup:m.setup,you:m.you,yourRow:m.yourRow,hostName:m.hostName};renderLobby();break;
- case'full':if(NET.lobby)NET.lobby.status=m.retry?'Game already running; retrying as a returning player…':'That game is full';if(m.retry&&!NET.active)setTimeout(()=>{if(NET.tr&&!NET.active&&!NET.host)NET.send({t:'join',name:NET.name,civ:myCiv()},NET.mode==='local'?null:NET.hostId)},3000);renderLobby();break;
+ case'lobby':NET.hostId=NET.hostId||from;NET.lobby={status:'',state:'ok',rows:m.rows,setup:m.setup,you:m.you,yourRow:m.yourRow,hostName:m.hostName};renderLobby();break;
+ case'full':lobbyState(m.retry?'wait':'err',m.retry?'That game has already started; retrying as a returning player…':'Error: that game is full');if(m.retry&&!NET.active)setTimeout(()=>{if(NET.tr&&!NET.active&&!NET.host)NET.send({t:'join',name:NET.name,civ:myCiv()},NET.mode==='local'?null:NET.hostId)},3000);renderLobby();break;
  case'start':NET.hostId=NET.hostId||from;netBegin(m.setup,m.you|0);break;
  case'resume':NET.hostId=NET.hostId||from;netBegin(m.setup,m.you|0);NET.waiting='the host (syncing)';break;
  case'turn':if(NET.active&&Array.isArray(m.cmds))NET.turns.set(m.n|0,m.cmds);break;
@@ -29337,7 +29490,11 @@ let bgW=null;function startBgTicker(){if(bgW)return;try{const u=URL.createObject
 function stopBgTicker(){if(bgW){bgW.terminate();bgW=null}}
 setInterval(()=>{if(NET.tr&&!NET.host&&NET.hostId)NET.send({t:'ping',at:performance.now()})},2000);
 $('mp-host').onclick=mpHost;$('mp-join').onclick=mpJoin;
-document.querySelectorAll('#setupwrap select,#setupwrap input').forEach(el=>el.addEventListener('change',()=>{if(NET.tr&&!NET.active){if(NET.host)sendLobby();else if(el===myCivSel())NET.send({t:'civ',civ:el.value})}}));
+$('mp-code').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();mpJoin()}});
+// An invite link (?join=CODE) opens the multiplayer panel with the code filled in; the guest still checks their name and presses Join.
+try{const jc=new URLSearchParams(location.search).get('join');if(jc){$('mp-code').value=jc.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);$('mp-tr').value='online';$('mpwrap').open=true;setTimeout(()=>{$('mpwrap').scrollIntoView({block:'center'});($('pn-0').value.trim()?$('mp-join'):$('pn-0')).focus()},50)}}catch(e){}
+// delegated, so the player-row controls (built later) also push lobby updates when the host changes a seat
+$('setupwrap').addEventListener('change',e=>{const el=e.target;if(!el.matches('select,input'))return;if(NET.tr&&!NET.active){if(NET.host)sendLobby();else if(el===myCivSel())NET.send({t:'civ',civ:el.value})}});
 
 // ================= MAIN LOOP =================
 let last=0,acc=0;
@@ -29353,7 +29510,7 @@ function frame(t){requestAnimationFrame(frame);if(!G)return;stepSim(t);netStatus
  render()}
 function endGame(won,reason,keep){if(G.over||(keep&&WATCHING))return;if(keep)WATCHING=true;else G.over=true;sfx(won?'win':'lose');$('overlay').classList.remove('hidden');$('start').classList.add('hidden');$('end').classList.remove('hidden');$('watch').classList.toggle('hidden',!keep);$('endTitle').textContent=(won?'Victory':'Defeat')+(G.cheated?' (cheats used)':'');
  const m=Math.floor(G.time/60),s=Math.floor(G.time%60);$('endSub').textContent=(reason||'')+` after ${m}:${s<10?'0':''}${s}.`;
- for(const p of G.players)p.score=computeScore(p);G.timeline=G.timeline||[];if(!G.timeline.length||G.timeline[G.timeline.length-1].t<G.time)G.timeline.push({t:G.time,s:G.players.map(p=>p.score)});
+ for(const p of G.players)p.score=computeScore(p);G.timeline=G.timeline||[];if(!G.timeline.length||G.timeline[G.timeline.length-1].t<G.time)timelineSample();
  ui.endWon=won;endTab(ui.endTab||'score')}
 // ---- post-game statistics (classic RTS layout: Score, Military, Economy, Technology, Society, Timeline) ----
 const END_TABS=[['score','Score'],['military','Military'],['economy','Economy'],['technology','Technology'],['society','Society'],['timeline','Timeline']];
@@ -29375,16 +29532,50 @@ function endTab(tab){ui.endTab=tab;$('endTabs').innerHTML=END_TABS.map(([k,n])=>
   body=row('Feudal Age',ps.map(p=>ageAt(p,1)),{low:true,fmt:ft})+row('Castle Age',ps.map(p=>ageAt(p,2)),{low:true,fmt:ft})+row('Imperial Age',ps.map(p=>ageAt(p,3)),{low:true,fmt:ft})+row('Technologies researched',ps.map(p=>g(p,'techs')))+row('Research %',ps.map(p=>Math.round(100*g(p,'techs')/nTech)),{fmt:v=>v+'%'})+row('Map explored',ps.map(expl),{fmt:v=>v+'%'})+row('Technology score',ps.map(p=>scoreParts(p).technology),{total:true});
   }
  else if(tab==='society'){const held=p=>G.buildings.reduce((a,b)=>a+(b.team===p.team?(b.relics||0):0),0);
-  body=row('Wonders built',ps.map(p=>g(p,'wonders')))+row('Keeps built',ps.map(p=>g(p,'keeps')))+row('Relics captured',ps.map(p=>g(p,'relics')))+row('Relics held',ps.map(held))+row('Relic gold',ps.map(p=>Math.round(g(p,'relicGold'))))+row('Villager high',ps.map(p=>g(p,'villHigh')))+row('Buildings standing',ps.map(p=>G.buildings.filter(b=>b.team===p.team&&b.built&&b.type!=='wall'&&b.type!=='farm').length))+row('Society score',ps.map(p=>scoreParts(p).society),{total:true})}
- if(tab==='timeline'){$('endBody').innerHTML=`<div class="legend">${ps.map(p=>`<span><i style="background:${TEAM[p.team].c}"></i>${p.team===ME?'You':esc(p.name||TEAM[p.team].n)}</span>`).join('')}<span style="margin-left:auto">score over time · ticks mark age-ups</span></div><canvas class="tl" id="tlc"></canvas>`;drawTimeline()}
- else $('endBody').innerHTML=`<table class="st">${head}${body}</table>`}
-function drawTimeline(){const c=$('tlc');if(!c)return;const r=c.getBoundingClientRect();c.width=Math.max(300,Math.floor(r.width))*2;c.height=240*2;const x=c.getContext('2d');x.scale(2,2);const W=c.width/2,H=240;const L=44,R=10,T=12,B=22;const tl=G.timeline||[];if(tl.length<2)return;
- const tMax=Math.max(60,tl[tl.length-1].t);let sMax=10;for(const e of tl)for(const v of e.s)sMax=Math.max(sMax,v);sMax=Math.ceil(sMax/500)*500;
- const px=t=>L+(W-L-R)*t/tMax,py=v=>T+(H-T-B)*(1-v/sMax);
- x.strokeStyle='rgba(255,255,255,.08)';x.fillStyle='#b9a78a';x.font='10px Georgia';x.textAlign='right';x.textBaseline='middle';const step=sMax<=2000?500:sMax<=5000?1000:2000;for(let v=0;v<=sMax;v+=step){x.beginPath();x.moveTo(L,py(v));x.lineTo(W-R,py(v));x.stroke();x.fillText(fmt(v),L-6,py(v))}
- x.textAlign='center';x.textBaseline='top';const tstep=tMax<=600?120:tMax<=1800?300:600;for(let t=0;t<=tMax;t+=tstep){x.beginPath();x.moveTo(px(t),T);x.lineTo(px(t),H-B);x.stroke();x.fillText(Math.floor(t/60)+'m',px(t),H-B+4)}
- x.lineWidth=2;x.lineJoin='round';for(const p of G.players){x.strokeStyle=TEAM[p.team].c;x.beginPath();tl.forEach((e,i)=>{const v=e.s[p.team]||0;if(i===0)x.moveTo(px(e.t),py(v));else x.lineTo(px(e.t),py(v))});x.stroke();
-  const aa=(p.stats&&p.stats.ageAt)||[];for(let a=1;a<4;a++){const t=aa[a];if(!(t>0))continue;let v=0;for(const e of tl){if(e.t<=t)v=e.s[p.team]||0;else break}x.fillStyle=TEAM[p.team].c;x.beginPath();x.arc(px(t),py(v),3.5,0,7);x.fill();x.fillStyle='#fff';x.font='bold 8px Georgia';x.textAlign='center';x.textBaseline='middle';x.fillText(['','F','C','I'][a],px(t),py(v))}}}
+  body=row('Wonders built',ps.map(p=>g(p,'wonders')))+row('Keeps built',ps.map(p=>g(p,'keeps')))+row('<span class="hint" title="Every relic this player has ever delivered to one of their Temples, including ones later lost">Relics captured <small>(all game)</small></span>',ps.map(p=>g(p,'relics')))+row('<span class="hint" title="Relics sitting in this player\'s Temples right now. Holding every relic is a win condition">Relics held <small>(right now)</small></span>',ps.map(held))+row('Relic gold',ps.map(p=>Math.round(g(p,'relicGold'))))+row('Villager high',ps.map(p=>g(p,'villHigh')))+row('Buildings standing',ps.map(p=>G.buildings.filter(b=>b.team===p.team&&b.built&&b.type!=='wall'&&b.type!=='farm').length))+row('Society score',ps.map(p=>scoreParts(p).society),{total:true})}
+ if(tab==='timeline'){renderTimeline();return}
+ else $('endBody').innerHTML=`<table class="st">${head}${body}</table>`+(tab==='society'?'<p class="stnote"><b style="color:var(--text);font-weight:normal">Captured</b> counts every relic a player ever brought to their Temples. <b style="color:var(--text);font-weight:normal">Held</b> is how many are in their Temples now, so a relic that was later lost counts as captured but not held.</p>':'')}
+// ---- Timeline: score over time. "Breakdown" is one stacked-area panel per player (military, economy, technology,
+// society) on a shared scale; "Totals" compares the players' total scores as lines. Hover reads out exact values.
+const TL_PARTS=[['Military','#d95926'],['Economy','#3987e5'],['Technology','#199e70'],['Society','#c98500']];
+function tlName(p){return p.team===ME?'You':esc(p.name||TEAM[p.team].n)}
+function tlTime(t){const m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+(s<10?'0':'')+s}
+function tlNice(v){if(v<=0)return 100;const e=Math.pow(10,Math.floor(Math.log10(v)));const f=v/e;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*e}
+function renderTimeline(){const tl=(G.timeline||[]).filter(e=>e&&e.s);const hasParts=tl.length>0&&tl.every(e=>Array.isArray(e.p));const mode=hasParts?(ui.tlMode||'parts'):'total';
+ let h=`<div class="tl-bar">`;if(hasParts)h+=`<div class="tl-seg">${[['parts','Breakdown'],['total','Totals']].map(([k,n])=>`<button class="${k===mode?'on':''}" onclick="ui.tlMode='${k}';renderTimeline()">${n}</button>`).join('')}</div>`;
+ if(mode==='parts')h+=`<div class="tl-leg">${TL_PARTS.slice().reverse().map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join('')}</div>`;
+ else h+=`<div class="tl-leg">${G.players.map(p=>`<span><i style="background:${TEAM[p.team].c}"></i>${tlName(p)}</span>`).join('')}</div>`;
+ h+=`<span class="tl-cap">${mode==='parts'?'score by category, stacked · same scale for every player · F C I mark age-ups':'total score per player'}</span></div>`;
+ if(tl.length<2){$('endBody').innerHTML=h+'<p class="sub">The game was too short to chart; scores are sampled every 30 seconds.</p>';return}
+ if(!hasParts&&tl.length)h+='<p class="sub" style="font-size:12px;margin:0 0 6px">This game was saved before score categories were recorded, so only totals are shown.</p>';
+ const tMax=Math.max(60,tl[tl.length-1].t);let vMax=10;for(const e of tl)for(const v of e.s)vMax=Math.max(vMax,v);
+ const step=tlNice(vMax/4),yMax=Math.ceil(vMax/step)*step;const tStep=tMax<=300?60:tMax<=900?120:tMax<=1800?300:tMax<=3600?600:1200;
+ const panels=mode==='parts'?G.players:[null];const cols=mode==='parts'&&panels.length>1?2:1;const W=cols===2?420:840,H=mode==='parts'?(panels.length>2?140:200):250;
+ const L=44,R=10,T=8,B=20;const px=t=>L+(W-L-R)*t/tMax,py=v=>T+(H-T-B)*(1-v/yMax);
+ const axes=()=>{let a='';for(let v=0;v<=yMax+1e-6;v+=step)a+=`<line x1="${L}" x2="${W-R}" y1="${py(v)}" y2="${py(v)}" class="g${v===0?' z':''}"/><text x="${L-6}" y="${py(v)+3.5}" class="yl">${fmt(v)}</text>`;
+  for(let t=0;t<=tMax+1e-6;t+=tStep)a+=`<text x="${px(t)}" y="${H-5}" class="xl">${Math.floor(t/60)}m</text>`;return a};
+ const ages=p=>{const aa=(p.stats&&p.stats.ageAt)||[];let a='';for(let k=1;k<4;k++){const t=aa[k];if(!(t>0))continue;a+=`<line x1="${px(t)}" x2="${px(t)}" y1="${T}" y2="${H-B}" class="age"/><text x="${px(t)+3}" y="${T+9}" class="al">${'FCI'[k-1]}</text>`}return a};
+ let body='';
+ if(mode==='parts'){body='<div class="tl-grid'+(cols===2?' two':'')+'">';for(const p of panels){const i=p.team;let areas='';
+   for(let k=TL_PARTS.length-1;k>=0;k--){// draw top layer first so each lower one paints over its own baseline seam
+    const top=tl.map(e=>{let v=0;for(let j=0;j<=k;j++)v+=e.p[i][j]||0;return[px(e.t),py(v)]});const d='M'+top.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join('L')+`L${px(tl[tl.length-1].t).toFixed(1)},${py(0)}L${px(tl[0].t).toFixed(1)},${py(0)}Z`;
+    areas+=`<path d="${d}" fill="${TL_PARTS[k][1]}" class="ar"/>`}
+   const last=tl[tl.length-1];const tot=last.s[i]||0;
+   body+=`<div class="tl-p" data-team="${i}"><div class="tl-h"><i style="background:${TEAM[i].c}"></i><b>${tlName(p)}</b><span>${CIVS[p.civ].name}${p.dead?' · defeated':''}</span><span class="tot">${fmt(tot)}</span></div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="tl-svg" style="aspect-ratio:${W}/${H}">${axes()}${areas}${ages(p)}<line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/></svg></div>`}
+  body+='</div>'}
+ else{let lines='';for(const p of G.players){const pts=tl.map(e=>px(e.t).toFixed(1)+','+py(e.s[p.team]||0).toFixed(1)).join(' ');lines+=`<polyline points="${pts}" fill="none" stroke="${TEAM[p.team].c}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`}
+  body=`<div class="tl-p" data-team="-1"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="tl-svg" style="aspect-ratio:${W}/${H}">${axes()}${lines}<line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/></svg></div>`}
+ $('endBody').innerHTML=h+body+'<div id="tl-tip" class="hidden"></div>';
+ const tip=$('tl-tip');const geo={L,R,W,tMax};
+ for(const el of document.querySelectorAll('#endBody .tl-p')){const svg=el.querySelector('svg');
+  svg.addEventListener('mousemove',ev=>{const r=svg.getBoundingClientRect();const x=(ev.clientX-r.left)*W/r.width;const t=Math.max(0,Math.min(tMax,(x-L)/(W-L-R)*tMax));
+   let e=tl[0];for(const q of tl)if(Math.abs(q.t-t)<Math.abs(e.t-t))e=q;
+   for(const s2 of document.querySelectorAll('#endBody .tl-svg')){const xh=s2.querySelector('.xh');xh.setAttribute('x1',px(e.t));xh.setAttribute('x2',px(e.t));xh.setAttribute('visibility','visible')}
+   const team=+el.dataset.team;let th=`<div class="tt-t">${tlTime(e.t)}</div>`;
+   if(team>=0){const v=e.p[team];th+=`<div class="tt-n"><i style="background:${TEAM[team].c}"></i>${tlName(G.players[team])}</div>`+TL_PARTS.map(([n,c],j)=>({n,c,v:v[j]||0})).reverse().map(x=>`<div class="tt-r"><i style="background:${x.c}"></i>${x.n}<b>${fmt(x.v)}</b></div>`).join('')+`<div class="tt-r tot">Total<b>${fmt(e.s[team]||0)}</b></div>`}
+   else th+=G.players.map(p=>({p,v:e.s[p.team]||0})).sort((a,b)=>b.v-a.v).map(x=>`<div class="tt-r"><i style="background:${TEAM[x.p.team].c}"></i>${tlName(x.p)}<b>${fmt(x.v)}</b></div>`).join('');
+   tip.innerHTML=th;tip.classList.remove('hidden');const br=$('endBody').getBoundingClientRect();let lx=ev.clientX-br.left+14,ly=ev.clientY-br.top+10;if(lx+180>br.width)lx=ev.clientX-br.left-180-14;tip.style.left=lx+'px';tip.style.top=ly+'px'});
+  svg.addEventListener('mouseleave',()=>{tip.classList.add('hidden');for(const s2 of document.querySelectorAll('#endBody .xh'))s2.setAttribute('visibility','hidden')})}}
 // ================= ICONS =================
 // Small thumbnails of the pixel-art sprites (and a few drawn glyphs for actions) as data URLs, cached per key and team colour.
 const ICON_URL={};
@@ -29421,7 +29612,7 @@ function glyph(x,key,S){const m=S/2;x.lineCap='round';x.lineJoin='round';x.lineW
 function readSetup(){const v=id=>$(id).value;const seedTxt=v('s-seed').trim();const seed=seedTxt?(parseInt(seedTxt)||[...seedTxt].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7)):Math.floor(Math.random()*1e9);
  const rows=rowModel().filter(r=>r.type!=='closed');
  const S={seed,diff:+v('s-diff'),mapType:v('s-map'),mapSize:v('s-size'),pop:+v('s-pop'),startAge:+v('s-age'),startRes:v('s-res'),reveal:v('s-reveal'),victory:v('s-victory'),teamPos:v('s-teampos'),diplo:v('s-diplo'),
-  players:rows.length,civs:rows.map(r=>r.civ),civ:rows[0].civ,colors:rows.map(r=>r.color),sides:rows.map(r=>r.team),names:rows.map(r=>r.type==='you'||r.type==='human'?r.name:''),teams:teamsLabel(rows.map(r=>r.team))};
+  players:rows.length,civs:rows.map(r=>r.civ),civ:rows[0].civ,colors:rows.map(r=>r.color),sides:rows.map(r=>r.team),names:rows.map(r=>r.type==='you'||r.type==='human'?r.name:''),diffs:rows.map(r=>r.diff),teams:teamsLabel(rows.map(r=>r.team))};
  return S}
 function teamsLabel(sides){const n=sides.length;if(sides.every(t=>t<=0))return 'free for all';const g={};sides.forEach((t,i)=>{if(t>0)(g[t]=g[t]||[]).push(i)});const parts=Object.values(g).map(a=>a.length);const solo=sides.filter(t=>t<=0).length;for(let i=0;i<solo;i++)parts.push(1);return parts.join('v')}
 // ---- player rows (classic RTS lobby table) ----
@@ -29431,6 +29622,7 @@ function buildPlayerRows(){const box=$('prows');let h='';for(let i=0;i<PROWS;i++
   h+=`<div class="prow${def==='closed'?' closed':''}" id="prow-${i}"><span class="num">${i+1}</span>`;
   h+=i===0?`<span class="pname" id="pt-${i}">You</span>`:`<select class="ptype" id="pt-${i}"><option value="ai"${def==='ai'?' selected':''}>Computer</option><option value="open" class="mponly hidden">Open</option><option value="closed"${def==='closed'?' selected':''}>Closed</option></select>`;
   h+=i===0?`<input id="pn-${i}" type="text" maxlength="16" placeholder="Your name">`:`<span class="pname ai" id="pn-${i}">${def==='ai'?'Computer':'—'}</span>`;
+  h+=i===0?`<span class="plev" id="pd-${i}"></span>`:`<select class="plev" id="pd-${i}" title="This computer player's difficulty">${DIFF_NAMES.map((n,j)=>`<option value="${j}"${j===2?' selected':''}>${n}</option>`).join('')}</select>`;
   h+=`<select id="pc-${i}">${civOptions('random')}</select>`;
   h+=`<span class="ksel"><i class="swatch" id="ps-${i}" style="background:${PALETTE[i].c}"></i><select id="pk-${i}">${PALETTE.map((c,j)=>`<option value="${j}"${j===i?' selected':''}>${c.n}</option>`).join('')}</select></span>`;
   h+=`<select id="pm-${i}"><option value="0">—</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>`}
@@ -29438,13 +29630,13 @@ function buildPlayerRows(){const box=$('prows');let h='';for(let i=0;i<PROWS;i++
  for(let i=0;i<PROWS;i++){if(i>0)$('pt-'+i).addEventListener('change',()=>rowTypeChanged(i));$('pk-'+i).addEventListener('change',()=>colorChanged(i));$('pc-'+i).addEventListener('change',()=>{if(i===0)renderCivCards()})}
  $('pn-0').addEventListener('change',()=>{try{localStorage.setItem('ageup-name',$('pn-0').value.trim())}catch(e){}});
  renderCivCards()}
-function rowTypeChanged(i){const t=$('pt-'+i).value;$('prow-'+i).classList.toggle('closed',t==='closed');const nm=$('pn-'+i);if(nm.tagName==='SPAN'){nm.textContent=t==='ai'?'Computer':t==='open'?'Open seat':'—';nm.className='pname ai'}}
+function rowTypeChanged(i){const t=$('pt-'+i).value;$('prow-'+i).classList.toggle('closed',t==='closed');$('pd-'+i).classList.toggle('off',t!=='ai'&&t!=='open');const nm=$('pn-'+i);if(nm.tagName==='SPAN'){nm.textContent=t==='ai'?'Computer':t==='open'?'Open seat':'—';nm.className='pname ai'}}
 function colorChanged(i){const c=+$('pk-'+i).value;for(let j=0;j<PROWS;j++){if(j===i)continue;if(+$('pk-'+j).value===c){const used=new Set();for(let k=0;k<PROWS;k++)used.add(+$('pk-'+k).value);let f=0;while(used.has(f))f++;$('pk-'+j).value=f;$('ps-'+j).style.background=PALETTE[f].c}}$('ps-'+i).style.background=PALETTE[c].c;if(NET.tr&&!NET.active&&NET.host)sendLobby()}
-function preset(kind){const types=kind==='1v1'?['you','ai','closed','closed']:['you','ai','ai','ai'];const teams=kind==='2v2'?[1,1,2,2]:kind==='1vall'?[1,2,2,2]:[0,0,0,0];for(let i=1;i<PROWS;i++){$('pt-'+i).value=types[i];rowTypeChanged(i)}for(let i=0;i<PROWS;i++)$('pm-'+i).value=teams[i];if(NET.tr&&!NET.active&&NET.host)sendLobby()}
+function preset(kind){if(NET.tr&&!NET.host)return;const types=kind==='1v1'?['you','ai','closed','closed']:['you','ai','ai','ai'];const teams=kind==='2v2'?[1,1,2,2]:kind==='1vall'?[1,2,2,2]:[0,0,0,0];for(let i=1;i<PROWS;i++){$('pt-'+i).value=types[i];rowTypeChanged(i)}for(let i=0;i<PROWS;i++)$('pm-'+i).value=teams[i];if(NET.tr&&!NET.active&&NET.host)sendLobby()}
 // The row model is the lobby's source of truth: host and single-player read it from the controls; peers fill in human seats.
 function rowModel(){const rows=[];const peers=NET.tr?[...NET.peers.values()]:[];for(let i=0;i<PROWS;i++){let type=i===0?'you':$('pt-'+i).value;let name=i===0?($('pn-0').value.trim()||'Player').slice(0,16):'';let civ=$('pc-'+i).value;let on=true;
-  const q=peers.find(q=>q.row===i);if(q&&type==='open'){type='human';name=q.name;civ=q.civ;on=q.on}
-  rows.push({row:i,type,name,civ,color:+$('pk-'+i).value,team:+$('pm-'+i).value,on})}
+  let ready=type==='you';const q=peers.find(q=>q.row===i);if(q&&type==='open'){type='human';name=q.name;civ=q.civ;on=q.on;ready=!!q.ready}
+  rows.push({row:i,type,name,civ,color:+$('pk-'+i).value,team:+$('pm-'+i).value,diff:i===0?+$('s-diff').value:+$('pd-'+i).value,on,ready})}
  return rows}
 function seatOfRow(rows,row){let s=0;for(const r of rows){if(r.row===row)return s;if(r.type!=='closed')s++}return -1}
 function myCivSel(){const row=NET.tr&&!NET.host&&NET.lobby?NET.lobby.yourRow:0;return $('pc-'+(row>=0?row:0))}
@@ -29452,20 +29644,32 @@ function myCiv(){return myCivSel().value}
 function renderCivCards(){const cur=myCiv();const keys=['random',...Object.keys(CIVS)];$('civcards').innerHTML=keys.map(k=>{const c=CIVS[k];const ic=k==='random'?'':`<img src="${iconUrl('unit',c.unique)}" alt="">`;return `<div class="civ${k===cur?' on':''}" onclick="pickCiv('${k}')" onmouseenter="civDesc('${k}')" onmouseleave="civDesc()">${ic||'<span style="font-size:22px;line-height:28px">?</span>'}<span>${k==='random'?'Random':c.name}</span></div>`}).join('');civDesc()}
 function pickCiv(k){const sel=myCivSel();sel.value=k;sel.dispatchEvent(new Event('change'));renderCivCards()}
 function civDesc(k){k=k||myCiv();const c=CIVS[k];$('civdesc').innerHTML=c?`<b>${c.name}</b> — ${c.desc}`:'<b>Random</b> — one of the six cultures, chosen when the game starts.'}
+$('s-diff').addEventListener('change',()=>{for(let i=1;i<PROWS;i++)$('pd-'+i).value=$('s-diff').value});
 buildPlayerRows();try{$('pn-0').value=localStorage.getItem('ageup-name')||''}catch(e){}
 hudIcons();
 function startGame(setup){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();ui.mouse.in=false;ui.keys={};WATCHING=false;ui.menu=false;newGame(setup);terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};G.sel=[];const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall');if(th){const c=center(th);centerOn(c.x+1,c.y+1);setSel([th])}else{const v=G.units.find(u=>u.team===ME&&u.type==='villager');centerOn(v.x,v.y);setSel(G.units.filter(u=>u.team===ME&&u.type==='villager'));msg('Nomad start: you have no Town Hall. Pick a spot near wood and food and build one (T).')}updateTop();renderCmds();renderInfo();
- const foes=G.players.filter(p=>!allied(p.team,ME)).map(p=>TEAM[p.team].n+' ('+CIVS[p.civ].name+')').join(', ');msg(`${MAP_TYPES[G.mapType]} · you are ${CIVS[player(ME).civ].name}: ${CIVS[player(ME).civ].desc}`);msg(`Enemies: ${foes}. F1 for help.`);$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('setupwrap').classList.remove('hidden')}
-$('play').onclick=()=>{if(NET.tr&&!NET.active){if(NET.host)hostStart();return}if(G&&!G.over&&(G.paused||ui.menu)){ui.menu=false;if(!NET.active)G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('setupwrap').classList.remove('hidden');return}startGame(readSetup());sfx('select')};
-$('resign').onclick=()=>{resign()};
+ const foes=G.players.filter(p=>!allied(p.team,ME)).map(p=>TEAM[p.team].n+' ('+CIVS[p.civ].name+')').join(', ');msg(`${MAP_TYPES[G.mapType]} · you are ${CIVS[player(ME).civ].name}: ${CIVS[player(ME).civ].desc}`);msg(`Enemies: ${foes}. F1 for help.`);$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('setupwrap').classList.remove('hidden')}
+$('play').onclick=()=>{if(NET.tr&&!NET.active){if(NET.host)hostStart();return}if(G&&!G.over&&(G.paused||ui.menu)){ui.menu=false;if(!NET.active)G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('setupwrap').classList.remove('hidden');return}startGame(readSetup());sfx('select')};
+function askResign(on){$('resign').classList.toggle('hidden',!!on);$('resign-ask').classList.toggle('hidden',!on);$('resign-mp').classList.toggle('hidden',!NET.active);if(on)$('resign-no').focus()}
+$('resign').onclick=()=>askResign(true);
+$('resign-no').onclick=()=>askResign(false);
+$('resign-yes').onclick=()=>{$('resign-ask').classList.add('hidden');if(!resign()){sfx('error');return}if(G&&!G.over&&NET.active&&!WATCHING){$('resign').classList.remove('hidden');$('resign').textContent='Resigning…';$('resign').disabled=true}};
 $('restart').onclick=()=>{if(!G||NET.active)return;const S=Object.assign({},G.setup);startGame(S);sfx('select')};
-$('save').onclick=()=>{if(G&&!G.over){saveGame();ui.menu=false;G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('save').classList.add('hidden');$('setupwrap').classList.remove('hidden')}};
-$('load').onclick=()=>{if(loadGame()){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall')||G.buildings.find(b=>b.team===ME);if(th)centerOn(th.tx+1,th.ty+1);setSel([]);updateTop();renderCmds();renderInfo();msg('Game loaded.');$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('save').classList.add('hidden');$('load').classList.add('hidden');$('setupwrap').classList.remove('hidden')}else sfx('error')};
+$('save').onclick=()=>{if(G&&!G.over){saveGame();ui.menu=false;G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('save').classList.add('hidden');$('setupwrap').classList.remove('hidden')}};
+$('load').onclick=()=>{if(loadGame()){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall')||G.buildings.find(b=>b.team===ME);if(th)centerOn(th.tx+1,th.ty+1);setSel([]);updateTop();renderCmds();renderInfo();msg('Game loaded.');$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('save').classList.add('hidden');$('load').classList.add('hidden');$('setupwrap').classList.remove('hidden')}else sfx('error')};
 function refreshMenu(){$('load').classList.toggle('hidden',!hasSave()||!!NET.tr);renderLobby();const inGame=G&&!G.over;$('restart').classList.toggle('hidden',!inGame||NET.active);$('save').classList.toggle('hidden',!inGame||NET.active);$('dip').classList.toggle('hidden',!inGame);$('treewrap').classList.toggle('hidden',!inGame);if(inGame){renderDiplomacy();renderTree()}}
-function renderDiplomacy(){const me=player(ME);const rows=G.players.filter(p=>p.team!==ME).map(p=>{const al=allied(p.team,ME);const fixed=p.side===me.side;return `<div class="prow2"><span style="color:${TEAM[p.team].c}"><span class="pc" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${TEAM[p.team].c};margin-right:5px"></span>${TEAM[p.team].n}${p.name?' · '+esc(p.name):''}</span><span style="color:var(--muted)">${CIVS[p.civ].name}${p.dead?' (defeated)':''}</span><span>score ${p.score}</span><span style="color:${al?'#9be3a3':'#ff9a8a'}">${al?'Ally':'Enemy'}</span><span class="tribs">${p.dead?'':fixed?'<span style="color:var(--muted)">team-mate</span>':G.setup.diplo==='locked'?'<span style="color:var(--muted)">teams locked</span>':`<button class="opt" onclick="diplomacy(${p.team})">${al?'Break alliance':(me.prop&&me.prop[p.team])?'Proposed, waiting':(p.prop&&p.prop[ME])?'Accept alliance':'Propose alliance'}</button>`}${p.dead||!al?'':RES_KINDS.map(k=>`<button class="opt" title="Send 100 ${k} to ${TEAM[p.team].n}" onclick="tribute(${p.team},'${k}')"><span class="ci"><img src="${iconUrl('res',k)}" alt="">+100</span></button>`).join('')}</span></div>`}).join('');
- $('dip').innerHTML='<h2>Diplomacy</h2>'+rows+'<p class="sub" style="font-size:12px;margin:6px 0 0">Allies share vision and will not attack you, but only defeating every player outside your starting team wins the game. Tribute buttons send 100 of a resource. AIs refuse alliances if you hit them recently or if you are far ahead.</p>'}
+function renderDiplomacy(){const me=player(ME);const locked=G.setup.diplo==='locked';
+ const rows=G.players.filter(p=>p.team!==ME).map(p=>{const al=allied(p.team,ME);const fixed=p.side===me.side;const sent=!al&&me.prop&&me.prop[p.team];const asked=!al&&p.prop&&p.prop[ME];
+  const who=`<div class="dwho"><b><i></i>${TEAM[p.team].n}${p.name?' · '+esc(p.name):''}</b><small>${CIVS[p.civ].name} · ${p.ai?'Computer, '+DIFF_NAMES[aiLevel(p)]:'Human'}</small></div>`;
+  const st=p.dead?'<span class="dst gone">Defeated</span>':al?`<span class="dst ally">${fixed?'Team-mate':'Ally'}</span>`:asked?'<span class="dst pend">Offers alliance</span>':sent?'<span class="dst pend">Enemy · offer sent</span>':'<span class="dst enemy">Enemy</span>';
+  let act='';if(!p.dead){
+   if(fixed)act+='<span class="note">Same starting team</span>';else if(locked)act+='<span class="note">Teams are locked</span>';
+   else act+=al?`<button class="dbtn warn" onclick="diplomacy(${p.team})">Break alliance</button>`:sent?`<button class="dbtn" disabled>Waiting for reply</button>`:`<button class="dbtn${asked?' go':''}" onclick="diplomacy(${p.team})">${asked?'Accept alliance':'Propose alliance'}</button>`;
+   if(al)act+=`<span class="dtrib"><span>Send</span>${RES_KINDS.map(k=>`<button class="dbtn" title="Send 100 ${k} to ${TEAM[p.team].n}" onclick="tribute(${p.team},'${k}')"${me.res[k]<100?' disabled':''}><img src="${iconUrl('res',k)}" alt="${k}">100</button>`).join('')}</span>`}
+  return `<div class="drow${p.dead?' dead':''}" style="--pc:${TEAM[p.team].c}">${who}<div class="dscore"><small>Score</small>${fmt(p.score)}</div>${st}<div class="dact">${act}</div></div>`}).join('');
+ $('dip').innerHTML='<h2>Diplomacy</h2><div class="dlist">'+rows+'</div><p class="dnote">Allies share vision and do not attack each other. To win you still have to defeat everyone outside your starting team. Computers refuse an alliance if you attacked them recently or are far ahead.</p>'}
 function diplomacy(t){submit({v:'ally',to:t,on:!allied(t,ME)});renderDiplomacy()}
-function tribute(t,k){if(player(ME).res[k]<100){sfx('error');return}submit({v:'tribute',to:t,k});updateTop()}
+function tribute(t,k){if(player(ME).res[k]<100){sfx('error');return}submit({v:'tribute',to:t,k});updateTop();renderDiplomacy()}
 function renderTree(){const p=player(ME);const cv=civ(p);const tc=TEAM[ME];let h='';
  const chip=(icon,name,sub,cls,tip)=>`<span class="chip${cls?' '+cls:''}" title="${esc(tip||'')}"><img src="${icon}" alt=""><span>${name}${sub?`<small>${sub}</small>`:''}</span></span>`;
  const grp=(lab,chips)=>chips.length?`<div class="grp"><span class="lab">${lab}</span>${chips.join('')}</div>`:'';
