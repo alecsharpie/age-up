@@ -48,9 +48,10 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 #clock{min-width:50px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 #view{flex:1;position:relative;overflow:hidden;cursor:default;min-height:0}
 canvas#c{display:block;width:100%;height:100%}
+#scoreboard{background:rgba(28,21,15,.82);border:1px solid var(--edge);border-radius:5px;padding:5px 8px;font:12.5px Georgia,serif;min-width:170px;pointer-events:none;text-shadow:0 1px 2px #000}#scoreboard .sb-r{display:flex;align-items:center;gap:6px;line-height:1.55}#scoreboard .sb-s{width:9px;height:9px;border-radius:2px;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.6)}#scoreboard .sb-n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#scoreboard .sb-a{color:var(--muted);font-size:11px}#scoreboard .sb-v{color:var(--gold);min-width:42px;text-align:right}#scoreboard .dead{opacity:.45;text-decoration:line-through}#score{cursor:pointer}
 #msgs{position:absolute;left:12px;top:10px;pointer-events:none;font-size:14px;text-shadow:0 1px 2px #000}
 #msgs div{opacity:.95;margin-bottom:3px}
-#hint{position:absolute;right:12px;top:10px;font-size:12px;color:var(--muted);text-shadow:0 1px 2px #000;text-align:right;pointer-events:none}
+#tr{position:absolute;right:12px;top:10px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}#hint{font-size:12px;color:var(--muted);text-shadow:0 1px 2px #000;text-align:right;pointer-events:none}
 #hint .idle{pointer-events:auto;cursor:pointer;color:#ffd27a;text-decoration:underline dotted}
 #info{width:300px;border-right:2px solid #1a120c;padding:8px 12px;font-size:13px;overflow:hidden}
 #info h3{margin:0 0 4px;font-size:16px;color:var(--gold);font-weight:normal}
@@ -126,7 +127,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay .tl{display:block;width:100%;height:240px;background:rgba(0,0,0,.25);border:1px solid var(--edge);margin:4px 0 8px}
 #overlay .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px}
 #overlay .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-#game.nogame #top,#game.nogame #bottom{display:none}
+#game.nogame #top,#game.nogame #bottom,#game.nogame #scoreboard{display:none}
 #game.nogame #overlay{background:radial-gradient(ellipse at 50% 30%,#2a2016 0%,#120d08 70%,#000 100%)}
 .btn{overflow:hidden}
 @media (max-width:1200px){#info{width:240px;padding:8px 10px}#mm{width:262px}canvas#mini{width:208px;height:124px}#cmds{grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}#top{gap:10px}.res{min-width:84px}}
@@ -176,7 +177,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
   <div id="view">
     <canvas id="c"></canvas>
     <div id="msgs"></div>
-    <div id="hint"></div>
+    <div id="tr"><div id="scoreboard"></div><div id="hint"></div></div>
     <input id="chat" class="hidden" placeholder="taunt 1-10, or a cheat word…" style="position:absolute;left:12px;bottom:12px;width:320px;background:rgba(20,14,8,.9);color:var(--text);border:1px solid var(--edge);padding:6px;font:13px Georgia,serif">
     <div id="overlay">
       <div class="card" id="start">
@@ -973,8 +974,16 @@ if(S.n%5===0&&p.res.food<120&&p.res.wood>250&&count('farm')<Math.round(want.food
  const housesUnderway=blds.filter(b=>b.type==='house'&&!b.built).length;
  if(p.popCap<POP_MAX&&p.popCap-p.pop<=(p.age>=1?6:4)&&housesUnderway<(p.age>=2?3:p.age>=1?2:1)&&canAfford(p,bcost(p,'house'))){buildWith('house',placeNear('house',home.x,home.y,4.5,13),1,'wood')}
  // ---- camps ----
- if(S.n%4===0){for(const kind of['wood','gold','stone']){const r=findResource(t,kind,home.x,home.y,26,{noAnimals:true});if(!r||r.kind!=='res')continue;const drop=nearestDrop(t,kind,r.tx,r.ty);const dd=drop?rectDist(r.tx+0.5,r.ty+0.5,rectOf(drop)):99;const type=kind==='wood'?'lumber':'mine';
-   if(dd>5&&!underway(type)&&canAfford(p,bcost(p,type))&&(cur[kind]>=2||p.res.wood>300)){buildWith(type,placeNear(type,r.tx+0.5,r.ty+0.5,1.5,4),1,kind)}}
+ // Camps go where the gatherers actually are: the centre of the resources they are working, not the nearest patch to home
+ if(S.n%4===0){for(const kind of['wood','gold','stone','food']){
+   const gs=vills.filter(v=>(v.state==='gather'||v.state==='return')&&v.target&&v.target.kind==='res'&&v.target.res===kind&&!v.target.fish&&!v.target.carcass);if(gs.length<(kind==='wood'?2:1))continue;
+   // anchor on the gatherer walking furthest, then count who works near it (groups split, so a centroid would land near home)
+   const dOf=r=>{const dr=nearestDrop(t,kind,r.tx+0.5,r.ty+0.5);return dr?rectDist(r.tx+0.5,r.ty+0.5,rectOf(dr)):99};let an=null,dd=6;for(const v of gs){const e=dOf(v.target);if(e>dd){dd=e;an=v.target}}if(!an)continue;
+   const near=gs.filter(v=>Math.hypot(v.target.tx-an.tx,v.target.ty-an.ty)<=6);const type=kind==='wood'?'lumber':kind==='food'?'mill':'mine';
+   if(near.length<(kind==='wood'?2:1)||underway(type)||!canAfford(p,bcost(p,type)))continue;
+   let cx=0,cy=0;for(const v of near){cx+=v.target.tx+0.5;cy+=v.target.ty+0.5}cx/=near.length;cy/=near.length;
+   const pos=placeNear(type,an.tx+0.5,an.ty+0.5,1,3)||placeNear(type,cx,cy,1,5)||placeNear(type,an.tx+0.5,an.ty+0.5,1,7);
+   if(pos&&buildWith(type,pos,1,kind))break}
   if(count('mill')===0&&!underway('mill')&&canAfford(p,bcost(p,'mill'))&&count('farm')>=4)buildWith('mill',placeNear('mill',home.x,home.y,4,9),1,'food');}
  // ---- military buildings ----
  const rich=p.res.wood>500;
@@ -28177,8 +28186,15 @@ const $=id=>document.getElementById(id);
 function fmt(n){return Math.floor(n)}
 function costStr(c){const e=Object.entries(c);if(e.length>=3&&e.every(([k,v])=>v===e[0][1]))return `<span class="ci" title="${e[0][1]} of each">${e.map(([k])=>`<img src="${iconUrl('res',k)}" alt="">`).join('')}${e[0][1]}</span>`;return e.map(([k,v])=>`<span class="ci"><img src="${iconUrl('res',k)}" alt="">${v}</span>`).join(' ')}
 function hudIcons(){const tc=TEAM[ME];if(ui.hudTeam===tc.c)return;ui.hudTeam=tc.c;for(const k of RES_KINDS)$('i-'+k).src=iconUrl('res',k);$('i-pop').src=iconUrl('unit','villager',tc);$('b-idle').querySelector('img').src=iconUrl('unit','villager',tc);$('b-army').querySelector('img').src=iconUrl('unit','swordsman',tc);$('b-th').querySelector('img').src=iconUrl('bld','townhall',tc)}
+// In-game scoreboard; read-only on G so it is lockstep-safe. Toggle with the top-bar score or F4.
+function renderScores(){const el=$('scoreboard');let on=true;try{on=localStorage.getItem('age-up-scores')!=='0'}catch(e){}el.classList.toggle('hidden',!on);if(!on)return;
+ const ps=G.players.filter(p=>p&&!p.gaia).slice().sort((a,b)=>(a.dead-b.dead)||b.score-a.score);
+ const h=ps.map(p=>`<div class="sb-r${p.dead?' dead':''}"><span class="sb-s" style="background:${TEAM[p.team].c}"></span><span class="sb-n">${p.team===ME?'You':esc(p.name||TEAM[p.team].n)}${p.team!==ME&&allied(p.team,ME)?' <span class="sb-a">ally</span>':''}</span><span class="sb-a">${AGES[p.age].replace(' Age','')}</span><span class="sb-v">${p.score}</span></div>`).join('');
+ if(el._h!==h){el.innerHTML=h;el._h=h}}
+function toggleScores(){let on=true;try{on=localStorage.getItem('age-up-scores')!=='0';localStorage.setItem('age-up-scores',on?'0':'1')}catch(e){}if(G)renderScores()}
+$('score').title='Show or hide the scoreboard (F4)';$('score').onclick=toggleScores;
 function updateTop(){const p=player(ME);hudIcons();for(const k of RES_KINDS){$('r-'+k).textContent=fmt(p.res[k]);let n=0;for(const u of G.units)if(u.team===ME&&u.type==='villager'&&(u.state==='gather'||u.state==='hunt')&&u.carryKind===k)n++;$('w-'+k).textContent=n?n:''}
- $('r-pop').textContent=p.pop+'/'+p.popCap;$('r-pop').style.color=p.pop>=p.popCap?'#f66':'';$('age').textContent=AGES[p.age]+(p.ageing?' → '+AGES[p.age+1]:'');const m=Math.floor(G.time/60),s=Math.floor(G.time%60);$('clock').textContent=m+':'+(s<10?'0':'')+s;$('score').textContent='Score '+p.score;
+ $('r-pop').textContent=p.pop+'/'+p.popCap;$('r-pop').style.color=p.pop>=p.popCap?'#f66':'';$('age').textContent=AGES[p.age]+(p.ageing?' → '+AGES[p.age+1]:'');const m=Math.floor(G.time/60),s=Math.floor(G.time%60);$('clock').textContent=m+':'+(s<10?'0':'')+s;$('score').textContent='Score '+p.score;renderScores();
  let tm='';const ft=x=>{const mm=Math.floor(Math.max(0,x)/60),ss=Math.floor(Math.max(0,x)%60);return mm+':'+(ss<10?'0':'')+ss};if(G.wonderTimer)tm+=(allied(G.wonderTimer.team,ME)?'Your':TEAM[G.wonderTimer.team].n)+' Wonder '+ft(G.wonderTimer.left)+'  ';if(G.relicTimer)tm+=(G.relicTimer.side===p.side?'Your':'Enemy')+' relics '+ft(G.relicTimer.left);if(G.setup.victory==='time')tm+='Time left '+ft(40*60-G.time);if(G.setup.victory==='score'){const b=alivePlayers().slice().sort((a,b)=>b.score-a.score)[0];if(b)tm+='Leader '+(b.team===ME?'you':TEAM[b.team].n)+' '+b.score+'/6000'}$('timers').textContent=tm;
  const idle=G.units.filter(u=>u.team===ME&&u.type==='villager'&&u.state==='idle'&&!u.inside).length;const idleM=G.units.filter(u=>u.team===ME&&isMil(u)&&u.state==='idle'&&!u.inside).length;
  const bi=$('b-idle'),ba=$('b-army');bi.classList.toggle('on',idle>0);bi.querySelector('b').textContent=idle||'';ba.classList.toggle('on',idleM>0);ba.querySelector('b').textContent=idleM||'';
@@ -28214,7 +28230,7 @@ function hideTip(){clearTimeout(ui.tipT);ui.tipI=null;$('tip').classList.add('hi
 function showTip(i){const b=ui.buttons[i],el=$('cmds').children[i];if(!b||!el){hideTip();return}ui.tipI=i;const t=$('tip');const h=tipHtml(b);if(t._h!==h){t.innerHTML=h;t._h=h}t.classList.remove('hidden');const r=el.getBoundingClientRect(),w=t.offsetWidth;t.style.left=Math.max(6,Math.min(innerWidth-w-6,r.left+r.width/2-w/2))+'px';t.style.bottom=(innerHeight-r.top+8)+'px'}
 const ATTR_NAMES=k=>UNITS[k].name;
 // Which units a tech changes. Mirrors unitStat so the tooltip cannot drift from the real effect.
-function techTargets(p,k){const T=TECHS[k];const cv=civ(p);const mine=Object.keys(UNITS).filter(u=>{const d=UNITS[u];if(!d.at||d.animal)return false;const own=Object.values(CIVS).some(c=>c.unique===u);return !own||cv.unique===u});
+function techTargets(p,k){const T=TECHS[k];const cv=civ(p);const mine=Object.keys(UNITS).filter(u=>{const d=UNITS[u];if(!d.at||d.animal||!d.atk)return false;const own=Object.values(CIVS).some(c=>c.unique===u);return !own||cv.unique===u});
  if(T.melee)return mine.filter(u=>{const d=UNITS[u];return !d.proj&&u!=='villager'&&!d.onlyBuildings&&!d.heals});
  if(T.ranged)return mine.filter(u=>{const d=UNITS[u];return d.proj&&!d.onlyBuildings});
  if(T.infantry)return INF.slice();if(T.cavalry)return CAV.slice();
@@ -28232,7 +28248,7 @@ function unitTipStats(p,t){const d=UNITS[t];const fake={type:t,team:ME};const r=
 function tipHtml(b){const p=player(ME);let h=`<div class="tt-h"><b>${b.label}</b> <span class="tt-k">${b.key}</span></div>`;
  if(b.cost&&Object.keys(b.cost).length)h+=`<div class="tt-c">${costStr(b.cost)}${b.tk?` <span class="tt-m">· ${TECHS[b.tk].time[b.tl]}s</span>`:b.ut?` <span class="tt-m">· ${UNITS[b.ut].time}s</span>`:''}</div>`;
  const short=b.cost&&!canAfford(p,b.cost)?Object.keys(b.cost).filter(k=>p.res[k]<b.cost[k]).map(k=>`${b.cost[k]-Math.floor(p.res[k])} ${k}`):null;
- let desc=b.tip||'';if(b.tk)desc=TECHS[b.tk].desc;else if(b.ut)desc=UNITS[b.ut].desc;else if(b.bt)desc=BUILDINGS[b.bt].desc;h+=`<div>${desc}</div>`;
+ let desc=b.tip||'';if(b.tk){const T=TECHS[b.tk];desc=T.line||T.atk||T.armor||T.gather?'':T.desc}else if(b.ut)desc=UNITS[b.ut].desc;else if(b.bt)desc=BUILDINGS[b.bt].desc;if(desc)h+=`<div>${desc}</div>`;
  if(b.tk){const lines=techEffect(p,b.tk,b.tl);if(lines.length)h+=`<div class="tt-e">${lines.join('<br>')}</div>`;const T=TECHS[b.tk];if(p.age<T.age[b.tl])h+=`<div class="tt-x">Requires ${AGES[T.age[b.tl]]}</div>`}
  if(b.ut){h+=`<div class="tt-e">${unitTipStats(p,b.ut)}</div>`;const u=UNITS[b.ut];if(p.age<u.age)h+=`<div class="tt-x">Requires ${AGES[u.age]}</div>`;else if(u.needs&&!p.techs[u.needs])h+=`<div class="tt-x">Requires ${TECHS[u.needs].name[0]}</div>`}
  if(b.bt){const d=BUILDINGS[b.bt];if(d.trains&&d.trains.length)h+=`<div class="tt-e">Trains: ${d.trains.map(ATTR_NAMES).join(', ')}</div>`;if(p.age<d.age)h+=`<div class="tt-x">Requires ${AGES[d.age]}</div>`}
@@ -28329,6 +28345,7 @@ window.addEventListener('mousemove',e=>{if(ui.miniDrag&&e.buttons&1){const w=min
 window.addEventListener('mouseup',()=>{ui.miniDrag=false});
 window.addEventListener('keydown',e=>{if(!G||G.over){return}const k=e.key;ui.keys[k]=true;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
  if(k==='Escape'){if(ui.menu||(G.paused&&!NET.active)){$('play').click();return}ui.build=null;ui.mode=null;renderCmds();return}
+ if(k==='F4'){e.preventDefault();toggleScores();return}
  if(k==='F1'){e.preventDefault();$('overlay').classList.remove('hidden');$('start').classList.remove('hidden');$('end').classList.add('hidden');$('play').textContent='Resume';$('start').classList.add('ingame');$('resign').classList.remove('hidden');$('save').classList.toggle('hidden',NET.active);refreshMenu();$('setupwrap').classList.add('hidden');ui.menu=true;if(!NET.active)G.paused=true;return}
  if(k==='Enter'){e.preventDefault();const c=$('chat');c.classList.remove('hidden');c.value='';c.focus();return}
  if(k==='p'||k==='P'){setPaused(!G.paused);return}
