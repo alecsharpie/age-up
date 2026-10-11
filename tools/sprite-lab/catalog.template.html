@@ -182,6 +182,7 @@ details.sheet canvas{display:block}
       <label>team <span class="chips" id="chips"></span></label>
       <label id="c-state">state <select id="ustate"></select></label>
       <label id="c-progress">built <input id="progress" type="range" min="0.05" max="1" step="0.05" value="1"></label>
+      <label id="c-age">age <select id="age"><option value="0">Dark</option><option value="1">Feudal</option><option value="2">Castle</option><option value="3">Imperial</option></select></label>
       <label id="c-variant">variant <select id="variant"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select></label>
       <label id="c-amount">left <input id="amount" type="range" min="10" max="100" step="5" value="100"></label>
       <label>zoom <input id="zoom" type="range" min="1" max="6" step="1" value="3"></label>
@@ -236,12 +237,14 @@ details.sheet canvas{display:block}
   <div class="bar"><span>A hand-placed village drawn in depth order on real terrain, animating.</span>
     <label>team <select id="v-team"><option value="0">Blue</option><option value="1">Red</option><option value="2">Green</option><option value="3">Yellow</option></select></label>
     <label>art <select id="v-src"><option value="current">current</option><option value="draft">with drafts</option></select></label>
-    <label>zoom <select id="v-zoom"><option value="1">1×</option><option value="2">2×</option></select></label></div>
+    <label>zoom <select id="v-zoom"><option value="1">1×</option><option value="2">2×</option></select></label>
+    <label>age <select id="v-age"><option value="">each building's first</option><option value="0">Dark</option><option value="1">Feudal</option><option value="2">Castle</option><option value="3">Imperial</option></select></label></div>
   <div class="scroll"><canvas id="village"></canvas></div>
 </section>
 <section id="tab-contact" class="panel" role="tabpanel" hidden>
   <div class="bar"><span>Everything at ×2, pixel-true, so the set can be judged for consistency.</span>
-    <label>art <select id="k-src"><option value="current">current</option><option value="draft">with drafts</option></select></label></div>
+    <label>art <select id="k-src"><option value="current">current</option><option value="draft">with drafts</option></select></label>
+    <label>show <select id="k-view"><option value="all">everything</option><option value="ages">buildings across the ages</option></select></label></div>
   <div class="scroll"><canvas id="contact"></canvas></div>
 </section>
 <section id="tab-paint" class="panel" role="tabpanel" hidden>
@@ -285,7 +288,7 @@ details.sheet canvas{display:block}
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const REF=window.__REF__;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const S={kind:'building',type:'townhall',team:0,src:'current',zoom:3,vector:false,p:1,ustate:'idle',v:0,amount:100,playing:!reduced,tab:'cat'};
+  const S={kind:'building',type:'townhall',team:0,src:'current',zoom:3,vector:false,p:1,age:null,ustate:'idle',v:0,amount:100,playing:!reduced,tab:'cat'};
   const TEAM_OPTS=[[0,'#2f6fd6','Blue'],[1,'#cf3b2b','Red'],[2,'#3ba34a','Green'],[3,'#d9b13a','Yellow'],[-1,'#cfc4a8','Wild']];
   const ageName=a=>AGES[a]||'Dark Age';
   const costStr=c=>Object.entries(c||{}).map(([k,v])=>`${v} ${k}`).join(', ')||'free';
@@ -332,7 +335,8 @@ details.sheet canvas{display:block}
     $('#d-name').textContent=d?d.name:type[0].toUpperCase()+type.slice(1);
     $('#d-kind').textContent=kind==='building'?`building · ${d.w}×${d.h} tiles · ${ageName(d.age)}`:kind==='unit'?`unit · ${d.animal?'animal':d.naval?'ship':ageName(d.age)+(UNITS[type].at?' · from the '+(BUILDINGS[d.at]||{name:d.at}).name:'')}`:'resource';
     $('#d-badge').hidden=!LAB.hasDraft(kind,type); $('#src').hidden=!LAB.hasDraft(kind,type); $('#src').setAttribute('aria-pressed',String(S.src==='draft')); $('#src').textContent=S.src==='draft'?'showing draft':'show draft';
-    $('#c-state').hidden=kind!=='unit'; $('#c-progress').hidden=kind!=='building'; $('#c-variant').hidden=kind!=='resource'; $('#c-amount').hidden=!(kind==='resource'&&(type==='gold'||type==='stone'));
+    $('#c-state').hidden=kind!=='unit'; $('#c-progress').hidden=kind!=='building'; $('#c-age').hidden=kind!=='building';
+    if(kind==='building'){ const ag=LAB.agesOf(type); $('#age').innerHTML=ag.map(a=>`<option value="${a}">${LAB.AGE_NAMES[a]}</option>`).join(''); if(S.age===null||!ag.includes(S.age))S.age=ag[0]; $('#age').value=S.age; } $('#c-variant').hidden=kind!=='resource'; $('#c-amount').hidden=!(kind==='resource'&&(type==='gold'||type==='stone'));
     if(kind==='unit'){ const u=UNITS[type]; const opts=[['idle','idle'],['move','walking']]; if(type==='villager')opts.push(['work','working'],['carry','carrying wood'],['carryfood','carrying food'],['carrygold','carrying gold']); else if(type==='monk')opts.push(['relic','holding a relic'],['convert','converting']); else if(type==='fishing')opts.push(['work','fishing']); else if(type==='tradecart')opts.push(['carrygold','carrying gold']); else if(UNITS[type].packs)opts.push(['deployed','deployed'],['fire','deployed, firing']); else if(!u.animal&&!u.naval||type==='warship')opts.push(['attack','attacking']);
       $('#ustate').innerHTML=opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join(''); if(!opts.some(o=>o[0]===S.ustate))S.ustate='idle'; $('#ustate').value=S.ustate; }
     buildChips(); renderTruth(); renderSpec(); renderLint(); Review.onSelect();
@@ -368,7 +372,7 @@ details.sheet canvas{display:block}
   let liveTime=0.3, t0=null, sheetDirty=true;
   function liveOpts(time){
     const o={src:S.src,team:S.team,time,seed:5};
-    if(S.kind==='building'){o.p=S.p;}
+    if(S.kind==='building'){o.p=S.p;if(S.age!==null)o.age=S.age;}
     else if(S.kind==='unit'){ const st=S.ustate; o.anim=time;
       if(st==='move')o.state='move'; else if(st==='attack'){o.state='attack';const ph=time%1.2;o.swing=ph<0.3?0.3-ph:0;} else if(st==='work')o.state='work'; else if(st==='carry'){o.state='carry';o.carryKind='wood'} else if(st==='carryfood'){o.state='carry';o.carryKind='food'} else if(st==='carrygold'){if(S.type==='tradecart'){o.carry=10;o.carryKind='gold';o.state='move'}else{o.state='carry';o.carryKind='gold'}} else if(st==='relic')o.relic=true; else if(st==='convert')o.state='convert'; else if(st==='deployed')o.packed=false; else if(st==='fire'){o.packed=false;o.state='attack';const ph=time%2;o.swing=ph<0.6?0.6-ph:0;} }
     else {o.v=S.v;o.amount=S.amount;}
@@ -381,7 +385,7 @@ details.sheet canvas{display:block}
     cv.getContext('2d').drawImage(img,0,0);
   }
   function drawVillage(time){
-    const cv=$('#village'); const img=LAB.sceneCanvas({team:+$('#v-team').value,src:$('#v-src').value,zoom:+$('#v-zoom').value,time,caption:false});
+    const cv=$('#village'); const va=$('#v-age').value;const img=LAB.sceneCanvas({team:+$('#v-team').value,src:$('#v-src').value,zoom:+$('#v-zoom').value,time,caption:false,age:va===''?undefined:+va});
     if(cv.width!==img.width||cv.height!==img.height){cv.width=img.width;cv.height=img.height}
     cv.getContext('2d').drawImage(img,0,0);
   }
@@ -397,21 +401,22 @@ details.sheet canvas{display:block}
     $('#ustate').onchange=e=>{S.ustate=e.target.value;drawLive(liveTime)};
     $('#progress').oninput=e=>{S.p=+e.target.value;drawLive(liveTime)};
     $('#variant').onchange=e=>{S.v=+e.target.value;drawLive(liveTime)};
+    $('#age').onchange=e=>{S.age=+e.target.value;drawLive(liveTime)};
     $('#amount').oninput=e=>{S.amount=+e.target.value;drawLive(liveTime)};
     $('#zoom').oninput=e=>{S.zoom=+e.target.value;drawLive(liveTime)};
     $('#vector').onclick=e=>{S.vector=!S.vector;e.currentTarget.setAttribute('aria-pressed',String(S.vector));drawLive(liveTime)};
     $('#src').onclick=()=>{S.src=S.src==='draft'?'current':'draft';select(S.kind,S.type)};
     $('#play').onclick=()=>setPlaying(!S.playing);
     $('#sheetbox').ontoggle=e=>{ if(e.target.open&&sheetDirty){ LAB.target=$('#sheet'); try{LAB.sheet(S.kind,S.type,'both')}finally{LAB.target=null} sheetDirty=false; } };
-    for(const id of ['v-team','v-src','v-zoom']) $('#'+id).onchange=()=>drawVillage(liveTime);
-    $('#k-src').onchange=()=>drawContact();
+    for(const id of ['v-team','v-src','v-zoom','v-age']) $('#'+id).onchange=()=>drawVillage(liveTime);
+    $('#k-src').onchange=()=>drawContact(); $('#k-view').onchange=()=>drawContact();
     for(const b of $$('nav.tabs button')) b.onclick=()=>showTab(b.dataset.tab);
     $('#play').setAttribute('aria-pressed',String(S.playing)); $('#play').textContent=S.playing?'animating':'paused';
     addEventListener('hashchange',applyHash);
   }
   function setPlaying(on){ S.playing=on; $('#play').setAttribute('aria-pressed',String(on)); $('#play').textContent=on?'animating':'paused'; if(!on){drawLive(liveTime);if(S.tab==='village')drawVillage(liveTime)} Review.inkVisibility(); }
   let contactDone=false, paletteDone=false;
-  function drawContact(){ LAB.target=$('#contact'); try{LAB.contact('all',$('#k-src').value,2,Math.max(600,Math.min(1500,innerWidth-40)))}finally{LAB.target=null} contactDone=true; }
+  function drawContact(){ LAB.target=$('#contact'); try{ if($('#k-view').value==='ages')LAB.ages('all',$('#k-src').value,2); else LAB.contact('all',$('#k-src').value,2,Math.max(600,Math.min(1500,innerWidth-40)))}finally{LAB.target=null} contactDone=true; }
   function showTab(tab){
     S.tab=tab; for(const b of $$('nav.tabs button')) b.setAttribute('aria-selected',String(b.dataset.tab===tab));
     for(const t of ['cat','feedback','village','contact','palette','paint']) $('#tab-'+t).hidden=t!==tab;

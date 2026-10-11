@@ -1,5 +1,7 @@
 // @sprite building mine
-// Painted mining camp (PIXELS.mine) rising with construction progress; once built the pulley turns, the bucket rides and the gold glints (4 fps).
+// Painted mine (PIXELS.mine); pixAge picks the variant for the owner's age (Dark … Imperial). Flags are code-drawn so they wave;
+// a variant that moves its flag mount says so in spec.flags ([[dx,dy,h]] from the footprint's bottom corner), read by pixFlags.
 export default function mine(b,{d,cx,cy,w,h,p,tc,bm,z}){
-  pixDraw(PIXELS.mine,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p});
+  const S=pixAge(PIXELS.mine,b);
+  pixDraw(S,'idle',b.built?Math.floor(G.time*4):0,tc,bm.Bm[0],bm.Bm[1],{clip:p})
 }

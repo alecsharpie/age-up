@@ -4,9 +4,42 @@
 // shield above it, centred on the lit face, and a matched pair of long team banners on each donjon face. Merlons sit on a
 // symmetric rhythm on every parapet; four painted team flags fly from the donjon's corners (no code-drawn flags).
 // Frames: idle 4 — the banners ripple, the flags stream, the gate torches flicker and light the jambs.
+// Age variants (AGE, AK from gen/ages/wrap.mjs; the keep stands from Castle):
+//   Castle   the original art, unchanged.
+//   Imperial pale limestone (the stone chars re-coloured from AK.S), a taller donjon with a steep slate hip spire rising inside
+//            its parapet, slate spires with gilt orb finials on the four corner towers in place of their merlons, gilt string
+//            courses on the curtain and donjon, a gilt keystone, gilt-fringed banners.
 //@@KIT
-const W=4,H=4,Z=36,TZ=26,DZ=36;
-const GW=(W+H)*32+4, GH=(W+H)*16+Z+TZ+DZ+6+10;
+const IMP=AGE>=3;
+const {S:AS,R:AR,Au}=AK;
+const LS=AS.map(c=>AK.pal[c]);
+const LIME={h:LS[0],q:LS[0],f:LS[1],a:LS[1],A:LS[2],m:LS[4],p:LS[3],H:LS[2],Q:LS[2],n:LS[3],b:LS[3],B:'#9c8d6c',M:LS[5],P:LS[5],
+  c:LS[1],C:'#d8cbac',j:LS[3],S:LS[3],g:'#f6dca0',G:'#fbe8b8'};
+const STONE=/[hqfaAmpHQnbBMP]/;
+/** A hip / pyramid roof on a top face (pixIsoBox result), apex `rise` px up, in the age's roof material; returns the apex. */
+function hipRoof(g,top,rise){
+  const ap=pixIsoRoof(g,top,rise,1,{back:'!',left:'@',front:'$',right:'%'});
+  const y0=Math.max(0,Math.floor(ap[1])),y1=Math.min(g.length-1,Math.ceil(top.Bm[1])+1),x0=Math.max(0,Math.floor(top.L[0])-1),x1=Math.min(g[0].length-1,Math.ceil(top.Rr[0])+1);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const c=g[y][x];
+    if(c==='$')g[y][x]=AK.roofXY(x,y,0.5,0);else if(c==='%')g[y][x]=AK.roofXY(x,y,-0.5,1);
+    else if(c==='@')g[y][x]=AK.roofXY(x,y,-0.5,2,{flip:true});else if(c==='!')g[y][x]=AK.roofXY(x,y,0.5,3,{flip:true})}
+  pixLine(g,ap[0],ap[1],top.Bm[0],top.Bm[1],AR[0]);
+  pixLine(g,top.L[0],top.L[1],top.Bm[0],top.Bm[1],AR[5]);pixLine(g,top.Bm[0],top.Bm[1],top.Rr[0],top.Rr[1],AR[6]);
+  return ap;
+}
+/** Imperial banner: the kit banner with gilt hems down both sides and a gilt fringe along the foot. */
+function giltBanner(g,x,y,w,h,ph,sl){
+  banner(g,x,y,w,h,ph,{sl});
+  const oy=c=>Math.floor((c+0.5)*sl);
+  for(let c=0;c<w;c++){let last=-1;for(let r=1;r<=h+2;r++)if(/[TLD]/.test(pixGet(g,x+c,y+oy(c)+r)))last=r;
+    if(last>0){pixSet(g,x+c,y+oy(c)+last,c%2?Au[1]:Au[0]);if(c===0||c===w-1)for(let r=2;r<last-1;r++)pixSet(g,x+c,y+oy(c)+r,c?Au[2]:Au[1])}}
+  for(let c=-1;c<=w;c++)pixSet(g,x+c,y+oy(c),c<0?Au[2]:Au[1]);
+}
+/** A gilt string course with a dark undercut, dz px below the top of the face over base edge A→B (face height z). */
+function giltCourse(g,A,B,z,dz,lit){for(let x=Math.ceil(A[0]);x<=Math.floor(B[0]);x++){const y=Math.floor(A[1]+(x+0.5-A[0])*(B[1]-A[1])/(B[0]-A[0]))-z+dz;
+  if(STONE.test(pixGet(g,x,y)))pixSet(g,x,y,lit?Au[0]:Au[1]);if(STONE.test(pixGet(g,x,y+1)))pixSet(g,x,y+1,lit?'m':'M')}}
+const W=4,H=4,Z=36,TZ=26,DZ=IMP?50:36,HEAD=IMP?44:0;
+const GW=(W+H)*32+4, GH=(W+H)*16+Z+TZ+DZ+6+10+HEAD;
 const bx=W*32+2, by=GH-4;
 const g=pixGrid(GW,GH);
 const blockBm=(i,j,w,h)=>[bx+(i-j+(w-h))*32, by-(W+H)*16+(i+j+w+h)*16];
@@ -23,13 +56,20 @@ const front=crenels(g,top,W,H,{th:0.05,n:[8,8],ml:0.0625,f0:0.25,lo:3,hi:7,tex:T
 const tower=(i,j)=>{const B=blockBm(i,j,1,1);const t=pixIsoBox(g,B[0],B[1]-Z,1,1,TZ,1,{left:'1',right:'2',top:'3'});
   faces(t,{ch:6,bl:10,seed:7+i},{ch:6,bl:10,seed:9+j});flagstones(g,'3',t,{n:3});pixLine(g,t.base.Bm[0],t.base.Bm[1]-1,t.Bm[0],t.Bm[1]+1,'K');
   machi(g,t.L,t.Bm,1,true);machi(g,t.Bm,t.Rr,1,false);
-  const f=crenels(g,t,1,1,{th:0.1,n:[2,2],ml:0.25,f0:0.25,lo:3,hi:7,tex:{...TEX(t),bl:10}});f();
+  if(IMP){giltCourse(g,t.base.L,t.base.Bm,TZ,6,true);giltCourse(g,t.base.Bm,t.base.Rr,TZ,6,false);
+    const e=0.06,ev=pixIsoBox(g,t.Bm[0],t.Bm[1]+32*e*0+16*2*e,1+2*e,1+2*e,0,1,{});const ap=hipRoof(g,{T:ev.T,L:ev.L,Bm:ev.Bm,Rr:ev.Rr},46);AK.finial(g,Math.round(ap[0]),Math.round(ap[1])-1)}
+  else{const f=crenels(g,t,1,1,{th:0.1,n:[2,2],ml:0.25,f0:0.25,lo:3,hi:7,tex:{...TEX(t),bl:10}});f();}
   slit(g,Math.round(t.base.L[0])+15,Math.round(t.base.L[1])+7-TZ+8,5,true);slit(g,Math.round(t.base.Bm[0])+14,Math.round(t.base.Bm[1])-7-TZ+8,5,true);return t};
 tower(0,0);
 const dB=blockBm(1,1,2,2);const don=pixIsoBox(g,dB[0],dB[1]-Z,2,2,DZ,1,{left:'1',right:'2',top:'3'});
 faces(don,{ch:6,bl:12,seed:11},{ch:6,bl:12,seed:12});flagstones(g,'3',don,{n:4});pixLine(g,don.base.Bm[0],don.base.Bm[1]-1,don.Bm[0],don.Bm[1]+1,'K');
 machi(g,don.L,don.Bm,1,true);machi(g,don.Bm,don.Rr,1,false);
-crenels(g,don,2,2,{th:0.06,n:[4,4],ml:0.125,f0:0.25,lo:3,hi:7,tex:TEX(don)})();
+if(IMP){giltCourse(g,don.base.L,don.base.Bm,DZ,7,true);giltCourse(g,don.base.Bm,don.base.Rr,DZ,7,false)}
+{const df=crenels(g,don,2,2,{th:0.06,n:[4,4],ml:0.125,f0:0.25,lo:3,hi:7,tex:TEX(don)});
+  if(IMP){const i=0.4,sp=pixIsoBox(g,don.Bm[0],don.Bm[1]-32*i*0-16*2*i+2,2-2*i,2-2*i,4,1,{left:'q',right:'Q'});
+    pixLine(g,sp.base.L[0],sp.base.L[1]-1,sp.base.Bm[0],sp.base.Bm[1]-1,'p');pixLine(g,sp.base.Bm[0],sp.base.Bm[1]-1,sp.base.Rr[0],sp.base.Rr[1]-1,'P');
+    const ap=hipRoof(g,sp,62);AK.finial(g,Math.round(ap[0]),Math.round(ap[1])-1)}
+  df();}
 for(const f of [0.2,0.8]){const p=lerpP(don.base.L,don.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-DZ+12,5,true);const q=lerpP(don.base.Bm,don.base.Rr,f);slit(g,Math.round(q[0]),Math.round(q[1])-DZ+12,5,true)}
 for(const f of [0.35,0.65]){const p=lerpP(don.base.L,don.base.Bm,f);slit(g,Math.round(p[0]),Math.round(p[1])-12,4,false);const q=lerpP(don.base.Bm,don.base.Rr,f);slit(g,Math.round(q[0]),Math.round(q[1])-12,4,false)}
 front();
@@ -59,15 +99,17 @@ kTTToTTD
 ..kTTD..
 ...kD...
 `)}
+if(IMP){giltCourse(g,top.base.L,top.base.Bm,Z,5,true);giltCourse(g,top.base.Bm,top.base.Rr,Z,5,false)}
 inkOutline(g);
 // ---- idle: banners on the donjon ripple, gate torches flicker
 const BW=10,BL=24,BAN=[[0.3,0],[0.7,2]];
-const FLAGS=[[don.T,0,-2,0],[don.L,2,-3,1],[don.Rr,-2,-3,3],[don.Bm,0,-4,2]];
+const FLAGS=[...(IMP?[]:[[don.T,0,-2,0]]),[don.L,2,-3,1],[don.Rr,-2,-3,3],[don.Bm,0,-4,2]];
 const frames=[];
 for(let k=0;k<4;k++){const f=cloneG(g);
   // a matched pair of banners on each donjon face, mirrored about the lit/shade corner
-  for(const [fr,ph] of BAN){const p=lerpP(don.base.L,don.base.Bm,fr);banner(f,Math.round(p[0])-BW/2,Math.round(p[1])-DZ+5,BW,BL,k+ph,{sl:0.5});
-    const q=lerpP(don.base.Bm,don.base.Rr,1-fr);banner(f,Math.round(q[0])-BW/2,Math.round(q[1])-DZ+5,BW,BL,k+ph+1,{sl:-0.5})}
+  const BNR=IMP?(g2,x,y,w,h,ph,o)=>giltBanner(g2,x,y,w,h,ph,o.sl):banner,BY=IMP?9:5;
+  for(const [fr,ph] of BAN){const p=lerpP(don.base.L,don.base.Bm,fr);BNR(f,Math.round(p[0])-BW/2,Math.round(p[1])-DZ+BY,BW,BL,k+ph,{sl:0.5});
+    const q=lerpP(don.base.Bm,don.base.Rr,1-fr);BNR(f,Math.round(q[0])-BW/2,Math.round(q[1])-DZ+BY,BW,BL,k+ph+1,{sl:-0.5})}
   // four flags, one on each corner of the donjon's parapet, all streaming the same way in the wind
   for(const [c,dx,dy,ph] of FLAGS)flagpole(f,Math.round(c[0])+dx,Math.round(c[1])+dy,15,k+ph,{w:10,fh:6});
   for(let y=0;y<GH;y++)for(let x=0;x<GW;x++)if(frontTowers[y][x])f[y][x]=g[y][x];   // the front towers hide the banners' tails
@@ -75,6 +117,6 @@ for(let k=0;k<4;k++){const f=cloneG(g);
   frames.push(pixText(f));}
 export default {
   id:'keep',kind:'building',footprint:[W,H],anchor:[bx,by],
-  palette:FORT_PAL,
+  palette:IMP?{...FORT_PAL,...AK.pal,...LIME}:{...FORT_PAL,...AK.pal},
   frames:{idle:frames},
 };

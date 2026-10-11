@@ -4,6 +4,9 @@
 // gold cross; square bell tower at the front-left with string courses, quoins, an open belfry, team banner and tiled spire.
 // Generated with local texture routines; anchor = bottom corner. idle: 4 frames — the bells swing, candlelight flickers.
 // ---- local texture kit (deterministic) ----
+// Age variants (gen/ages/wrap.mjs): the generator runs per age; AGE 0 Dark … 3 Imperial, AK = pixAgeKit(AGE).
+const make = (AGE) => {
+const AK = pixAgeKit(AGE);
 const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
 const hash = (a, b) => { let h = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const copy = g => g.map(r => r.slice());
@@ -70,8 +73,14 @@ const discOn = (g, cx, cy, R, slope, fn) => {
 };
 
 
+// Age variants (AGE, AK = pixAgeKit(AGE) come from gen/ages/wrap.mjs); the temple stands from the Castle Age.
+//   Castle   the chapel as tuned: limestone nave, red tiles, bell tower with a tiled spire and a gold cross (the original art).
+//   Imperial pale limestone ashlar and blue-grey slate; gilt cresting along the nave ridge and gilt eave trim; the bell tower
+//            raised a stage with gilt string courses, corner pinnacles and a taller slate spire under a gilt orb and cross;
+//            a gilt-ringed rose window, gilt-fringed team banners flanking the west door.
+const C = AGE === 2, { Au } = AK;
 const W = 3, H = 3;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 96;
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 96 + (C ? 0 : 24);
 const bx = W * 32 + 2, by = GH - 4;
 const g = pixGrid(GW, GH);
 // bottom corner of a box occupying tiles [x0,x0+w) × [y0,y0+h)
@@ -127,7 +136,7 @@ line(g, eB, r2, 'k'); line(g, [eB[0] + 1, eB[1]], [r2[0] + 1, r2[1]], 'B'); line
 const gm = lerp(top.Rr, top.Bm, 0.5);
 const ROSE = [Math.round(gm[0]), Math.round(gm[1] - 5)];
 discOn(g, ROSE[0], ROSE[1], 5, -0.5, (x, y) => { const d = Math.hypot(x, y), a = (Math.atan2(y, x) * 4 / Math.PI + 8) % 1;
-  return d > 4.4 ? 'k' : d > 3.6 ? 'q' : d < 1.2 ? 'G' : (a < 0.18 || a > 0.82) ? 'k' : ((Math.atan2(y, x) * 4 / Math.PI + 8) % 2 < 1 ? 'n' : 'R'); });
+  return d > 4.4 ? 'k' : d > 3.6 ? (C ? 'q' : Au[1]) : d < 1.2 ? 'G' : (a < 0.18 || a > 0.82) ? 'k' : ((Math.atan2(y, x) * 4 / Math.PI + 8) % 2 < 1 ? 'n' : 'R'); });
 pixStamp(g, r2[0] - 2, r2[1] - 8, `
 ..k..
 .kGk.
@@ -152,8 +161,14 @@ kqDDDDDqk
 kSSSSSSSk
 `, -0.5); }
 
+if (!C) { // Imperial: gilt cresting along the nave ridge, gilt eave trim, gilt-fringed banners flanking the west door
+  AK.crest(g, [r1[0] + 2, r1[1]], [r2[0] - 2, r2[1]]);
+  AK.trim(g, [eL[0] + 1, eL[1] - 1], [eB[0] - 1, eB[1] - 1], 0);
+  const dm = lerp(base.Rr, base.Bm, 0.5);
+  for (const du of [-13, 9]) AK.banner(g, Math.round(dm[0]) + du, Math.round(dm[1] - du * 0.5) - 19, -0.5, 4, 11);
+}
 // ---- bell tower at the front-left corner, ashlar with string courses, open belfry with a swinging bell, spire, gold cross
-const TX = 0.1, TY = 2.0, TS = 0.9, TZ = 50, SP = 40;
+const TX = 0.1, TY = 2.0, TS = 0.9, TZ = C ? 50 : 64, SP = C ? 40 : 50;
 const tb = bmOf(TX, TY, TS, TS); tb[1] -= 3;
 // The tower overlaps the nave's front-left end: the back part of its right face (j < 2.4, behind the nave's front wall) is
 // hidden by the nave wall and roof, so it rises out of the roof. `underTower` keeps the nave to restore those cells.
@@ -162,8 +177,8 @@ const tt = pixIsoBox(g, tb[0], tb[1], TS, TS, TZ, 1, { left: '4', right: '5' });
 const tbase = tt.base;
 paint(g, '4', (x, y) => { const h = wallH(tbase.L, tbase.Bm, x, y); return h < 3 ? 'q' : course(x, y, 0.5, ashL); });
 paint(g, '5', (x, y) => { const h = wallH(tbase.Bm, tbase.Rr, x, y); return h < 3 ? 'Q' : course(x, y, -0.5, ashR); });
-for (const yy of [17, 33]) { line(g, [tbase.L[0], tbase.L[1] - yy], [tbase.Bm[0], tbase.Bm[1] - yy], 'k'); line(g, [tbase.L[0], tbase.L[1] - yy + 1], [tbase.Bm[0], tbase.Bm[1] - yy + 1], 'l');
-  line(g, [tbase.Bm[0], tbase.Bm[1] - yy], [tbase.Rr[0], tbase.Rr[1] - yy], 'k'); line(g, [tbase.Bm[0], tbase.Bm[1] - yy + 1], [tbase.Rr[0], tbase.Rr[1] - yy + 1], 's'); }
+for (const yy of C ? [17, 33] : [17, 33, 49]) { line(g, [tbase.L[0], tbase.L[1] - yy], [tbase.Bm[0], tbase.Bm[1] - yy], 'k'); line(g, [tbase.L[0], tbase.L[1] - yy + 1], [tbase.Bm[0], tbase.Bm[1] - yy + 1], C ? 'l' : Au[0]);
+  line(g, [tbase.Bm[0], tbase.Bm[1] - yy], [tbase.Rr[0], tbase.Rr[1] - yy], 'k'); line(g, [tbase.Bm[0], tbase.Bm[1] - yy + 1], [tbase.Rr[0], tbase.Rr[1] - yy + 1], C ? 's' : Au[1]); }
 // quoins on the tower's front corner
 for (let k = 3; k < TZ - 2; k += 4) { const o = (k >> 2) % 2; pixRect(g, tbase.Bm[0] - 2 - o, tbase.Bm[1] - k - 3, 2 + o, 3, 'l'); pixRect(g, tbase.Bm[0], tbase.Bm[1] - k - 3, 2 + (1 - o), 3, 's'); }
 const BELFRY = `
@@ -179,6 +194,7 @@ kmmmmmk
 const pL = lerp(tbase.L, tbase.Bm, 0.5), pR = lerp(tbase.Bm, tbase.Rr, 0.5);
 const BELL_L = [Math.round(pL[0]) - 3, Math.round(pL[1]) - TZ + 3], BELL_R = [Math.round(pR[0]) - 3, Math.round(pR[1]) - TZ + 3];
 stampOn(g, BELL_L[0], BELL_L[1], BELFRY, 0.5); stampOn(g, BELL_R[0], BELL_R[1], BELFRY.replace(/m/g, 's'), -0.5);
+if (!C) { stampOn(g, Math.round(pL[0]) - 2, Math.round(pL[1]) - 45, LANCET, 0.5); lancets.push([Math.round(pL[0]) - 2, Math.round(pL[1]) - 45]); }
 stampOn(g, Math.round(pL[0]) - 3, Math.round(pL[1]) - 30, `
 .kkkkk.
 kqnnnqk
@@ -211,7 +227,7 @@ paint(g, '9', (x, y) => course(x, y, 0.5, { h: 3, w: 4, joint: 'c', lip: 'A', to
 paint(g, '0', (x, y) => course(x, y, -0.5, { h: 3, w: 4, joint: 'e', lip: 'b', tones: ['c'] }));
 paint(g, '6', () => 'c');
 line(g, sR.L, sR.Bm, 'k'); line(g, sR.Bm, sR.Rr, 'k'); line(g, sR.Bm, ap, 'k'); line(g, [sR.Bm[0] - 1, sR.Bm[1]], [ap[0] - 1, ap[1]], 'B');
-pixStamp(g, ap[0] - 2, ap[1] - 9, `
+if (C) pixStamp(g, ap[0] - 2, ap[1] - 9, `
 ..k..
 .kGk.
 kGGGk
@@ -220,6 +236,32 @@ kGGGk
 .kgk.
 ..k..
 `);
+else { // gilt eave trim, crested front hip, pinnacles on the tower's corners, and a gilt cross over an orb
+  AK.trim(g, [sR.L[0] + 1, sR.L[1]], sR.Bm, -1); AK.trim(g, sR.Bm, [sR.Rr[0] - 1, sR.Rr[1]], -1);
+  AK.crest(g, lerp(sR.Bm, ap, 0.15), lerp(sR.Bm, ap, 0.75));
+  for (const P of [sR.L, sR.Bm, sR.Rr]) pixStamp(g, Math.round(P[0]) - 1, Math.round(P[1]) - 8, `
+.k.
+kλk
+kμk
+klk
+klk
+kmk
+kMk
+kkk
+`);
+  pixStamp(g, ap[0] - 2, ap[1] - 12, `
+..k..
+.kλk.
+kλλμk
+.kμk.
+.kμk.
+.kλk.
+kλμνk
+kμμνk
+.kνk.
+..k..
+`);
+}
 
 const baseG = outline(g, 'k', { l: 'm', y: 'Y', S: 'q', B: 'A' });
 
@@ -250,9 +292,10 @@ for (let i = 0; i < 4; i++) {
   frames.push(pixText(f));
 }
 
-export default {
+return {
   id: 'temple', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
+    ...AK.pal,
     k: '#24180f',                                                        // ink
     l: '#efe7d2', m: '#e0d5bb', M: '#cbbf9f',                            // limestone lit wall: light / mid / shadow
     r: '#c4b89c', s: '#ad9f80', Q: '#8f8268',                            // limestone shaded wall
@@ -263,6 +306,11 @@ export default {
     n: '#3f6fb8', R: '#b8342a', G: '#ffe28a', g: '#c0953a',              // stained glass, gold, bell
     i: '#1f1610',                                                        // belfry dark
     T: 'team', D: 'teamdark', L: 'teamlight',
+    // Imperial: the same courses in the age kit's pale limestone and blue-grey slate
+    ...(C ? {} : { l: AK.pal['σ'], m: AK.pal['ς'], M: AK.pal['τ'], r: AK.pal['ς'], s: AK.pal['τ'], Q: AK.pal['υ'],
+      B: AK.pal['α'], A: AK.pal['γ'], b: AK.pal['δ'], c: AK.pal['ε'], e: AK.pal['η'], y: '#e6dcc4', Y: '#d6caae', x: '#c8bb9c', z: '#a89878' }),
   },
   frames: { idle: frames },
 };
+};
+export default pixAged(make, 2);

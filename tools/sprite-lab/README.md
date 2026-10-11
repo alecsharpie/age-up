@@ -75,6 +75,21 @@ frame as its carcass, flashes painted units white when hit (`pixFlash`), and set
 75/50/25 % hp. A set may have its own size via `spec.anchors.<set>`; `spec.fps` overrides the rates.
 `gen/` holds the scripts that generated the current sprites (see `gen/README.md`).
 
+## Age variants (buildings)
+
+Every building evolves with its owner's age (`G.players[team].age`: 0 Dark, 1 Feudal, 2 Castle, 3 Imperial). The family build
+scripts in `gen/` pass each built draft through `gen/ages/wrap.mjs`, which turns the generator into `make(AGE)` with the age kit
+`AK = pixAgeKit(AGE)` in scope and exports `pixAged(make, firstAge)`. The game generates the building's first age at load and the
+rest lazily (warmed in idle time); draw cases call `pixAge(PIXELS.<id>, b)`, and `pixFlags` places code flags from `spec.flags`
+when a variant moves its mount. The kit (`drafts/helpers.js`) holds the shared progression — thatch/wattle → shingles/timber
+frame → red tiles/dressed stone → slate/limestone/gilt — as Greek-letter palette chars, roof and wall textures, and ornaments
+(finial, crest, banner, trim, windowAt); its doc comment is the bible. `gen/civic/house.body.js` is the reference generator.
+
+- `lab.mjs ages [type|all] [--src draft]` → `out/ages.<type>.<src>.png`: every building across the ages it can stand in.
+- `render pixel <id>` adds age rows; `render building <id>` adds an "ages" row; `scene --age n` draws the village at one age;
+  the catalogue has an age selector per building, an age option in the village tab, and an "across the ages" contact view.
+- `aaa <id>` checks every age variant. In the lab, `b.age` on a fake building overrides the owner's age.
+
 ## Batch apply and smoke test
 
 - `lab.mjs apply all [--dry]` applies helpers, then every `pixel.*` draft, then every case-body draft, with one backup,

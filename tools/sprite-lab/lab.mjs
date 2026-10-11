@@ -157,7 +157,12 @@ const commands = {
     await withPage(page => shoot(page, 'contact', { kind, src: flags.src || 'current', mag: +(flags.zoom || 2), maxW: +(flags.width || 1500) }, `contact.${kind}.${flags.src || 'current'}`));
   },
   async scene() {
-    await withPage(page => shoot(page, 'scene', { team: +(flags.team || 0), time: +(flags.time ?? 0.3), src: flags.src || 'current', zoom: +(flags.zoom || 1) }, `scene.${flags.src || 'current'}.t${flags.team || 0}`));
+    const age = flags.age !== undefined ? +flags.age : undefined;
+    await withPage(page => shoot(page, 'scene', { team: +(flags.team || 0), time: +(flags.time ?? 0.3), src: flags.src || 'current', zoom: +(flags.zoom || 1), age }, `scene.${flags.src || 'current'}.t${flags.team || 0}${age !== undefined ? '.a' + age : ''}`));
+  },
+  async ages() {
+    const type = pos[0] && pos[0] !== 'all' ? pos[0] : 'all'; const src = flags.src || 'current';
+    await withPage(page => shoot(page, 'ages', { type, src, mag: +(flags.zoom || 2), team: +(flags.team || 0) }, `ages.${type}.${src}${flags.team ? '.t' + flags.team : ''}`));
   },
   async palette() { await withPage(page => shoot(page, 'palette', {}, 'palette')); },
   async catalog() {
@@ -189,6 +194,13 @@ const commands = {
       const f = [draftPath('pixel', id), path.join(DRAFTS, `applied.pixel.${id}.js`)].find(p => fs.existsSync(p));
       if (!f) { console.log(`${id.padEnd(14)} no pixel draft`); bad++; continue; }
       let spec; try { spec = parsePixelDraft(fs.readFileSync(f, 'utf8')); } catch (e) { console.log(`${id.padEnd(14)} FAILS TO PARSE: ${e.message}`); bad++; continue; }
+      if (spec.make) { // age variants: check every age the building stands in, report the worst
+        const reps = [0, 1, 2, 3].filter(a => a >= spec.age).map(a => { const s = a === spec.age ? spec : spec.make(a); const r = AAA.check(id, s); return [a, r]; });
+        const badA = reps.filter(([, r]) => r.problems.length);
+        const line = reps.map(([a, r]) => `${['Dark', 'Feudal', 'Castle', 'Imperial'][a]} ${r.m.colours}col ${r.m.outline}%${r.problems.length ? ' ✗' : ''}`).join(' · ');
+        if (!badA.length) { pass++; console.log(`${id.padEnd(14)} building  ${path.basename(f).startsWith('applied') ? 'applied' : 'draft  '} ages: ${line}  AAA ✓`); continue; }
+        bad++; console.log(`${id.padEnd(14)} building  ages: ${line}`); for (const [a, r] of badA) for (const p of r.problems) console.log(`    MISSING  [${['Dark', 'Feudal', 'Castle', 'Imperial'][a]}] ${p}`); continue;
+      }
       const r = AAA.check(id, spec); const M = r.m;
       const sets = Object.entries(M.sets).map(([k, v]) => k + ':' + v).join(' ');
       const head = `${id.padEnd(14)} ${r.cls.padEnd(9)} ${path.basename(f).startsWith('applied') ? 'applied' : 'draft  '} ${String(M.colours).padStart(2)} col  outline ${String(M.outline).padStart(3)}%  ${sets}`;
@@ -289,7 +301,8 @@ if (!cmd || cmd === 'help' || cmd === '--help' || !commands[cmd]) {
   new <kind> <type>                 scaffold drafts/<kind>.<type>.js pre-filled with the current art
   render <kind> <type> [--src s]    sheet PNG: teams · construction/walk · animation · states · ×N detail (draft vs current)
   sheet [kind|all] [--zoom 2]       contact sheet of everything, for consistency
-  scene [--team n] [--time t]       a composed village on terrain, in depth order [--src draft] [--zoom 2]
+  scene [--team n] [--time t]       a composed village on terrain, in depth order [--src draft] [--zoom 2] [--age 0-3]
+  ages [type|all] [--src s]         every building across the four ages (rows = buildings, cells = ages) [--team n] [--zoom 2]
   aaa [id|all] [--verbose]          the AAA bar for painted sprites: frame counts, ramps, outline, ground contact (AAA.md)
   lint [kind [type] | all]          overflow, team colour, construction stages, animation, new colours, exceptions
   palette                           every colour currently in use, by section

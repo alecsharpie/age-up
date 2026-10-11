@@ -67,8 +67,12 @@ const hasDraft = (kind, type) => !!LAB.drafts[kind][type];
 function fakeBuilding(type, o = {}) {
   const d = BUILDINGS[type]; const p = o.p ?? 1; const built = p >= 1;
   return { id: o.id ?? 11, kind: 'bld', type, team: o.team ?? 0, tx: o.tx ?? 0, ty: o.ty ?? 0, w: d.w, h: d.h, built, progress: built ? 1 : p,
-    hp: built ? Math.round(d.hp * (o.hpf ?? 1)) : Math.round(d.hp * p), flash: 0, garrison: o.garrison || [], relics: o.relics || 0, queue: [] };
+    hp: built ? Math.round(d.hp * (o.hpf ?? 1)) : Math.round(d.hp * p), flash: 0, garrison: o.garrison || [], relics: o.relics || 0, queue: [],
+    ...(o.age !== undefined && o.age !== null ? { age: o.age } : {}) };   // b.age: the lab's override of the owner's age (pixAgeOf)
 }
+const AGE_NAMES = ['Dark', 'Feudal', 'Castle', 'Imperial'];
+/** The ages a building can stand in (its first age … Imperial; the starting Town Hall stands from the Dark Age). */
+const agesOf = type => { const a0 = type === 'townhall' ? 0 : (BUILDINGS[type].age || 0); return [0, 1, 2, 3].filter(a => a >= a0); };
 function fakeUnit(type, o = {}) {
   const d = UNITS[type]; const st = o.state || 'idle';
   const u = { id: o.id ?? 5, kind: 'unit', type, team: o.team ?? (d.animal ? -1 : 0), x: o.x ?? 0.5, y: o.y ?? 0.5, hp: d.hp, state: 'idle', goal: null, phase: null,
@@ -188,6 +192,7 @@ const teamName = t => t < 0 ? 'wild' : TEAM[t].n.toLowerCase();
 function buildingPanel(type, src) {
   const d = BUILDINGS[type]; const mag = Math.max(2, Math.min(5, Math.floor(420 / ((d.w + d.h) * HW))));
   const rows = [];
+  rows.push({ label: 'ages · the owner\'s age picks the variant (pixAge)', cells: agesOf(type).map(a => ({ label: AGE_NAMES[a], img: renderCell('building', type, { src, age: a, time: 0.3 }) })) });
   rows.push({ label: 'team colours · built · t=0', cells: TEAMS_FOR('building', type).map(t => ({ label: teamName(t), img: renderCell('building', type, { src, team: t }) })) });
   rows.push({ label: 'construction progress', cells: [0.05, 0.3, 0.55, 0.8, 1].map(p => ({ label: 'p=' + p, img: renderCell('building', type, { src, p }) })) });
   rows.push({ label: 'animation over time (s)', cells: [0, 0.4, 0.8, 1.2].map(t => ({ label: 't=' + t, img: renderCell('building', type, { src, time: t }) })) });
@@ -266,6 +271,11 @@ function pixelPanel(id) {
   const big = spec.kind === 'building'; const mag = big ? Math.max(1, Math.min(3, Math.floor(400 / pixBuild(spec, spec.frames[first][0], tc0).width))) : 6;
   for (const [name, list] of Object.entries(spec.frames)) rows.push({ label: `${name} · ${list.length} frame(s) · ×${mag} · red cross = anchor`, cells: list.map((g, i) => ({ label: name + ' ' + i, img: pixCell(spec, g, tc0, mag, true, name) })) });
   if (spec.kind !== 'resource') rows.push({ label: `team colours · first frame · ×${big ? 1 : 4}`, cells: [0, 1, 2, 3].map(t => ({ label: teamName(t), img: pixCell(spec, spec.frames[first][0], TEAM[t], big ? 1 : 4, false) })) });
+  if (big && spec.make) {
+    const ages = [0, 1, 2, 3].filter(a => a >= spec.age).map(a => [a, pixAge(spec, a)]);
+    rows.push({ label: 'ages at 1× on the footprint (spec.make(AGE) · pixAge) · blue / red', cells: ages.flatMap(([a, s]) => [0, 1].map(t => ({ label: AGE_NAMES[a] + (t ? ' · red' : ''), img: pixBuildingCell(s, first, 0, TEAM[t], 1) }))) });
+    rows.push({ label: 'ages ×2 pixel-true', cells: ages.map(([a, s]) => ({ label: AGE_NAMES[a], img: magnify(pixBuildingCell(s, first, 0, tc0, 1), 2) })) });
+  }
   if (big) rows.push({ label: 'at 1× on its footprint · construction clip 0.3 / 0.65 / 1 · frames over time', cells: [
     { label: 'clip 0.3', img: pixBuildingCell(spec, first, 0, tc0, 0.3) }, { label: 'clip 0.65', img: pixBuildingCell(spec, first, 0, tc0, 0.65) }, { label: 'built', img: pixBuildingCell(spec, first, 0, tc0, 1) },
     ...(spec.frames[first].length > 1 ? spec.frames[first].slice(1).map((g, i) => ({ label: 'frame ' + (i + 1), img: pixBuildingCell(spec, first, i + 1, tc0, 1) })) : []) ] });
@@ -311,11 +321,18 @@ LAB.contact = (kind = 'all', src = 'current', mag = 2, maxW = 1500) => {
   return compose(`contact sheet · ${kind}`, [{ title: '', rows: panels.flatMap(p => p.rows) }]);
 };
 
+/** Every building across the ages: one row per building, one cell per age it can stand in. */
+LAB.ages = (type = 'all', src = 'current', mag = 2, team = 0) => {
+  const list = type === 'all' ? BUILD_ORDER : [type];
+  const rows = list.map(t => ({ label: `${t} ${BUILDINGS[t].w}×${BUILDINGS[t].h}`, cells: agesOf(t).map(a => ({ label: AGE_NAMES[a], img: magnify(renderCell('building', t, { src, time: 0.3, age: a, team }), mag) })) }));
+  return compose(`buildings across the ages · ${src} · ×${mag} pixel-true · t=0.3`, [{ title: '', rows }]);
+};
+
 /** A hand-placed village so sprites can be judged together, in depth order, on real terrain. */
 LAB.sceneCanvas = (o = {}) => {
   const team = o.team ?? 0, src = o.src || 'current', time = o.time ?? 0.3, zoom = o.zoom ?? 1, M = 14;
   const terrainAt = (x, y) => (x + y >= 22 ? 2 : x + y >= 20 ? 3 : (x >= 4 && x <= 8 && y >= 4 && y <= 8) ? 1 : 0);
-  const B = (type, tx, ty, p = 1, extra = {}) => Object.assign(fakeBuilding(type, { team, tx, ty, p, id: tx * 31 + ty }), extra);
+  const B = (type, tx, ty, p = 1, extra = {}) => Object.assign(fakeBuilding(type, { team, tx, ty, p, id: tx * 31 + ty, age: o.age }), extra);
   const U = (type, x, y, o2 = {}) => fakeUnit(type, Object.assign({ team, x, y, id: Math.round(x * 7 + y * 13) }, o2));
   const R = (res, tx, ty, o2 = {}) => fakeRes(res, Object.assign({ tx, ty }, o2));
   const blds = [B('townhall', 5, 5), B('house', 2, 1), B('house', 5, 1), B('mill', 10, 4), B('farm', 12, 4), B('farm', 10, 6), B('farm', 12, 2), B('lumber', 1, 7), B('mine', 8, 9), B('smith', 2, 4),
@@ -349,10 +366,12 @@ LAB.sceneCanvas = (o = {}) => {
     if (e.kind === 'unit') safely(() => F.drawUnit(e, false));
     else if (e.kind === 'bld') safely(() => F.drawBuilding(e, false));
     else if (e.kind === 'res') safely(() => F.drawResource(e));
-    else { const wx = wpx(e.x, e.y), wy = wpy(e.x, e.y); c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(wx, wy, 7, 3.5, 0, 0, 7); c.fill(); c.fillStyle = '#e8c55a'; c.fillRect(wx - 5, wy - 14, 10, 12); c.strokeStyle = '#8a6a12'; c.strokeRect(wx - 5, wy - 14, 10, 12); c.fillStyle = '#fff8d0'; c.fillRect(wx - 2, wy - 11, 4, 3); }
+    else { const wx = wpx(e.x, e.y), wy = wpy(e.x, e.y); c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(wx, wy, 7, 3.5, 0, 0, 7); c.fill();
+      if (typeof pixRelic === 'function' && PIXELS.relic) safely(() => pixRelic(wx, wy, 'idle'));   // the game's relic, with its halo
+      else { c.fillStyle = '#e8c55a'; c.fillRect(wx - 5, wy - 14, 10, 12); c.strokeStyle = '#8a6a12'; c.strokeRect(wx - 5, wy - 14, 10, 12); c.fillStyle = '#fff8d0'; c.fillRect(wx - 2, wy - 11, 4, 3); } }
   }
   c.restore();
-  if (o.caption !== false) { c.fillStyle = '#d9b35a'; c.font = '14px Georgia'; c.fillText(`scene · ${src} · team ${teamName(team)} · t=${time}${errors.length ? ' · ERRORS: ' + errors.join(' | ') : ''}`, 10, 20); }
+  if (o.caption !== false) { c.fillStyle = '#d9b35a'; c.font = '14px Georgia'; c.fillText(`scene · ${src} · team ${teamName(team)}${o.age !== undefined ? ' · ' + AGE_NAMES[o.age] + ' Age' : ''} · t=${time}${errors.length ? ' · ERRORS: ' + errors.join(' | ') : ''}`, 10, 20); }
   const img = magnify(off, zoom); img.errors = errors; return img;
 };
 LAB.scene = (o = {}) => { const img = LAB.sceneCanvas(o); const out = outCv(); out.width = img.width; out.height = img.height; out.getContext('2d').drawImage(img, 0, 0); return { w: img.width, h: img.height, errors: img.errors }; };
@@ -446,6 +465,7 @@ LAB.show = (view, o = {}) => {
   if (view === 'contact') return LAB.contact(o.kind, o.src, o.mag, o.maxW);
   if (view === 'scene') return LAB.scene(o);
   if (view === 'palette') return LAB.palette();
+  if (view === 'ages') return LAB.ages(o.type, o.src, o.mag, o.team);
   throw new Error('unknown view ' + view);
 };
 
@@ -468,5 +488,5 @@ function buildUI() {
   if (!HEADLESS) go();
 }
 
-Object.assign(LAB, { pixCell, pixGroundCell, renderCell, renderCellVector, magnify, fakeBuilding, fakeUnit, fakeRes, drawGround, tile, drawEntity, cellGeom, drawFootprint, teamName, hasDraft });
+Object.assign(LAB, { agesOf, AGE_NAMES, pixCell, pixGroundCell, renderCell, renderCellVector, magnify, fakeBuilding, fakeUnit, fakeRes, drawGround, tile, drawEntity, cellGeom, drawFootprint, teamName, hasDraft });
 boot().catch(e => { LAB.errors.push(e.message); log('boot failed: ' + e.message, 'err'); LAB.ready = true; LAB.bootFailed = e.message; });

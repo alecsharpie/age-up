@@ -10,6 +10,7 @@ export const CLASSES = {
   animal: ['sheep', 'deer', 'boar'],
   resource: ['wood', 'food', 'gold', 'stone'],
   effect: ['fire'],
+  item: ['relic'],
 };
 export function classOf(id, spec) {
   if (spec && spec.kind === 'building') return 'building';
@@ -25,6 +26,7 @@ export const REQUIRED = {
   animal: { idle: 4, walk: 6, death: 5 },
   resource: { idle: 3 },
   effect: { idle: 6 },
+  item: { idle: 4 },
   building: { idle: 2 },
   other: { idle: 1 },
 };
@@ -82,7 +84,7 @@ export function check(id, spec) {
   for (const [set, sz] of Object.entries(sizeBySet)) if (sz.size > 1) rep.problems.push(`${set}: frames differ in size (${[...sz].join(', ')}) — the anchor will jump`);
   const base = [...(sizeBySet.idle || [])][0];
   for (const [set, sz] of Object.entries(sizeBySet)) if (base && sz.size === 1 && [...sz][0] !== base && !(spec.anchors && spec.anchors[set])) rep.problems.push(`${set} is ${[...sz][0]} but idle is ${base}: give it its own anchor in spec.anchors.${set}`);
-  const minCol = { human: 12, mounted: 14, siege: 12, ship: 12, animal: 8, resource: 10, effect: 6 }[cls] || 8;
+  const minCol = { human: 12, mounted: 14, siege: 12, ship: 12, animal: 8, resource: 10, effect: 6, item: 10 }[cls] || 8;
   if (used.size < minCol) rep.problems.push(`${used.size} colours — needs ≥${minCol} for 3-tone ramps per material + outline`);
   if (M.outline < 55 && cls !== 'effect') rep.problems.push(`outline: ${M.outline}% of silhouette edge pixels are dark — needs ≥55% (selective 1-px outline)`);
   if (strays > frames) rep.problems.push(`${strays} stray single pixels across ${frames} frames`);
@@ -91,7 +93,7 @@ export function check(id, spec) {
   if (noGround.length) rep.problems.push(`not touching the ground line: ${noGround.slice(0, 6).join(' ')}${noGround.length > 6 ? '…' : ''}`);
   for (const set of ['idle', 'walk', 'attack', 'death']) { const L = F[set] || []; if (L.length > 1 && new Set(L).size === 1) rep.problems.push(`${set}: every frame identical`); }
   if (dupes.length) rep.notes.push(`repeated frames (fine for holds): ${dupes.slice(0, 4).join(' ')}${dupes.length > 4 ? '…' : ''}`);
-  const owned = !['animal', 'resource', 'effect'].includes(cls);
+  const owned = !['animal', 'resource', 'effect', 'item'].includes(cls);
   if (owned) { const teamKeys = pal.filter(k => /^team/.test(spec.palette[k])); if (!teamKeys.some(k => used.has(k))) rep.problems.push('no team colour used'); }
   return rep;
 }
