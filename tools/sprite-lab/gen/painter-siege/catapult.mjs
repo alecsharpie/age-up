@@ -25,14 +25,15 @@ function tipOf(a, L = AL) { return [PV[0] + L * Math.cos(deg(a)), PV[1] - L * Ma
 // The cart, everything but the arm. o = {dy, flag}
 function cart(g, o) {
   const dy = o.dy || 0;
-  // bed: two wood rows over a team-painted side board
-  g.rect(2, 13 + dy, 22, 1, 'W'); g.rect(2, 14 + dy, 22, 1, 'w'); g.rect(2, 15 + dy, 22, 1, 'T'); g.rect(2, 16 + dy, 22, 1, 'D');
-  g.rect(2, 15 + dy, 1, 2, 'L');
+  // bed: a wood lip over a deep team-painted side board (team-dark bottom edge)
+  g.rect(2, 13 + dy, 22, 1, 'W'); g.rect(2, 14 + dy, 22, 2, 'T'); g.rect(2, 16 + dy, 22, 1, 'D');
+  g.rect(2, 14 + dy, 1, 3, 'L'); g.rect(3, 14 + dy, 20, 1, 'L');
   [6, 13, 20].forEach(x => { g.set(x, 15 + dy, 'n'); });                     // iron bolts on the side board
   // front uprights + crossbar (padded with rope where the arm strikes)
-  g.rect(16, 6 + dy, 1, 7, 'W'); g.rect(17, 6 + dy, 1, 7, 'd');
+  // the front frame is team-painted timber (lit left / team-dark shade) so the owner still reads when zoomed out
+  g.rect(16, 6 + dy, 1, 7, 'T'); g.rect(17, 6 + dy, 1, 7, 'D');
   g.beam(22, 12 + dy, 18, 8 + dy, 1.6, WOOD);                                 // brace
-  g.rect(12, 4 + dy, 7, 1, 'W'); g.rect(12, 5 + dy, 7, 1, 'd');
+  g.rect(12, 4 + dy, 7, 1, 'L'); g.rect(12, 5 + dy, 7, 1, 'D');
   g.rect(12, 4 + dy, 2, 2, 'R'); g.set(13, 5 + dy, 'r');
   // winch drum at the back
   g.rect(2, 11 + dy, 3, 2, 'n'); g.set(2, 11 + dy, 'm'); g.set(3, 11 + dy, 's');

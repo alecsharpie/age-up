@@ -16,7 +16,7 @@
 const make = (AGE) => {
 const AK = pixAgeKit(AGE);
 const W = 3, H = 3, Z = 2;
-const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 44 + [0, 0, 14, 34][AGE];
+const GW = (W + H) * 32 + 4, GH = (W + H) * 16 + 44 + [0, 0, 18, 37][AGE];
 const bx = W * 32 + 2, by = GH - 4, OY = by - 136;          // OY: extra headroom of the taller ages (fixed coordinates below shift by it)
 // ---- local texture kit (needs GW, GH, by) ----
 const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -80,6 +80,52 @@ const copy = g => g.map(r => r.slice());
 /** draw into a fresh layer, ink its outline, composite it: props and masses get their own dark edge inside the silhouette */
 function inked(g, draw, ink = 'k', inkLit = 'K', self = '') { const t = pixGrid(GW, GH); draw(t); outline(t, ink, inkLit, self); for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (t[y][x] !== '.') g[y][x] = t[y][x]; }
 const stampL = (g, x, y, text) => pixStamp(g, Math.round(x), Math.round(y), text);
+// ---- natural edges (HOLISTIC.md "Natural lines"): grass over the wall foot, weathered faces, sagging lines ----
+// Cyrillic chars so they never collide with a generator's letters or the age kit's Greek; merge NAT into the palette.
+const NAT = { 'ж': '#7cb85a', 'г': '#4f9a42', 'д': '#33702c', 'Д': '#22461c',      // grass tuft light / mid / dark, its ink edge
+  'м': '#8c9462', 'л': '#6a7250', 'ь': '#4f5640' };                                    // moss / lichen lit, shade, deep
+const mod = (a, n) => ((a % n) + n) % n;
+/** lowest opaque cell of column x (the wall foot on the silhouette), or -1 */
+function footRow(g, x) { for (let y = GH - 1; y >= 0; y--) if (g[y][x] !== '.') return y; return -1; }
+/** grass tufts growing over the foot of the walls along the bottom silhouette: clustered, 1–3 px blades.
+ *  o.dens (share of columns, clustered), o.h (max blade), o.s seed, o.skip(x, y, ch) → leave a column bare. */
+function tufts(g, o = {}) {
+  const dens = o.dens ?? 0.4, s = o.s ?? 1, mh = o.h ?? 3;
+  for (let x = 0; x < GW; x++) {
+    const y = footRow(g, x); if (y < 0 || (o.skip && o.skip(x, y, g[y][x]))) continue;
+    const n = vnoise(x, 0, 5, s); if (n > dens) continue;
+    const hh = 1 + Math.floor(hash(x, 7, s) * mh * (1.15 - n / dens * 0.6));
+    for (let k = 0; k < hh; k++) put(g, x, y - k, k === hh - 1 && hh > 1 ? 'ж' : k === 0 ? 'д' : 'г');
+  }
+}
+/** after the outline: the ink under a tuft becomes the grass's own dark edge, so the wall foot is not one ruler line */
+function tuftInk(g) {
+  for (let y = 1; y < GH; y++) for (let x = 0; x < GW; x++) if ((g[y][x] === 'k' || g[y][x] === 'K') && 'дгж'.includes(g[y - 1][x])) g[y][x] = 'Д';
+}
+/** wrap a wall face fn(a, v, u, x, y) (v rows from the top, H tall): damp and moss creep up from the foot in clusters and
+ *  rain streaks run down from the top. o.dark {ch: darker}, o.moss {ch: mossCh} (optional), o.mh max moss rows, o.st
+ *  streak share, o.top first streak row, o.s seed. Only chars listed in o.dark are touched (openings and cloth stay clean). */
+const weathered = (fn, H, o) => (a, v, u, x, y) => {
+  const c = fn(a, v, u, x, y); if (!c || !(c in o.dark)) return c;
+  const s = o.s ?? 3, fb = H - 1 - v, X = x ?? a, Y = y ?? v;
+  const n = vnoise(X, 0, 5, s), mh = Math.floor(n * n * (o.mh ?? 4) * 1.6 + 0.5);
+  if (fb < mh) return o.moss && vnoise(X, Y, 3, s + 7) > 0.56 ? o.moss[c] || o.dark[c] : o.dark[c];   // damp foot, moss in clumps
+  const sl = 3 + Math.floor(hash(X, 5, s) * 7), t0 = o.top ?? 1;
+  if (hash(X, 1, s) < (o.st ?? 0.07) && v >= t0 && v < t0 + sl) return v < t0 + sl - 2 || hash(X, v, s) < 0.5 ? o.dark[o.dark[c]] || o.dark[c] : o.dark[c];   // rain streak
+  return c;
+};
+/** points along a→b with a sag of `depth` rows in the middle (a sine arc) */
+const sagAt = (u, depth) => Math.round(depth * Math.sin(Math.PI * Math.max(0, Math.min(1, u))));
+/** sag an interior line (a ridge between two roof planes) by `depth` rows: the plane above flows down over the dip, then
+ *  draw(x, y) paints the line at its new place (call with each column's sagged y). */
+function sagLine(t, a, b, depth, draw) {
+  const x0 = Math.round(Math.min(a[0], b[0])), x1 = Math.round(Math.max(a[0], b[0]));
+  for (let x = x0; x <= x1; x++) {
+    const u = (x - a[0]) / (b[0] - a[0]), y = Math.round(a[1] + u * (b[1] - a[1])), dy = sagAt(u, depth);
+    for (let k = 0; k < dy; k++) put(t, x, y + k, t[y - 1] ? t[y - 1][x] : '.');
+    draw(x, y + dy);
+  }
+}
 const g = pixGrid(GW, GH);
 const tile = (tx, ty) => [bx + (tx - ty) * 32, by - 96 + (tx + ty) * 16 + 16];
 const top = pixIsoBox(g, bx, by, W, H, Z, 1, { left: 'z', right: 'x' });
@@ -94,6 +140,8 @@ for (let ty = 0; ty < 3; ty++) {
   for (const [x, y] of cells([P(a, -4, -2), P(b, -4, -2), P(b, 4, 2), P(a, 4, 2)])) { const n = vnoise(x, y, 4, 7 + ty); if (g[y][x] !== '.') g[y][x] = n > 0.45 ? 'j' : 'y'; }
 }
 { const a = tile(0.62, 0.15), b = tile(0.62, 2.55); for (let k = 0; k <= 40; k++) if (k % 4 < 3) { const p = lerp(a, b, k / 40), x = Math.round(p[0]), y = Math.round(p[1]); if ('yYj'.includes(g[y][x])) g[y][x] = 'B'; } }   // chalk only on the range floor, not past the plinth edge
+for (let i = 0; i < 18; i++) { const p = lerp(tile(0.5, 0.2), tile(0.5, 2.5), hash(i, 81)), x = Math.round(p[0] + (hash(i, 82) - 0.5) * 8), y = Math.round(p[1] + (hash(i, 83) - 0.5) * 4);   // boot prints where the archers stand
+  if (g[y] && 'yYj'.includes(g[y][x]) && 'yYj'.includes(g[y][x + 1])) { g[y][x] = 'J'; g[y][x + 1] = 'Y'; } }
 for (const [x, y0] of [[120, 70], [64, 112], [150, 100], [92, 92], [176, 90]]) { const y = y0 + OY; g[y][x] = 'J'; g[y][x + 1] = 'Y'; }
 
 // ---- straw butts: a disc in the plane that faces the shed (sheared ellipse), bale thickness behind, A-frame stand
@@ -168,7 +216,7 @@ if (AGE === 1) inked(g, t => {
 });
 
 // ---- Castle / Imperial: the range house on the same plot as the shed
-const RH = { Z: [0, 0, 20, 24][AGE], RISE: [0, 0, 13, 18][AGE] };
+const RH = { Z: [0, 0, 24, 27][AGE], RISE: [0, 0, 13, 18][AGE] }, BAND = 16;   // taller walls leave room for the awning over the arch heads
 const { R: AR, S: AS, Au, Fe, Gl, DEEP } = AK;
 const hs = (u, v, z) => [SB[0] + 32 * (v - u), SB[1] - 16 * (u + v) - z];           // house space: u 0..1 deep, v 0..3 long
 const BAYS = 6, BW = 16;
@@ -178,7 +226,7 @@ const opening = (a, h) => {                                                     
   const c = n / 2, r = n / 2, dh = h - (top - r); if (dh > 0 && Math.hypot(su - c, dh * 1.15) > r + 0.3) return null;
   return [su, n, top, k];
 };
-const bannerAt = AGE >= 2 ? [[1, 'R'], [3, 'R'], [-1, 'L']] : [];                       // pier after bay k on the long face; -1 = end wall
+const bannerAt = AGE >= 2 ? [[-1, 'L']] : [];                                          // the end wall's banner (the long face has the awning)
 function houseWall(lit, len) {
   return (a, v) => {
     const h = RH.Z - 1 - v;
@@ -194,7 +242,7 @@ function houseWall(lit, len) {
         if (k === 2 && su >= 3 && su <= 5 && h >= 2 && h <= 7) return su === 4 ? 'T' : su === 3 ? 'D' : 'D';   // a quiver
         return h > top - 4 ? DEEP : 'I';
       }
-      if (AGE === 3 && h >= 17 && h <= 20) {                                            // round windows above each pier... between bays
+      if (AGE === 3 && h >= 17 && h <= 20 && false) {                                            // round windows above each pier... between bays
         const k = Math.floor(a / BW), c = k * BW + 8.5, d = Math.hypot(a + 0.5 - c, (h - 18.5) * 1.2);
         if (d < 1.4) return h >= 19 ? Gl[1] : Gl[0]; if (d < 2.4) return AS[1];
       }
@@ -210,12 +258,12 @@ function houseWall(lit, len) {
         }
       }
     }
-    if (AGE === 2 && h >= 13) {                                                          // timber-framed upper band over the stone storey
-      const step = 8; if (h === 13 || h === RH.Z - 1) return AK.W[lit ? 0 : 1]; if (a % step < 2 || a <= 1 || a >= len - 2) return AK.W[(a % step) === 1 || !lit ? 2 : 1];
-      if (h === 16 && (a % step) >= 2) return AK.W[lit ? 1 : 2];
+    if (AGE === 2 && h >= BAND) {                                                          // timber-framed upper band over the stone storey
+      const step = 8; if (h === BAND || h === RH.Z - 1) return AK.W[lit ? 0 : 1]; if (a % step < 2 || a <= 1 || a >= len - 2) return AK.W[(a % step) === 1 || !lit ? 2 : 1];
+      if (h === BAND + 3 && (a % step) >= 2) return AK.W[lit ? 1 : 2];
       return AK.P[lit ? 0 : 1];
     }
-    return AK.wallTex(a, h, lit ? 0 : 1, { len, H: AGE === 2 ? 13 : RH.Z, step: 16, pl: 2 });
+    return AK.wallTex(a, h, lit ? 0 : 1, { len, H: AGE === 2 ? BAND : RH.Z, step: 16, pl: 2 });
   };
 }
 let RIDGE = null;
@@ -258,6 +306,35 @@ if (AGE >= 2) {
     }
   });
 }
+// ---- Castle / Imperial: the striped team awning stays, now a pent awning over the arcade on iron brackets, between the
+// arch heads and the upper band (Imperial: under the round windows). Courses of team cloth and canvas, lighter at the wall,
+// a scalloped valance on the outer edge that flutters (per frame).
+const AW = { ha: [0, 0, 21, 24][AGE], drop: 3, dp: 0.16, v0: 0.06, v1: 2.94 };
+const awUV = (x, y) => { const X = (x + 0.5 - SB[0]) / 32, Yv = SB[1] - AW.ha - (y + 0.5), u = (Yv - 16 * X) / (32 + AW.drop / AW.dp); return [u, X + u]; };
+const awStripe = v => Math.floor((v - AW.v0) / (AW.v1 - AW.v0) * NS);
+if (AGE >= 2) {
+  inked(g, t => {
+    // iron brackets under the awning at every other pier, from the outer edge back to the wall
+    for (let k = 0; k <= 6; k += 2) { const v = Math.max(AW.v0 + 0.03, Math.min(AW.v1 - 0.03, k * 0.5)), a = hs(-AW.dp, v, AW.ha - AW.drop), b = hs(0, v, AW.ha - AW.drop - 6); pixLine(t, a[0], a[1], b[0], b[1], Fe[1]); }
+    const A = hs(0, AW.v0, AW.ha), B = hs(0, AW.v1, AW.ha), C = hs(-AW.dp, AW.v1, AW.ha - AW.drop), D = hs(-AW.dp, AW.v0, AW.ha - AW.drop);
+    for (const [x, y] of cells([A, B, C, D])) { const [u, v] = awUV(x, y), sI = awStripe(v), team = sI % 2 === 0, d = -u / AW.dp;
+      const lvl = d < 0.25 ? 0 : d > 0.8 ? 2 : 1; put(t, x, y, team ? ['L', 'T', 'D'][lvl] : ['A', 'B', 'a'][lvl]); }
+    { const a = hs(-AW.dp, AW.v0, AW.ha - AW.drop), b = hs(-AW.dp, AW.v1, AW.ha - AW.drop); pixLine(t, a[0], a[1], b[0], b[1], 'D'); }   // team binding along the edge
+    pixLine(t, A[0], A[1], B[0], B[1], AGE === 3 ? Au[1] : Fe[1]);                       // the rod it hangs from
+  });
+}
+function awValance(t, f) {
+  const a = hs(-AW.dp, AW.v0, AW.ha - AW.drop), b = hs(-AW.dp, AW.v1, AW.ha - AW.drop), n = Math.round(b[0] - a[0]);
+  for (let i = 0; i <= n; i++) {
+    const p = lerp(a, b, i / n), x = Math.round(p[0]), y = Math.round(p[1]), v = AW.v0 + (AW.v1 - AW.v0) * i / n, sI = Math.min(NS - 1, awStripe(v)), team = sI % 2 === 0;
+    const w = i - Math.round(n * sI / NS), sw = n / NS, lift = [0, 1, 1, 0][(sI + f) & 3], e = Math.min(w, sw - 1 - w);
+    const len = (e <= 0 ? 3 : e === 1 ? 4 : 5) - lift, sg = sagAt(mod(v, 1), 1.4);          // row 0 is the team binding; it sags between brackets
+    for (let k = 0; k < sg; k++) put(t, x, y + k, team ? 'D' : 'a');
+    for (let k = 0; k < len; k++) put(t, x, y + sg + k, k === 0 ? 'D' : k === len - 1 ? (team ? 'D' : 'a') : (team ? 'T' : 'A'));
+    if (AGE === 3 && len > 1) put(t, x, y + sg + len - 1, i % 2 ? Au[1] : Au[0]);                // gilt fringe
+  }
+}
+
 // banners on the piers of the long face and on the end wall, rippling (Castle: iron rod; Imperial: gilt rod, edges and fringe)
 function rangeBanner(t, f) {
   for (const [k] of bannerAt) {
@@ -289,8 +366,11 @@ if (AGE === 3) inked(g, t => {
 else {
   const t = g;
   for (const [a, b, k0, gap] of [[L, Bm, 3, true], [Bm, Rr, 0, false]]) {
-    for (let k = k0; k <= 9; k++) { if (gap && (k === 5 || k === 6)) continue; const p = lerp(a, b, k / 9); const x = Math.round(p[0]), y = Math.round(p[1]); pixRect(t, x, y - 7, 1, 7, 'u'); pixSet(t, x, y - 8, 'w'); }
-    for (const [h, c] of [[6, 'W'], [5, 't'], [2, 't']]) for (let i = k0 * 96 / 9; i <= 96; i++) { const k = i / 96 * 9; if (gap && k > 5 && k < 6) continue; const p = lerp(a, b, i / 96); put(t, Math.floor(p[0]), Math.floor(p[1]) - h, c); }
+    for (let k = k0; k <= 9; k++) { if (gap && (k === 5 || k === 6)) continue; const p = lerp(a, b, k / 9); const x = Math.round(p[0]), y = Math.round(p[1]);
+      const hk = hash(k, 51, k0), ht = 7 + (hk < 0.3 ? 1 : 0) - (hk > 0.82 ? 1 : 0), ln = hash(k, 52, k0) < 0.3 ? (hash(k, 53) < 0.5 ? -1 : 1) : 0;
+      pixRect(t, x, y - 4, 1, 4, 'u'); pixRect(t, x + ln, y - ht + 1, 1, ht - 4, 'u'); pixSet(t, x + ln, y - ht, 'w'); }
+    for (const [h, c, sg] of [[6, 'W', 1.3], [5, 't', 1.3], [2, 't', 0.8]]) for (let i = k0 * 96 / 9; i <= 96; i++) { const k = i / 96 * 9; if (gap && k > 5 && k < 6) continue; const p = lerp(a, b, i / 96);
+      put(t, Math.floor(p[0]), Math.floor(p[1]) - h + sagAt(k % 1, sg * (0.7 + hash(Math.floor(k), 54, k0) * 0.6)), c); }
   }
 }
 
@@ -301,22 +381,23 @@ function valance(t, f) {
     const p = lerp(sh.Bm, sh.Rr, (i + 0.5) / 96); const x = Math.floor(p[0]), y = Math.floor(p[1]) + 1;
     const s = Math.min(NS - 1, Math.floor(i / 8)), team = s % 2 === 0, w = i % 8;
     const lift = [0, 1, 1, 0][(s + f) & 3];                                     // the hem lifts as a wave passes
-    const len = (w === 0 || w === 7 ? 3 : w === 1 || w === 6 ? 4 : 5) - lift;
+    const len = (w === 0 || w === 7 ? 3 : w === 1 || w === 6 ? 4 : 5) - lift + sagAt((i % 16) / 16, 1.2);   // the cloth sags between posts
     for (let k = 0; k < len; k++) put(t, x, y + k, k === len - 1 ? (team ? 'D' : 'a') : (team ? 'T' : 'A'));
   }
 }
 const frames = [];
 for (let f = 0; f < 4; f++) {
   const q = copy(g);
-  if (AGE === 1) inked(q, t => valance(t, f)); else inked(q, t => rangeBanner(t, f));
-  outline(q, 'k', 'K');
+  if (AGE === 1) inked(q, t => valance(t, f)); else { inked(q, t => rangeBanner(t, f)); inked(q, t => awValance(t, f)); }
+  tufts(q, { s: 11 + AGE, dens: 0.42 });
+  outline(q, 'k', 'K'); tuftInk(q);
   frames.push(pixText(q));
 }
 
 return {
   id: 'archery', kind: 'building', footprint: [W, H], anchor: [bx, by],
   palette: {
-    ...AK.pal,
+    ...AK.pal, ...NAT,
     k: '#24180f', K: '#4a3520',                                          // ink
     y: '#a0824f', Y: '#8a6d3e', j: '#b8955a', J: '#6f5730', z: '#7d6236', x: '#5e4a28', // earth, plinth faces
     t: '#5a3a18', w: '#8a6a3a', W: '#a07a4a', u: '#3b2614', i: '#3a2c1f', I: '#2a2018', // timber, shed interior

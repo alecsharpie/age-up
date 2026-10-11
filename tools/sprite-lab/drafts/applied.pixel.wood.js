@@ -7,8 +7,9 @@
 // by a blend of its own sphere and the whole crown (light from the upper-left), leafy value noise breaks the tone bands into
 // clusters, sun flecks dapple the lit side, and a few sky holes and limbs show through. Conifers are drooping branch tiers with
 // needle fringes, each tier shading the one below. Trunks taper, lean a little, carry bark furrows and darken under the crown.
-// The outline is dark ink on the shaded (lower/right) side only; the lit rim is the leaves themselves. Ferns and a translucent
-// forest-floor shadow sit at the base.
+// The outline is dark ink on the shaded (lower/right) side only; the lit rim is the leaves themselves. Ferns sit at the base.
+// No painted ground shadow: the engine casts every tree's shadow from this silhouette along the one light (render FX
+// fxShadows: the canopy's cast shadow, merged across a wood with sun flecks, plus a tight contact shadow at the trunk foot).
 const W = 64, H = 80, AX = 32, AY = 68;
 function rng(seed) { let a = seed | 0; return () => { a = (a * 1664525 + 1013904223) | 0; return ((a >>> 8) & 0xffff) / 65536; }; }
 const hsh = (x, y, s) => { let h = (x * 374761393 + y * 668265263 + s * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -18,7 +19,7 @@ function vnoise(x, y, sc, s) {   // smooth value noise, cell size sc
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 const L3 = (() => { const v = [-0.55, -0.68, 0.48]; const n = Math.hypot(...v); return v.map(a => a / n); })();
-const SOLID = c => c !== '.' && c !== 'z';
+const SOLID = c => c !== '.';
 // ---- ramps (dark → light) ----
 const OAK = ['k', 'd', 'm', 'l', 'h'], BEECH = ['k', 'd', 'e', 'E', 'j'], BIRCH = ['k', 'n', 'N', 'Y', 'y'], PINE = ['P', 'p', 'q', 'Q'], BARK = ['x', 'b', 't', 'T'];
 
@@ -120,9 +121,6 @@ function ferns(g, spots, seed) {
     pixSet(g, fx, fy, 'f');
   }
 }
-function floor(g, rx, ry) {   // translucent forest-floor shadow, wider than the tile so neighbours' shadows join up
-  for (let y = AY - ry; y <= AY + ry; y++) for (let x = AX - rx; x <= AX + rx; x++) { const dx = (x + 0.5 - AX) / rx, dy = (y + 0.5 - AY - 1) / ry; if (dx * dx + dy * dy <= 1 && pixGet(g, x, y) === '.') pixSet(g, x, y, 'z'); }
-}
 /** shaded-side outline: empty cells right of / below the silhouette get ink; on the lit upper-left the leaf edge stands alone */
 function ink(g) {
   const add = [];
@@ -146,7 +144,7 @@ function despeckle(g) {
 }
 // ---- the six variants ----
 function oak() {
-  const g = pixGrid(W, H); floor(g, 29, 10);
+  const g = pixGrid(W, H);
   trunk(g, { x: 31, h: 27, w0: 3.6, w1: 2.4, lean: -1, shadeTo: AY - 14, seed: 4 });
   crown(g, { seed: 11, lad: OAK, cx: 32, cy: 29, rx: 28, ry: 22, n: 46, rmin: 3.6, rmax: 6.6, droop: 3, flecks: 18, holes: 3,
     limbs: [[30, 44, 22, 34], [31, 44, 41, 32], [30, 40, 33, 26]], extra: [[-22, 10, 5], [22, 9, 5.5], [-4, -20, 5], [-7, 13, 4.2]] });
@@ -154,7 +152,7 @@ function oak() {
   ink(g); despeckle(g); return g;
 }
 function birch() {
-  const g = pixGrid(W, H); floor(g, 26, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 28, h: 46, w0: 2.2, w1: 1.4, lean: -3, birch: true, bark: ['x', 'w', 'w', 'W'], shadeTo: AY - 34, seed: 6 });
   trunk(g, { x: 37, h: 40, w0: 1.8, w1: 1.1, lean: 4, birch: true, bark: ['x', 'w', 'w', 'W'], shadeTo: AY - 30, seed: 7 });
   crown(g, { seed: 29, lad: BIRCH, cx: 33, cy: 22, rx: 22, ry: 18, n: 52, rmin: 2.6, rmax: 4.6, droop: 5, flecks: 22, holes: 7,
@@ -163,14 +161,14 @@ function birch() {
   ink(g); despeckle(g); return g;
 }
 function spruce() {
-  const g = pixGrid(W, H); floor(g, 24, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 32, h: 16, w0: 2.4, w1: 1.6, shadeTo: AY - 4, seed: 9 });
   conifer(g, { seed: 7, cx: 32, top: 4, base: AY - 7, tiers: 8, w: 21 });
   ferns(g, [[22, AY + 1, 4], [42, AY + 1, 3]], 12);
   ink(g); despeckle(g); return g;
 }
 function beech() {
-  const g = pixGrid(W, H); floor(g, 29, 10);
+  const g = pixGrid(W, H);
   trunk(g, { x: 33, h: 34, w0: 3.0, w1: 2.0, lean: 1, bark: ['x', 'G', 'g', 'v'], shadeTo: AY - 16, seed: 2 });
   crown(g, { seed: 41, lad: BEECH, cx: 32, cy: 25, rx: 27, ry: 21, n: 50, rmin: 3.2, rmax: 6.0, droop: 5, flecks: 16, holes: 1,
     limbs: [[33, 36, 25, 28], [33, 38, 43, 30]], extra: [[-21, 12, 4.6], [21, 12, 4.8]] });
@@ -178,7 +176,7 @@ function beech() {
   ink(g); despeckle(g); return g;
 }
 function birchHazel() {
-  const g = pixGrid(W, H); floor(g, 27, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 36, h: 44, w0: 2.0, w1: 1.3, lean: 2, birch: true, bark: ['x', 'w', 'w', 'W'], shadeTo: AY - 32, seed: 8 });
   crown(g, { seed: 57, lad: BIRCH, cx: 37, cy: 22, rx: 20, ry: 17, n: 44, rmin: 2.6, rmax: 4.4, droop: 5, flecks: 18, holes: 6 });
   for (const [sx, lean] of [[19, -2], [22, 0], [25, 2]]) pixLine(g, sx, AY, sx + lean, AY - 6, 'b');   // hazel stems under a low leafy dome
@@ -187,7 +185,7 @@ function birchHazel() {
   ink(g); despeckle(g); return g;
 }
 function sprucePair() {
-  const g = pixGrid(W, H); floor(g, 27, 9);
+  const g = pixGrid(W, H);
   trunk(g, { x: 23, h: 12, w0: 1.8, w1: 1.2, shadeTo: AY - 3, seed: 10 });
   conifer(g, { seed: 19, cx: 23, top: 14, base: AY - 6, tiers: 7, w: 16 });
   trunk(g, { x: 39, h: 15, w0: 2.4, w1: 1.6, shadeTo: AY - 4, seed: 11 });
@@ -207,7 +205,6 @@ export default {
     G: '#4a463e', g: '#6c6656', v: '#8e8874',                                              // beech bark: smooth grey
     W: '#e4ded0', w: '#a69e8e',                                                            // birch bark
     f: '#2c5022', F: '#4f7c32',                                                            // ferns
-    z: 'rgba(8,20,6,0.30)',                                                                // forest-floor shadow
   },
   frames: { idle: [pixText(oak()), pixText(birch()), pixText(spruce()), pixText(beech()), pixText(birchHazel()), pixText(sprucePair())] },
 };

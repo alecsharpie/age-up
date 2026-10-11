@@ -7,15 +7,29 @@ export function pixBuild(spec, grid, tc) {
   const lines = grid.replace(/\r/g, '').split('\n').filter((l, i, a) => !(i === 0 && !l.trim()) && !(i === a.length - 1 && !l.trim()));
   const w = Math.max(1, ...lines.map(l => l.length)), h = lines.length;
   const c = document.createElement('canvas'); c.width = w * sc; c.height = h * sc; const x = c.getContext('2d');
+  const tint = tc && spec.kind === 'building' ? pixTeamRoofs() : 0, tinted = {};   // roofs take a little of their owner's colour
   for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < lines[yy].length; xx++) {
     const ch = lines[yy][xx]; if (ch === '.' || ch === ' ') continue;
     let col = spec.palette[ch]; if (!col) continue;
+    if (tint && col[0] === '#' && (PIX_ROOF.includes(ch) || (spec.roofChars && spec.roofChars.includes(ch)))) col = tinted[ch] || (tinted[ch] = pixTint(col, tc.c, tint));
     if (col === 'team') col = tc ? tc.c : '#888'; else if (col === 'teamdark') col = tc ? tc.d : '#555'; else if (col === 'teamlight') col = tc ? tc.l : '#bbb';
     x.fillStyle = col; x.fillRect(xx * sc, yy * sc, sc, sc);
   }
   return c;
 }
 
+/** Team roofs: building roofs (the age kit's roof chars) lean towards the owner's colour so a town reads as theirs from far
+ *  out. Luminance-preserving, so the material's light and texture stay; the strength is a menu option (off / subtle / strong). */
+export const PIX_ROOF = 'αβγδεζη';
+export function pixTeamRoofs() {
+  if (pixTeamRoofs.v === undefined) { let m = 'subtle'; try { m = localStorage.getItem('age-up-team-roofs') || 'subtle'; } catch (e) { } pixTeamRoofs.v = m === 'off' ? 0 : m === 'strong' ? 0.3 : 0.16; }
+  return pixTeamRoofs.v;
+}
+export function pixTint(base, team, t) {
+  const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)], a = p(base), b = p(team);
+  const lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2], m = a.map((v, i) => v + (b[i] - v) * t), d = lum(a) - lum(m);
+  return '#' + m.map(v => Math.max(0, Math.min(255, Math.round(v + d))).toString(16).padStart(2, '0')).join('');
+}
 /** Cached canvas for frame i of animation `frame` (wraps), coloured for team tc. */
 export function pixFrame(spec, frame, i, tc) {
   const list = spec.frames[frame] || spec.frames.idle || Object.values(spec.frames)[0];
@@ -30,7 +44,7 @@ export function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
   let c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
   if (o && o.flash) c = pixFlash(c);
   const m = c2d.getTransform();
-  c2d.save(); c2d.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); c2d.imageSmoothingEnabled = false;
+  c2d.save(); c2d.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); c2d.imageSmoothingEnabled = Math.hypot(m.a, m.b) < 0.99; c2d.imageSmoothingQuality = "low";  // crisp at 1× and up; filtered when zoomed out so thin details average instead of dropping out
   if (o && o.alpha !== undefined) c2d.globalAlpha *= o.alpha;
   const an = (spec.anchors && spec.anchors[frame]) || spec.anchor;  // a set may have its own size/anchor (death: lying down is wider)
   const dx = Math.round(x - an[0] * sc), dy = Math.round(y - an[1] * sc);
@@ -223,10 +237,13 @@ export function pixAgeKit(age) {
   /** Roof material at column `col`, `d` rows above the eave (0 = eave row; courses lap downhill), on face 0..3. */
   function roofTex(col, d, face) {
     const [lip, body, joint] = FACE[face] || FACE[0]; d = Math.floor(d); col = Math.floor(col);
-    if (MAT === 'thatch') { // layered bands of vertical strands; a ragged shaded underside at the foot of every band
-      const band = Math.floor(d / 5), v = d - band * 5, hx = hash(col + 5, band + 3);
-      if (v === 0 || (v === 1 && hx < 0.3)) return R[joint];
-      const t = hash(col >> 1, band * 7 + 1); return R[t < 0.2 ? Math.max(0, body[0] - 1) : t > 0.8 ? Math.min(6, body[0] + 1) : body[0]];
+    if (MAT === 'thatch') { // layered courses of straw: 1-px strands of varied tone and length, course edges ragged per strand, a shaded underside
+      const dd = d + Math.floor(hash(col, 41) * 2.6), band = Math.floor(dd / 5), v = dd - band * 5, hx = hash(col + 5, band + 3);
+      if (v === 0 || (v === 1 && hx < 0.45)) return R[joint];
+      const t = hash(col, band * 7 + 1), s2 = hash(col + 1, band * 7 + 1);
+      if (v === 4 && t > 0.6) return R[lip];                                   // sunlit straw ends at the top of the course
+      if (v === 2 && s2 < 0.18) return R[joint];                               // a stray short strand in shadow
+      return R[t < 0.22 ? Math.min(6, body[0] + 1) : t > 0.82 ? Math.max(0, body[0] - 1) : body[0]];
     }
     const ch = MAT === 'slate' ? 3 : 3, bw = MAT === 'tile' ? 3 : MAT === 'slate' ? 5 : 4;
     const row = Math.floor(d / ch), v = d - row * ch, xs = col + (((row % 2) + 2) % 2) * Math.floor(bw / 2), k = Math.floor(xs / bw), j = xs - k * bw;

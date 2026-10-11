@@ -28,7 +28,7 @@ LTTTDD
 LTTTDD
 BbbGbB
 LTTTDD
-LTTDDD`;
+DDDDDD`;   // team-dark hem: the tunic keeps a dark lower edge on same-hue ground (yellow on wheat)
 
 // leg: hip (x,y) → foot (fx, bottom row fb); tones [left,right]; knee bends forward when foot is lifted or legs crouch
 function leg(g, hx, hy, fx, fb, tones, bend = 0) {

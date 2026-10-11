@@ -38,7 +38,11 @@ function crenWall(Z,lo,hi,gilt){
     const front=crenels(g,top,W,H,{th:0.12,n:[2,2],ml:0.25,f0:0.125,lo,hi,skip:{TL:pI,TR:pJ,LB:nJ,BR:nI},tex:{L:[top.base.L,top.base.Bm],R:[top.base.Bm,top.base.Rr],seed:2}});front();
     // joints: cells a neighbour behind would cover are not edges
     const cover=pixGrid(GW,GH);for(let b=2;b<4;b++)if(mask&(1<<b))pixIsoBox(cover,bx+NB[b][0],by+NB[b][1],W,H,Z+7,1,{left:'#',right:'#',top:'#'});
-    inkOutline(g,null,(x,y)=>pixGet(cover,x,y)==='#');
+    const solid=(x,y)=>pixGet(cover,x,y)==='#';
+    inkOutline(g,null,solid);
+    // natural lines: worn merlons, the odd proud block, moss and grass at the foot (none on joints a neighbour covers)
+    wear(g,STONE,{p:gilt?0.3:0.45,notch:0.05,bump:0.06,seed:21,solid});
+    moss(g,STONE,{h:gilt?4:6,split:bx,dens:gilt?0.35:0.55,seed:22});tufts(g,{p:0.4,maxY:by,split:bx,rubble:0.05,seed:23});
     return {g,top,open:{L:!nJ,R:!nI}};
   }
   const sets={};
@@ -47,12 +51,12 @@ function crenWall(Z,lo,hi,gilt){
     sets['p'+m]=[pixText(g)];
     const fr=[];
     for(let k=0;k<4;k++){const f=cloneG(g);
-      if(!gilt){
-        if(open.L){const p=lerpP(top.base.L,top.base.Bm,0.32);shield(f,Math.round(p[0])-3,Math.round(p[1])-14);const q=lerpP(top.base.L,top.base.Bm,0.66);const tx=Math.round(q[0]),ty=Math.round(q[1])-8;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,k)}
-        if(open.R){const p=lerpP(top.base.Bm,top.base.Rr,0.62);shield(f,Math.round(p[0])-2,Math.round(p[1])-14);const q=lerpP(top.base.Bm,top.base.Rr,0.3);const tx=Math.round(q[0]),ty=Math.round(q[1])-8;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,(k+2)%4)}
+      if(!gilt){   // Castle: long team banners on iron rods hung under the parapet, a torch between them
+        if(open.L){const p=lerpP(top.base.L,top.base.Bm,0.3);ironBanner(f,Math.round(p[0])-3,Math.round(p[1])-Z+4,6,12,k,0.5);const q=lerpP(top.base.L,top.base.Bm,0.66);const tx=Math.round(q[0]),ty=Math.round(q[1])-8;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,k)}
+        if(open.R){const p=lerpP(top.base.Bm,top.base.Rr,0.62);ironBanner(f,Math.round(p[0])-2,Math.round(p[1])-Z+4,6,12,k+2,-0.5);const q=lerpP(top.base.Bm,top.base.Rr,0.3);const tx=Math.round(q[0]),ty=Math.round(q[1])-8;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,(k+2)%4)}
       }else{   // Imperial: a gilt-fringed banner hung from the string course, a torch in an iron bracket
-        if(open.L){const p=lerpP(top.base.L,top.base.Bm,0.3);giltBanner(f,Math.round(p[0])-3,Math.round(p[1])-Z+5,6,12,k,0.5);const q=lerpP(top.base.L,top.base.Bm,0.68);const tx=Math.round(q[0]),ty=Math.round(q[1])-9;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,k)}
-        if(open.R){const p=lerpP(top.base.Bm,top.base.Rr,0.62);giltBanner(f,Math.round(p[0])-2,Math.round(p[1])-Z+5,6,12,k+2,-0.5);const q=lerpP(top.base.Bm,top.base.Rr,0.3);const tx=Math.round(q[0]),ty=Math.round(q[1])-9;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,(k+2)%4)}
+        if(open.L){const p=lerpP(top.base.L,top.base.Bm,0.3);giltBanner(f,Math.round(p[0])-3,Math.round(p[1])-Z+5,6,15,k,0.5);const q=lerpP(top.base.L,top.base.Bm,0.68);const tx=Math.round(q[0]),ty=Math.round(q[1])-9;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,k)}
+        if(open.R){const p=lerpP(top.base.Bm,top.base.Rr,0.62);giltBanner(f,Math.round(p[0])-2,Math.round(p[1])-Z+5,6,15,k+2,-0.5);const q=lerpP(top.base.Bm,top.base.Rr,0.3);const tx=Math.round(q[0]),ty=Math.round(q[1])-9;glow(f,tx,ty-4,k%2?3:4);torch(f,tx,ty,(k+2)%4)}
       }
       fr.push(pixText(f));}
     sets['t'+m]=fr;
@@ -60,6 +64,8 @@ function crenWall(Z,lo,hi,gilt){
   sets.idle=sets.t0;
   return {anchor:[bx,by],palette:gilt?{...FORT_PAL,...AK.pal,...LIME}:{...FORT_PAL,...AK.pal},frames:sets};
 }
+/** Castle banner: the kit banner on an iron rod. */
+function ironBanner(g,x,y,w,h,ph,sl){banner(g,x,y,w,h,ph,{sl});const oy=c=>Math.floor((c+0.5)*sl);for(let c=-1;c<=w;c++)pixSet(g,x+c,y+oy(c),'J')}
 /** Imperial banner: the kit banner with gilt hems down both sides and a gilt fringe along the foot. */
 function giltBanner(g,x,y,w,h,ph,sl){
   banner(g,x,y,w,h,ph,{sl});
@@ -92,9 +98,10 @@ function turf(g,tmp,seed){for(let y=0;y<g.length;y++)for(let x=0;x<g[0].length;x
   const t=hash3(x>>1,y>>1,seed);g[y][x]=t<0.22?'U':t<0.8?'V':t<0.95?'d':'l'}}
 /** A sharpened stake at screen (x,y) foot, h tall, 3 px wide: lit / mid / dark columns, a pale cut point, a lashing row. */
 function stake(g,x,y,h,lit,lash){
-  const cols=lit?[AW[0],AW[0],AW[1]]:[AW[0],AW[1],AW[2]];
-  for(let c=0;c<3;c++)for(let r=0;r<h-(c===1?0:c===0?1:2);r++)pixSet(g,x+c,y-r,r===lash?AW[2]:r>=h-3&&c<2?'E':cols[c]);
-  pixSet(g,x+1,y-h+1,'E');
+  const cols=lit?[AW[0],AW[0],AW[1]]:[AW[0],AW[1],AW[2]],lean=hash3(x,y,h)<0.3?(hash3(y,x,5)<0.5?-1:1):0;   // a few stakes lean 1 px
+  const dx=r=>lean&&r>h*0.55?lean:0;
+  for(let c=0;c<3;c++)for(let r=0;r<h-(c===1?0:c===0?1:2);r++)pixSet(g,x+c+dx(r),y-r,r===lash?AW[2]:r>=h-3&&c<2?'E':cols[c]);
+  pixSet(g,x+1+dx(h),y-h+1,'E');
 }
 /** Stake positions of a segment: centre-line runs toward each joined side; a lone or one-ended segment runs straight through. */
 function stakeRuns(mask){
@@ -134,6 +141,7 @@ function dark(){
     const cover=pixGrid(GW,GH);
     for(let b=2;b<4;b++)if(mask&(1<<b)){const nm=b===2?5:10;dyke(cover,NB[b][0],NB[b][1],nm,{left:'#',right:'#',top:'#'});drawStakes(cover,NB[b][0],NB[b][1],stakeRuns(nm))}
     inkOutline(g,null,(x,y)=>pixGet(cover,x,y)!=='.');
+    tufts(g,{p:0.5,maxY:by,split:bx,tol:8,rubble:0.08,seed:24});
     return {g,runs,open:{L:!nJ,R:!nI}};
   }
   const sets={};
@@ -189,7 +197,10 @@ function feudal(){
       else if(c==='8')g[y][x]=x%3===0?'y':x%3===1?'v':AW[1];
       else if(c==='5')g[y][x]=AW[1];else if(c==='6')g[y][x]=AW[2];else if(c==='9')g[y][x]='E'}
     const cover=pixGrid(GW,GH);for(let b=2;b<4;b++)if(mask&(1<<b))pixIsoBox(cover,bx+NB[b][0],by+NB[b][1],W,H,Z+PH,1,{left:'#',right:'#',top:'#'});
-    inkOutline(g,null,(x,y)=>pixGet(cover,x,y)==='#');
+    const solid=(x,y)=>pixGet(cover,x,y)==='#';
+    inkOutline(g,null,solid);
+    const RUB=new RegExp('['+AS.join('')+']');
+    wear(g,RUB,{p:0.5,notch:0.08,bump:0.1,seed:25,solid});moss(g,RUB,{h:6,split:bx,dens:0.6,seed:26});tufts(g,{p:0.5,maxY:by,split:bx,rubble:0.08,seed:27});
     return {g,top,open:{L:!nJ,R:!nI}};
   }
   const sets={};
