@@ -237,10 +237,13 @@ export function pixAgeKit(age) {
   /** Roof material at column `col`, `d` rows above the eave (0 = eave row; courses lap downhill), on face 0..3. */
   function roofTex(col, d, face) {
     const [lip, body, joint] = FACE[face] || FACE[0]; d = Math.floor(d); col = Math.floor(col);
-    if (MAT === 'thatch') { // layered bands of vertical strands; a ragged shaded underside at the foot of every band
-      const band = Math.floor(d / 5), v = d - band * 5, hx = hash(col + 5, band + 3);
-      if (v === 0 || (v === 1 && hx < 0.3)) return R[joint];
-      const t = hash(col >> 1, band * 7 + 1); return R[t < 0.2 ? Math.max(0, body[0] - 1) : t > 0.8 ? Math.min(6, body[0] + 1) : body[0]];
+    if (MAT === 'thatch') { // layered courses of straw: 1-px strands of varied tone and length, course edges ragged per strand, a shaded underside
+      const dd = d + Math.floor(hash(col, 41) * 2.6), band = Math.floor(dd / 5), v = dd - band * 5, hx = hash(col + 5, band + 3);
+      if (v === 0 || (v === 1 && hx < 0.45)) return R[joint];
+      const t = hash(col, band * 7 + 1), s2 = hash(col + 1, band * 7 + 1);
+      if (v === 4 && t > 0.6) return R[lip];                                   // sunlit straw ends at the top of the course
+      if (v === 2 && s2 < 0.18) return R[joint];                               // a stray short strand in shadow
+      return R[t < 0.22 ? Math.min(6, body[0] + 1) : t > 0.82 ? Math.max(0, body[0] - 1) : body[0]];
     }
     const ch = MAT === 'slate' ? 3 : 3, bw = MAT === 'tile' ? 3 : MAT === 'slate' ? 5 : 4;
     const row = Math.floor(d / ch), v = d - row * ch, xs = col + (((row % 2) + 2) % 2) * Math.floor(bw / 2), k = Math.floor(xs / bw), j = xs - k * bw;
