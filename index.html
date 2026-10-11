@@ -214,7 +214,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
         </div>
         <details id="mpwrap"><summary>Multiplayer: play against another person</summary>
           <div class="settings" style="margin:8px 0;grid-template-columns:auto 1fr auto 1fr">
-            <label>Connection</label><select id="mp-tr"><option value="peer">Online (share a room code)</option><option value="local">Same browser (two tabs, for testing)</option></select>
+            <label>Connection</label><select id="mp-tr"><option value="online">Online (share a room code)</option><option value="local">Same browser (two tabs, for testing)</option></select>
             <label>Room code (to join)</label><input id="mp-code" type="text" maxlength="8" placeholder="e.g. K7PQ2" style="text-transform:uppercase">
           </div>
           <div class="opts" style="margin:4px 0"><div class="opt" id="mp-host">Host a game</div><div class="opt" id="mp-join">Join a game</div></div>
@@ -28433,7 +28433,7 @@ window.addEventListener('blur',()=>{ui.keys={}});
 // Hashes are exchanged every HASH_EVERY turns; on a mismatch the host sends a full snapshot and the client restores it.
 const TURN_TICKS=4, MAX_LEAD=6, HASH_EVERY=5;
 let WATCHING=false;
-const NET={active:false,host:false,hostId:null,tr:null,mode:'peer',room:'',name:'',lobby:null,peers:new Map(),inbox:[],turns:new Map(),hashes:new Map(),waiting:null,rtt:0,desync:0};
+const NET={active:false,host:false,hostId:null,tr:null,mode:'online',room:'',name:'',lobby:null,peers:new Map(),inbox:[],turns:new Map(),hashes:new Map(),waiting:null,rtt:0,desync:0};
 function netReset(){NET.active=false;NET.host=false;NET.hostId=null;NET.lobby=null;NET.peers.clear();NET.inbox.length=0;NET.turns.clear();NET.hashes.clear();NET.waiting=null;NET.rtt=0;NET.desync=0;if(NET.tr){try{NET.tr.close()}catch(e){}NET.tr=null}ME=0;stopBgTicker()}
 NET.leave=function(){if(NET.tr&&!NET.host)NET.send({t:'leave'});netReset();renderLobby();netStatus()};
 NET.send=function(body,to){if(!NET.tr)return;NET.tr.send(to===undefined?(NET.host?null:NET.hostId):to,body)};
@@ -28450,27 +28450,27 @@ function setPaused(on){if(!G)return;if(NET.active){if(NET.host){G.paused=!!on;NE
 function localTransport(room,h){const bc=new BroadcastChannel('ageup-mp-'+room);const id='L'+Math.random().toString(36).slice(2,8);
  bc.onmessage=e=>{const m=e.data;if(!m||m.from===id)return;if(m.to&&m.to!==id)return;h.msg(m.from,m.body)};
  setTimeout(()=>h.open(id),0);return{id,send:(to,body)=>bc.postMessage({from:id,to,body}),close:()=>bc.close()}}
-let peerJsP=null;function loadPeerJs(){if(window.Peer)return Promise.resolve();if(peerJsP)return peerJsP;peerJsP=new Promise((ok,bad)=>{const el=document.createElement('script');el.src='https://unpkg.com/peerjs@1/dist/peerjs.min.js';el.onload=()=>ok();el.onerror=()=>{peerJsP=null;bad(new Error('could not load PeerJS (offline?)'))};document.head.appendChild(el)});return peerJsP}
-// ICE: STUN only by default (the TURN relays PeerJS ships with are gone). A relay for networks that block direct
-// connections can be set with ?turn=turn:host:port,user,pass (remembered in localStorage 'ageup-turn').
-function iceConfig(){let t=null;try{t=new URLSearchParams(location.search).get('turn');if(t)localStorage.setItem('ageup-turn',t);else t=localStorage.getItem('ageup-turn')}catch(e){}
- const S=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},{urls:'stun:stun.cloudflare.com:3478'}];
- if(t){const [url,username,credential]=t.split(',');S.push({urls:url.split('|'),username,credential})}return{iceServers:S}}
-function peerTransport(room,isHost,h){const conns=new Map();let peer=null,closed=false;
- const tr={id:null,send:(to,body)=>{if(to){const c=conns.get(to);if(c&&c.open)c.send(body)}else for(const c of conns.values())if(c.open)c.send(body)},close:()=>{closed=true;for(const c of conns.values())try{c.close()}catch(e){}if(peer)try{peer.destroy()}catch(e){}}};
- loadPeerJs().then(()=>{if(closed)return;peer=new Peer(isHost?'ageup-'+room:undefined,{debug:1,config:iceConfig()});
-  const wire=c=>{c.on('open',()=>{conns.set(c.peer,c);h.peer(c.peer)});c.on('data',d=>h.msg(c.peer,d));c.on('close',()=>{conns.delete(c.peer);h.close(c.peer)});c.on('error',e=>h.error(e))};
-  peer.on('open',id=>{tr.id=id;h.open(id);if(isHost)return;const c=peer.connect('ageup-'+room,{reliable:true});wire(c);
-   // the host was found but WebRTC could not open a path: PeerJS raises nothing, so time out and report what ICE tried
-   const ice=[],pc=c.peerConnection;if(pc)pc.addEventListener('iceconnectionstatechange',()=>ice.push(pc.iceConnectionState));
-   setTimeout(async()=>{if(closed||c.open)return;let why='ice '+(ice.join('>')||'never started');
-    try{const st=await pc.getStats(),C={},kind=x=>x.candidateType+(String(x.address||'').endsWith('.local')?'(mdns)':'');const L=new Set(),R=new Set();let ok=0,pairs=0;
-     st.forEach(x=>{C[x.id]=x});st.forEach(x=>{if(x.type==='local-candidate')L.add(kind(x));if(x.type==='remote-candidate')R.add(kind(x));if(x.type==='candidate-pair'){pairs++;if(x.state==='succeeded')ok++}});
-     why+='; mine '+([...L].join(',')||'none')+'; host '+([...R].join(',')||'none')+'; pairs '+ok+'/'+pairs+' ok; '+(navigator.userAgent.match(/(Chrome|Firefox|Safari)\/[\d]+/)||[''])[0]}catch(e){}
-    console.warn('peer: no data channel after 20s:',why);
-    h.error({type:'ice',message:'found the host but could not connect ['+why+']. Check that neither computer is on a VPN, or try a phone hotspot'})},20000)});
-  peer.on('connection',c=>{if(isHost)wire(c);else c.close()});
-  peer.on('error',e=>h.error(e));peer.on('disconnected',()=>{if(!closed)try{peer.reconnect()}catch(e){}})},e=>h.error(e));
+// Online: one WebSocket to the relay server (server/ in this repo: a Cloudflare Durable Object per room code) that
+// forwards messages between the host and its guests; guests only ever talk to the host. ?relay=ws://localhost:8787
+// points the game at a local `npm run dev` in server/ (remembered in localStorage 'ageup-relay'; ?relay= with no value clears it).
+const RELAY_URL='wss://age-up-relay.alecsharpie.workers.dev';// written by server/deploy.sh
+function relayUrl(){let u=null;try{const q=new URLSearchParams(location.search);if(q.has('relay')){u=q.get('relay');if(u)localStorage.setItem('ageup-relay',u);else localStorage.removeItem('ageup-relay')}else u=localStorage.getItem('ageup-relay')}catch(e){}return u||RELAY_URL}
+function wsTransport(room,isHost,h){let ws=null,closed=false,ended=false,beat=null,slow=null;const guests=new Set();let hostId=null;
+ const tr={id:null,send:(to,body)=>{if(ws&&ws.readyState===1)ws.send(JSON.stringify({to,body}))},close:()=>{closed=true;clearInterval(beat);clearTimeout(slow);if(ws)try{ws.close(1000)}catch(e){}}};
+ const end=e=>{if(ended||closed)return;ended=true;clearInterval(beat);h.error(e)};
+ try{ws=new WebSocket(relayUrl()+'/room/'+room+'?role='+(isHost?'host':'guest'))}catch(e){setTimeout(()=>end({type:'network',message:'bad relay address'}),0);return tr}
+ slow=setTimeout(()=>{if(!tr.id){end({type:'network',message:'could not reach the game server (check your internet connection)'});try{ws.close()}catch(e){}}},10000);
+ // heartbeat: keeps home routers from dropping a quiet lobby; the server answers without waking up
+ ws.onopen=()=>{beat=setInterval(()=>{if(ws.readyState===1)ws.send('ping')},25000)};
+ ws.onmessage=e=>{if(e.data==='pong')return;let m;try{m=JSON.parse(e.data)}catch(x){return}
+  if(m.t==='hello'){clearTimeout(slow);tr.id=m.id;h.open(m.id)}
+  else if(m.t==='peer'){if(isHost)guests.add(m.id);else hostId=m.id;h.peer(m.id)}
+  else if(m.t==='msg')h.msg(m.from,m.body);
+  else if(m.t==='gone'){guests.delete(m.id);if(m.id===hostId)ended=true;h.close(m.id)}
+  else if(m.t==='error')end({type:m.type})};
+ ws.onclose=()=>{clearTimeout(slow);if(closed||ended)return;
+  if(!tr.id)return end({type:'network',message:'could not reach the game server (check your internet connection)'});
+  if(isHost){for(const g of guests)h.close(g);end({type:'network',message:'lost the connection to the game server'})}else{ended=true;clearInterval(beat);h.close(hostId)}};
  return tr}
 // -- lobby
 function mpName(){const n=($('pn-0').value.trim()||'Player').slice(0,16);try{localStorage.setItem('ageup-name',n)}catch(e){}return n}
@@ -28483,8 +28483,8 @@ function netOpen(isHost,name,room){netReset();NET.host=isHost;NET.name=name;NET.
   peer:pid=>{if(!isHost){NET.hostId=pid;NET.send({t:'join',name,civ:civ()},pid)}},
   msg:(from,m)=>{if(!m||typeof m!=='object')return;try{if(isHost)hostMsg(from,m);else clientMsg(from,m)}catch(e){console.error('net',e)}},
   close:pid=>{if(isHost)hostPeerClosed(pid);else{if(NET.lobby)NET.lobby.status='Lost the connection to the host';if(NET.active){NET.waiting='the host (disconnected)';msg('Connection to the host was lost.')}renderLobby()}},
-  error:e=>{NET.lobby=NET.lobby||{};NET.lobby.status='Error: '+(e&&e.type==='peer-unavailable'?'no game with that code':e&&e.type==='unavailable-id'?'that room code is taken, host again':(e&&(e.message||e.type))||e);renderLobby()}};
- NET.tr=NET.mode==='local'?localTransport(room,h):peerTransport(room,isHost,h);renderLobby()}
+  error:e=>{NET.lobby=NET.lobby||{};NET.lobby.status='Error: '+(e&&e.type==='peer-unavailable'?'no game with that code':e&&e.type==='unavailable-id'?'that room code is taken, host again':e&&e.type==='room-full'?'that game is full':(e&&(e.message||e.type))||e);renderLobby()}};
+ NET.tr=NET.mode==='local'?localTransport(room,h):wsTransport(room,isHost,h);renderLobby()}
 function lobbySetup(){const S=readSetup();delete S.seed;const rows=rowModel();S.humans=[];for(const r of rows)if(r.type==='you'||r.type==='human')S.humans.push(seatOfRow(rows,r.row));S.names[0]=NET.name||S.names[0];return S}
 function sendLobby(){const S=lobbySetup();const rows=rowModel();for(const [pid,q] of NET.peers)NET.send({t:'lobby',rows,setup:S,you:seatOfRow(rows,q.row),yourRow:q.row,hostName:NET.name},pid);renderLobby()}
 function hostStart(){if(!NET.host||NET.active||!NET.tr)return;const S=lobbySetup();S.seed=readSetup().seed;const rows=rowModel();for(const [pid,q] of NET.peers)if(q.on)NET.send({t:'start',setup:S,you:seatOfRow(rows,q.row)},pid);netBegin(S,0)}

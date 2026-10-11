@@ -17,7 +17,7 @@ simulation; only player commands cross the network.
   (full state including projectiles, next entity id and RNG state) and the client `restore()`s it. The same path
   serves a player who rejoins with the same name and room code.
 - Transports: `localTransport` (BroadcastChannel, two tabs of the same browser, needs an http origin) and
-  `peerTransport` (PeerJS over WebRTC, loaded from unpkg on demand, public signaling server, room code = peer id).
+  `wsTransport` (a WebSocket to the relay server in `server/`, one Cloudflare Durable Object per room code).
 - A hidden tab keeps ticking through a Worker timer (`startBgTicker`) because requestAnimationFrame pauses.
 - Pause and chat are network messages, not sim commands. Game speed is locked to 1x. Cheats are refused.
 
@@ -27,7 +27,7 @@ simulation; only player commands cross the network.
 |---|---|
 | `node tools/mp/determinism.mjs` | Two browser contexts, same seed, same seeded random commands: identical hashes. Also in-page rerun and replay-from-log. `SEEDS=`, `SECS=` env vars. |
 | `node tools/mp/lockstep-test.mjs` | Two tabs host/join over BroadcastChannel, play with random commands from both sides, no desync; a corrupted client is detected and resynced; a closed tab rejoins; chat and pause travel both ways. `SHOTS=1` saves screenshots to `tools/mp/out`. |
-| `node tools/mp/peer-test.mjs` | The online PeerJS path between two separate contexts (needs internet). |
+| `node tools/mp/online-test.mjs` | The online path between two separate contexts through a local `wrangler dev` relay (offline; `RELAY=wss://…` targets the deployed one). Also checks the bad-code, server-down and host-left messages. |
 | `node tools/mp/sp-smoke.mjs` | Single-player still works through the real UI handlers. |
 
 Debug hooks in the page: `dbg.hash()`, `dbg.snapshot()`, `dbg.restore(d)`, `dbg.fuzzRun(setup, secs, fseed, log?)`,
@@ -39,10 +39,6 @@ Debug hooks in the page: `dbg.hash()`, `dbg.snapshot()`, `dbg.restore(d)`, `dbg.
 - Cross-browser play (Chrome vs Safari) is untested: `Math.hypot`, `sin`, `cos`, `atan2` may differ between engines.
   Same browser on both sides is safe.
 - A projectile whose firing unit died before a resync is dropped on the restored side (rare; the next hash catches it).
-- Online play uses STUN only, so it needs a direct WebRTC path between the players. The TURN relays PeerJS used to
-  ship with no longer resolve. When the networks block a direct link (symmetric NAT, client-isolated or corporate
-  Wi-Fi), the guest shows "found the host but could not connect [details]" after 20 s (ICE states, candidate types on each side, browser). To fix it, put both players on the same
-  network or a phone hotspot, or add a TURN relay (for example a free Metered or Cloudflare TURN account) by opening the
-  game once on both machines with `?turn=turn:HOST:PORT|turns:HOST:443,USER,PASS`. It is remembered in
-  localStorage `ageup-turn`.
+- Online play needs the relay server (`server/`, see its README). If it is unreachable the lobby says so after at most
+  10 s. A dropped connection is not resumed automatically: the guest rejoins with the same code as a returning player.
 - No spectators, no mid-game save/load in multiplayer.
