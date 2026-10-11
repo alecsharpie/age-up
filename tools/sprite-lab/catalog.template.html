@@ -513,7 +513,7 @@ details.sheet canvas{display:block}
     function persist(k){
       clearTimeout(R.timers[k]); setStatus(R.mode==='db'?'saving…':'saved in this browser');
       if(R.mode!=='db')return;
-      R.timers[k]=setTimeout(async()=>{ try{ await R.db.doc('reviews/'+k).set(JSON.parse(JSON.stringify(R.data[k]))); setStatus('saved'); }catch(e){ setStatus('could not save ('+(e.code||e.message)+'), kept in this browser'); } },600);
+      R.timers[k]=setTimeout(async()=>{ try{ await R.db.doc('reviews/'+k).set(JSON.parse(JSON.stringify(R.data[k]))); setStatus('saved'); }catch(e){ setStatus('could not save ('+(e.code||e.message)+'), kept in this browser'); } delete R.timers[k]; },600);
     }
     function queueSnap(k){
       if(!R.assets)return; clearTimeout(R.snapTimers[k]);
@@ -637,6 +637,8 @@ details.sheet canvas{display:block}
       R.db=db; R.mode='db';
       db.collection('reviews').onSnapshot(snap=>{ const changed=new Set();
         for(const d of snap.docs){ if(d.metadata&&d.metadata.hasPendingWrites)continue; const v=d.data(); if(!v)continue; const mine=R.data[d.id]; if(mine&&mine.updatedAt>=(v.updatedAt||''))continue; changed.add(d.id); R.data[d.id]=JSON.parse(JSON.stringify(v)); paintMarker(d.id); }
+        // the db is the record: a review gone from it (a finished round is archived to rounds/<n>/reviews) goes here too, unless it is still being saved
+        const ids=new Set(snap.docs.map(d=>d.id)); for(const k of Object.keys(R.data)){ if(!ids.has(k)&&!R.timers[k]){ delete R.data[k]; changed.add(k); paintMarker(k); } }
         if(!changed.size)return; lsWrite(); if(changed.has(key()))renderPanel(); updatePos(); if(S.tab==='feedback')renderFeedback();
         const r=cur(); if(r&&r.marks&&r.marks.length&&R.viewApplied===key()&&S.playing){ R.viewApplied=null; select(S.kind,S.type); }
       },e=>setStatus('could not load saved feedback ('+e.code+')'));
