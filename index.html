@@ -1033,12 +1033,12 @@ function scoreParts(p){const t=p.team,st=p.stats;let mil=st.kills*10+st.razed*40
  let relics=0;for(const b of G.buildings)if(b.team===t&&b.built){if(b.type==='wall')soc+=1;else if(b.type==='keep')soc+=100;else if(b.type==='wonder')soc+=300;else if(BUILDINGS[b.type].trains||BUILDINGS[b.type].atk)soc+=15;else eco+=15;relics+=b.relics||0}
  soc+=relics*50;return{military:Math.round(mil),economy:Math.round(eco),technology:Math.round(tech),society:Math.round(soc)}}
 function computeScore(p){const s=scoreParts(p);return s.military+s.economy+s.technology+s.society}
-// Land units never end a tick inside water, a building, a tree or a mine: several movement paths (closing in on a target,
-// work spots, hunting, herding) step without testing the cell they land in, and a few hundredths of a tile was enough
-// for units to stand on water. A unit that came from a walkable cell slides along the edge instead (x or y only), or
-// stays put. One already inside a blocked cell (pushed out by a new building next tick, unloading) is left alone.
-function keepOnWalkable(u,ox,oy){if(u.dead||u.inside||(u.x===ox&&u.y===oy))return;const ok=(x,y)=>isWalkable(Math.floor(x),Math.floor(y),u.team,u.naval);
- if(ok(u.x,u.y)||!ok(ox,oy))return;if(ok(u.x,oy))u.y=oy;else if(ok(ox,u.y))u.x=ox;else{u.x=ox;u.y=oy}}
+// Land units never end a tick standing in water: several movement paths (closing in on a target, work spots, hunting,
+// herding) step without testing the cell they land in, and units were seen walking on the water's edge. A unit that came
+// from dry land slides along the shore instead (x or y only), or stays put. (Buildings, trees and mines are left alone:
+// closing in on them needs a sliver of overlap, and it doesn't show.)
+function keepOnWalkable(u,ox,oy){if(u.naval||u.dead||u.inside||(u.x===ox&&u.y===oy))return;const wet=(x,y)=>{const tx=Math.floor(x),ty=Math.floor(y);if(!inMap(tx,ty))return true;const i=idx(tx,ty);return G.terrain[i]===2&&!G.bAt[i]};
+ if(!wet(u.x,u.y)||wet(ox,oy))return;if(!wet(u.x,oy))u.y=oy;else if(!wet(ox,u.y))u.x=ox;else{u.x=ox;u.y=oy}}
 function update(){for(const r of G.relics)if(r.holder&&!r.holder.inside){r.x=r.holder.x;r.y=r.holder.y}G.tick++;G.time+=DT;buildGrid();
  for(const p of G.players)if(p.ai&&!p.dead&&G.tick%20===(p.team*7)%20)aiThink(p);
  for(const b of G.buildings)updateBuilding(b);
@@ -1063,6 +1063,13 @@ function tryAge(b){const p=player(b.team);if(p.age>=3||p.ageing||!b.built)return
 function techLevel(p,k){return p.techs[k]||0}
 function tryResearch(b,k){const p=player(b.team);const t=TECHS[k];const lvl=techLevel(p,k);p.researching=p.researching||{};if(lvl>=t.name.length||p.researching[k]||!b.built||p.age<t.age[lvl])return false;if(!canAfford(p,t.cost[lvl])){msg('Not enough resources.',b.team);return false}pay(p,t.cost[lvl]);p.researching[k]=true;b.queue.push({tech:k,lvl,t:0});return true}
 function relicOn(x,y){for(const r of G.relics)if(!r.holder&&!r.temple&&Math.floor(r.x)===x&&Math.floor(r.y)===y)return true;return false}
+// AI placement: true when a footprint at (tx,ty) would close off a small pocket of walkable ground (fewer than 48 cells)
+// against other buildings, mines and trees, where villagers working there could no longer reach a drop-off.
+function sealsPocket(tx,ty,w,h,team){const inF=(x,y)=>x>=tx&&x<tx+w&&y>=ty&&y<ty+h;const ok=(x,y)=>!inF(x,y)&&isWalkable(x,y,team);const seen=new Set();
+ for(let y=ty-1;y<=ty+h;y++)for(let x=tx-1;x<=tx+w;x++){if(inF(x,y)||!ok(x,y)||seen.has(idx(x,y)))continue;const st=[[x,y]];seen.add(idx(x,y));let n=0;
+  while(st.length&&n<48){const [cx,cy]=st.pop();n++;for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy;if(!ok(nx,ny))continue;const k=idx(nx,ny);if(seen.has(k))continue;seen.add(k);st.push([nx,ny])}}
+  if(n<48&&!st.length)return true}
+ return false}
 function canPlace(type,tx,ty,team){const d=BUILDINGS[type];if(d.water){let shore=false;for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){if(!inMap(x,y))return false;const i=idx(x,y);if(G.terrain[i]!==2||G.bAt[i]||G.rAt[i]||G.vis[team][i]===0)return false}for(let y=ty-1;y<ty+d.h+1;y++)for(let x=tx-1;x<tx+d.w+1;x++){if(inMap(x,y)&&G.terrain[idx(x,y)]!==2&&!G.block[idx(x,y)])shore=true}return shore}
  for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){if(!inMap(x,y))return false;const i=idx(x,y);if(G.block[i]||G.bAt[i]||G.terrain[i]===2||relicOn(x,y))return false;if(G.vis[team][i]===0)return false}
  if(G.elev&&!footprintFlat(tx,ty,d.w,d.h))return false;
@@ -1176,7 +1183,7 @@ const allyP0=G.players.some(q=>q.team!==t&&!q.dead&&allied(q.team,t));
  const needKind=()=>{let best='wood',bd=-1e9;for(const k of RES_KINDS){const d=deficit(k);if(d>bd){bd=d;best=k}}return best};
  const placeNear=(type,cx,cy,minD=0,maxD=14)=>{const d=BUILDINGS[type];let best=null,bd=1e9;for(let y=Math.max(0,Math.floor(cy-maxD));y<=Math.min(MAP-d.h,Math.ceil(cy+maxD));y++)for(let x=Math.max(0,Math.floor(cx-maxD));x<=Math.min(MAP-d.w,Math.ceil(cx+maxD));x++){const dd=Math.hypot(x+d.w/2-cx,y+d.h/2-cy);if(dd<minD||dd>maxD||dd>=bd)continue;if(!canPlace(type,x,y,t))continue;
    let free=0,tot=0;for(let yy=y-1;yy<y+d.h+1;yy++)for(let xx=x-1;xx<x+d.w+1;xx++){if(yy>=y&&yy<y+d.h&&xx>=x&&xx<x+d.w)continue;tot++;if(isWalkable(xx,yy,t,!!d.water)||(inMap(xx,yy)&&G.bAt[idx(xx,yy)]&&G.bAt[idx(xx,yy)].type==='farm'))free++}
-   if(!d.water&&free<tot*0.5)continue;bd=dd;best={x,y}}return best};
+   if(!d.water&&free<tot*0.5)continue;if(!d.water&&type!=='farm'&&sealsPocket(x,y,d.w,d.h,t))continue;bd=dd;best={x,y}}return best};
  const buildWith=(type,pos,n=1,prefer)=>{if(!pos)return null;let free=vills.filter(v=>v.state==='idle'||((v.state==='gather'||v.state==='hunt')&&(!prefer||v.carryKind===prefer)));if(!free.length)free=vills.filter(v=>v.state==='gather'||v.state==='hunt');free.sort((a,b)=>Math.hypot(a.x-pos.x,a.y-pos.y)-Math.hypot(b.x-pos.x,b.y-pos.y));const bs=free.slice(0,n);if(!bs.length)return null;return tryPlace(type,pos.x,pos.y,t,bs,false)};
  const farmSpot=()=>{const drops=built('mill').concat(built('townhall'));for(const b of drops){const c=center(b);const pos=placeNear('farm',c.x,c.y,2,9);if(pos)return pos}return placeNear('farm',home.x,home.y,2,11)};
  if(!th&&!underway('townhall')&&vills.length){const v=vills[0];let best=null,bd=-1;for(let k=0;k<40;k++){const x=Math.round(v.x+R(-8,8)),y=Math.round(v.y+R(-8,8));if(!canPlace('townhall',x-1,y-1,t))continue;let sc=0;for(const r of G.resources){if(r.dead||r.fish)continue;const d=Math.hypot(r.tx-x,r.ty-y);if(d<9)sc+=r.res==='food'?2:r.res==='wood'?0.6:1}if(sc>bd){bd=sc;best={x:x-1,y:y-1}}}if(best)tryPlace('townhall',best.x,best.y,t,vills,false);return}
