@@ -348,7 +348,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
           <div><b>Shift</b> add to selection, queue orders</div>
           <div><b>Dbl-click</b> select all of a type on screen</div>
           <div><b>A</b> attack-move, <b>Z</b> patrol, <b>X</b> explore, <b>D</b> stand ground</div>
-          <div><b>H</b> Town Hall, <b>.</b> idle villager, <b>,</b> idle army</div>
+          <div><b>H</b> Town Hall, <b>.</b> idle villager, <b>,</b> idle army, <b>Space</b> latest attack</div>
           <div><b>Ctrl+1-9</b> set group, <b>1-9</b> recall</div>
           <div><b>Arrows</b> / edge / middle-drag to scroll</div>
           <div><b>Wheel</b> zoom, <b>+ / -</b> game speed, <b>P</b> pause</div>
@@ -357,6 +357,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
           <div><b>Ctrl+A</b> select all soldiers, <b>Y</b> repair</div>
         </div></details>
         <button class="big" id="play">Play</button>
+        <p class="sub" id="catlink" style="text-align:center;margin:8px 0 0"><a href="catalog.html" target="_blank" rel="noopener" style="color:inherit">Art catalogue: every building, unit and age, and a whole village ↗</a></p>
         <div id="dip" class="hidden" style="margin:8px 0"></div>
         <details id="treewrap" class="hidden"><summary>Tech tree</summary><div id="tree" style="font-size:12px;line-height:1.5;max-height:40vh;overflow:auto"></div></details>
         <div class="opts" id="saveopts" style="margin:8px 0 0"><div class="opt hidden" id="save">Save game</div><div class="opt hidden" id="load">Load saved game</div><div class="opt hidden" id="restart" title="Start over on this same map with the same settings">Restart this map</div><div class="opt hidden" id="scoresbtn" title="Players' scores in the top-right corner (F4)">Hide scoreboard</div></div>
@@ -33760,7 +33761,7 @@ function drawResource(r,dim){
  const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){wtrFish(wx,wy,G.time*1.5+r.tx);return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;if(r.res==='food'&&!r.carcass){const o=berryNudge(r);ctx.drawImage(sp,Math.round(wx+o.x-32),Math.round(wy+o.y-68),64,80);return}ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
 // a berry bush leans toward the other bushes of its patch (render only), so a patch reads as one clump
 const BERRY_NUDGE=new WeakMap();
-function berryNudge(r){let o=BERRY_NUDGE.get(r);if(o&&o.n===G.resources.length)return o;let sx=0,sy=0,c=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy||!inMap(r.tx+dx,r.ty+dy))continue;const q=G.rAt[idx(r.tx+dx,r.ty+dy)];if(q&&q.res==='food'&&!q.carcass&&!q.fish){sx+=dx;sy+=dy;c++}}
+function berryNudge(r){if(!G||!G.rAt||!G.resources||!(r.tx>=0))return {x:0,y:0};let o=BERRY_NUDGE.get(r);if(o&&o.n===G.resources.length)return o;let sx=0,sy=0,c=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy||!inMap(r.tx+dx,r.ty+dy))continue;const q=G.rAt[idx(r.tx+dx,r.ty+dy)];if(q&&q.res==='food'&&!q.carcass&&!q.fish){sx+=dx;sy+=dy;c++}}
  const k=c?0.34/Math.max(1,Math.hypot(sx/c,sy/c)*1.4):0,mx=c?sx/c*k:0,my=c?sy/c*k:0;o={x:(mx-my)*HW,y:(mx+my)*HH,n:G.resources.length};BERRY_NUDGE.set(r,o);return o}
 let fogCv=null,fogData=null,fogLo=null,fogBl=null;const FOGS=8;
 function updateFog(){if(!fogCv){fogCv=document.createElement('canvas');fogCv.width=fogCv.height=MAP*4;fogData=fogCv.getContext('2d').createImageData(MAP*4,MAP*4)}const v=G.vis[ME];const d=fogData.data;
