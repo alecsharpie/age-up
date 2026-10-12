@@ -1290,34 +1290,36 @@ function w2s(x,y){return{x:(wpx(x,y)-cam.x)*cam.zoom+W/2,y:(wpy(x,y)-cam.y)*cam.
 let terrainCv=null,TOX=0;const TOY=4*EPX+4;let terrainDirty=[];
 const TCOLS=[['#5f9a3e','#67a344','#5a9239','#6aa64a'],['#9a7b4a','#a0824f','#917246'],['#2f6fb0','#2c69a8'],['#d8c88a','#d1bf80']];
 function tilePts(x,y){return[[x,y],[x+1,y],[x+1,y+1],[x,y+1]].map(([i,j])=>[TOX+wpx(i,j),TOY+(i+j)*HH-hCorner(i,j)*EPX])}
-// Ground: a smooth texture in tile space (GTS texels per tile) where grass, dirt, sand and water meet along warped,
+// Ground: a smooth texture in tile space (GTS texels per tile) where grass, dirt and sand meet along warped,
 // noisy borders, with broad colour variation and slope light baked in. It is projected onto the iso map once:
 // one affine draw for the flat land, then two affine triangles per tile that has height.
+// Water is not part of this texture: under it the ground is sand (so shores get a beach), and wtrPaint (below)
+// paints the water itself straight onto the iso canvas, on the tile grid, in crisp pixels.
 const TBASE=[[[84,140,54],[112,170,70]],[[146,114,68],[170,138,88]],[[46,110,172],[38,96,156]],[[218,202,140],[204,188,124]]];
-let terrainGT=null,GTS=16,gtNoise=null,gtDepth=null;
+let terrainGT=null,GTS=16,gtNoise=null,gtDepth=null,gtNearW=null;
 function gtFill(x0,y0,x1,y1){const S=GTS,n=MAP*S,T=G.terrain;const N4=gtNoise;const cx=terrainGT.getContext('2d');
  const px0=x0*S,py0=y0*S,pw=(x1-x0+1)*S,ph=(y1-y0+1)*S;const img=cx.createImageData(pw,ph),D=img.data;
- const tt=(x,y)=>T[idx(x<0?0:x>=MAP?MAP-1:x,y<0?0:y>=MAP?MAP-1:y)];const dep=(x,y)=>gtDepth[idx(x<0?0:x>=MAP?MAP-1:x,y<0?0:y>=MAP?MAP-1:y)];
+ const cl=x=>x<0?0:x>=MAP?MAP-1:x;const tt=(x,y)=>{const t=T[idx(cl(x),cl(y))];return t===2?3:t};
  const w=[0,0,0,0];const elev=!!G.elev;
  for(let py=0;py<ph;py++)for(let px=0;px<pw;px++){const u=(px0+px+0.5)/S,v=(py0+py+0.5)/S;
   const wu=u+(N4[0](u*0.7,v*0.7)-0.5)*0.9,wv=v+(N4[1](u*0.7,v*0.7)-0.5)*0.9;
   const gx=wu-0.5,gy=wv-0.5,ix=Math.floor(gx),iy=Math.floor(gy),fx=gx-ix,fy=gy-iy;
   w[0]=w[1]=w[2]=w[3]=0;w[tt(ix,iy)]+=(1-fx)*(1-fy);w[tt(ix+1,iy)]+=fx*(1-fy);w[tt(ix,iy+1)]+=(1-fx)*fy;w[tt(ix+1,iy+1)]+=fx*fy;
-  const wf=w[2];let sum=0;for(let k=0;k<4;k++){const a=w[k];w[k]=a*a*a;sum+=w[k]}
+  let sum=0;for(let k=0;k<4;k++){const a=w[k];w[k]=a*a*a;sum+=w[k]}
   const tone=Math.max(0,Math.min(1,N4[2](u*0.18,v*0.18)*0.55+N4[3](u*0.6,v*0.6)*0.3+N4[4](u*1.9,v*1.9)*0.25-0.05));
   let r=0,g=0,b=0;for(let k=0;k<4;k++){if(!w[k])continue;const f=w[k]/sum,c0=TBASE[k][0],c1=TBASE[k][1];r+=f*(c0[0]+(c1[0]-c0[0])*tone);g+=f*(c0[1]+(c1[1]-c0[1])*tone);b+=f*(c0[2]+(c1[2]-c0[2])*tone)}
-  const water=w[2]/sum;
-  if(water>0.02){const dd=(1-fx)*(1-fy)*dep(ix,iy)+fx*(1-fy)*dep(ix+1,iy)+(1-fx)*fy*dep(ix,iy+1)+fx*fy*dep(ix+1,iy+1);const k=1-Math.min(1,dd/5)*0.38*water;r*=k;g*=k;b*=k*1.02}
-  if(wf>0.12&&wf<0.62){const land=1-water;const wet=1-Math.min(1,Math.abs(wf-0.3)/0.18);if(wet>0){const k=1-0.16*wet*land;r*=k;g*=k;b*=k}
-   const foam=1-Math.abs(wf-0.47)/0.07;if(foam>0){const a=foam*0.55;r+=(236-r)*a;g+=(240-g)*a;b+=(226-b)*a}}
-  let br=1;if(elev){const e=0.25,dx=(heightAt(u+e,v)-heightAt(u-e,v))/(2*e),dy=(heightAt(u,v+e)-heightAt(u,v-e))/(2*e);br=1-0.13*(dx+dy)+0.06*(dy-dx)+0.03*heightAt(u,v);br=1+(br-1)*(1-water)}
+  // wet sand: two flat steps of darker ground along the exact (grid) edge of the water
+  const tix=Math.floor(u),tiy=Math.floor(v);if(gtNearW[idx(cl(tix),cl(tiy))]){let m=9;for(let yy=tiy-1;yy<=tiy+1;yy++)for(let xx=tix-1;xx<=tix+1;xx++){if(T[idx(cl(xx),cl(yy))]!==2)continue;const dx=Math.max(xx-u,0,u-xx-1),dy=Math.max(yy-v,0,v-yy-1);const d=dx*dx+dy*dy;if(d<m)m=d}
+   if(m<0.06){const k=m<0.016?0.8:0.9;r*=k;g*=k;b*=k*0.97}}
+  let br=1;if(elev){const e=0.25,dx=(heightAt(u+e,v)-heightAt(u-e,v))/(2*e),dy=(heightAt(u,v+e)-heightAt(u,v-e))/(2*e);br=1-0.13*(dx+dy)+0.06*(dy-dx)+0.03*heightAt(u,v)}
   let hs=Math.imul((px0+px)^Math.imul(py0+py,0x45d9f3b),0x2c1b3c6d);hs=Math.imul(hs^(hs>>>15),0x297a2d39);br*=1+(((hs>>>8)&255)/255-0.5)*0.09;
   const o=(py*pw+px)*4;D[o]=r*br;D[o+1]=g*br;D[o+2]=b*br;D[o+3]=255}
  cx.putImageData(img,px0,py0)}
 function gtBuild(){GTS=MAP<=56?16:12;terrainGT=document.createElement('canvas');terrainGT.width=terrainGT.height=MAP*GTS;gtNoise=[101,202,303,404,505].map(k=>valueNoise(G.seed+k));
  // water depth = tiles to the nearest land, for darker open water
  gtDepth=new Float32Array(N).fill(99);const q=[];for(let i=0;i<N;i++)if(G.terrain[i]!==2){gtDepth[i]=0;q.push(i)}for(let h=0;h<q.length;h++){const i=q[h],x=i%MAP,y=(i/MAP)|0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(!inMap(nx,ny))continue;const j=idx(nx,ny);if(gtDepth[j]>gtDepth[i]+1){gtDepth[j]=gtDepth[i]+1;q.push(j)}}}
- gtFill(0,0,MAP-1,MAP-1)}
+ gtNearW=new Uint8Array(N);for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){let f=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy;if(inMap(X,Y)&&G.terrain[idx(X,Y)]===2)f=1}gtNearW[idx(x,y)]=f}
+ wtrPrep();gtFill(0,0,MAP-1,MAP-1)}
 const tileRaised=(x,y)=>G.elev&&(hCorner(x,y)||hCorner(x+1,y)||hCorner(x+1,y+1)||hCorner(x,y+1));
 // one tile as two triangles, each an exact affine map of its texels (clip grown by half a pixel so no seams show)
 function gtTile(c,x,y){const S=GTS,P=tilePts(x,y);const sx=Math.max(0,x*S-2),sy=Math.max(0,y*S-2),sw=Math.min(MAP*S-sx,S+4),sh=Math.min(MAP*S-sy,S+4);
@@ -1328,16 +1330,88 @@ function gtTile(c,x,y){const S=GTS,P=tilePts(x,y);const sx=Math.max(0,x*S-2),sy=
 // small crisp marks on top of the smooth ground (deterministic per tile, so a redraw matches)
 function gtDetail(c,x,y){const t=G.terrain[idx(x,y)];const P=tilePts(x,y);const r=mulberry32(G.seed^Math.imul(x+1,73856093)^Math.imul(y+1,19349663));const cx=(P[0][0]+P[2][0])/2,cy=(P[0][1]+P[2][1])/2;
  if(t===0){c.fillStyle='rgba(0,0,0,0.08)';for(let k=0;k<3;k++)c.fillRect(cx+(r()-0.5)*36,cy+(r()-0.5)*14,2,1);if(r()<0.18){c.fillStyle='rgba(150,205,100,0.85)';c.fillRect(cx+(r()-0.5)*28,cy-6+r()*12,2,3)}}
- else if(t===2){if(gtDepth[idx(x,y)]>1&&r()<0.5){c.strokeStyle='rgba(255,255,255,0.10)';c.beginPath();const yy=cy+(r()-0.5)*6;c.moveTo(cx-12,yy);c.lineTo(cx+9,yy+(r()-0.5)*2);c.stroke()}}
  else if(t===1){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(cx+(r()-0.5)*28,cy-4+r()*10,3,2)}
  else if(t===3&&r()<0.3){c.fillStyle='rgba(120,100,60,0.25)';c.fillRect(cx+(r()-0.5)*26,cy+(r()-0.5)*8,2,1)}}
+// ---------------- WATER (render only) ----------------
+// Painted straight onto the iso terrain canvas, one pixel at a time, after the ground: the coast is the tile grid
+// (every water tile is water, every land tile land) with only the corners rounded by WR tiles, so the edges run as
+// clean 2:1 pixel lines. The water lies a step below the land: a back shore (land above on screen) shows an ink lip
+// and a 2px earth bank, lit where it faces the upper-left light and shaded where it faces away, with a broken foam
+// line at its foot; a front shore gets a foam line. Open water steps through shore, shallow, mid and deep bands that
+// meet in ordered dither, with a few painted ripples; wtrGlints twinkles a glint here and there each frame.
+// Only water pixels are written (opaque, absolute colours), so a repaint of any tile range is idempotent.
+const WR=0.2,WBAY=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v=>(v+0.5)/16-0.5);
+const WPAL=[[78,150,188],[58,126,176],[42,100,158],[34,84,140],[28,70,122]]; // shore, shallow, mid, deep, deepest
+const WC={foam:[228,242,244],foam2:[164,208,224],ink:[44,34,24],lit:[132,104,66],lit2:[104,80,50],sh:[90,68,44],sh2:[66,50,34],rip:[96,156,200],ripD:[32,78,132]};
+let wtrTiles=null,wtrDash=null,wtrIn=null,wtrLand=null,wtrScratch=null;
+const wT=(x,y)=>G.terrain[idx(x<0?0:x>=MAP?MAP-1:x,y<0?0:y>=MAP?MAP-1:y)]===2;
+// is the tile-space point (u,v) water? the tile's own type, except in the WR-square at a tile corner where it is rounded
+function wAt(u,v){const ix=Math.floor(u),iy=Math.floor(v);const self=wT(ix,iy);const cx=Math.round(u),cy=Math.round(v);const du=Math.abs(u-cx),dv=Math.abs(v-cy);if(du>=WR||dv>=WR)return self;
+ const a=wT(cx-1,cy-1),d=wT(cx,cy),n=a+wT(cx,cy-1)+wT(cx-1,cy)+d;const ex=WR-du,ey=WR-dv,nub=ex*ex+ey*ey>WR*WR;
+ if(self&&(n===1||(n===2&&a===d)))return !nub;if(!self&&n===3)return nub;return self}
+// distance (tiles) from a water point to the nearest land square, exact up to 2
+function wDist(u,v,ti){const L=wtrLand[ti];if(!L)return 2;let m=4;
+ for(let k=0;k<L.length;k+=2){const x=L[k],y=L[k+1];const dx=Math.max(x-u,0,u-x-1),dy=Math.max(y-v,0,v-y-1);const q=dx*dx+dy*dy;if(q<m)m=q}return Math.min(2,Math.sqrt(m))}
+// per water tile: a painted ripple dash (canvas px) and glint parameters, all from a per-tile hash
+function wtrPrep(){wtrTiles=[];wtrDash=new Int16Array(N*3).fill(-1);wtrIn=new Uint8Array(N);wtrLand=new Array(N);
+ for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){const i=idx(x,y);if(G.terrain[i]!==2)continue;let all=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(!wT(x+dx,y+dy))all=0;wtrIn[i]=all;
+  if(gtDepth[i]<5){const L=[];for(let yy=y-2;yy<=y+2;yy++)for(let xx=x-2;xx<=x+2;xx++)if(inMap(xx,yy)&&G.terrain[idx(xx,yy)]!==2)L.push(xx,yy);wtrLand[i]=L}}
+for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){const i=idx(x,y);if(G.terrain[i]!==2)continue;
+ const r=mulberry32(G.seed^Math.imul(x+7,2654435761)^Math.imul(y+3,40503));const cxp=TOX+wpx(x+0.5,y+0.5),cyp=TOY+(x+y+1)*HH;
+ if(gtDepth[i]>=2&&r()<0.42){const len=2+Math.floor(r()*5),oy=Math.round((r()-0.5)*14),hw=Math.max(0,28-2*Math.abs(oy)-len);wtrDash[i*3]=Math.round(cxp-len/2+(r()-0.5)*2*hw);wtrDash[i*3+1]=Math.round(cyp+oy);wtrDash[i*3+2]=len}else{r();r();r()}
+ if(gtDepth[i]>=2)wtrTiles.push({x,y,i,ph:r()*5,gx:Math.round(wpx(x+0.5,y+0.5)+(r()-0.5)*24),gy:Math.round((x+y+1)*HH+(r()-0.5)*8)})}}
+function wtrPaint(c,tx0,ty0,tx1,ty1){tx0=Math.max(0,tx0);ty0=Math.max(0,ty0);tx1=Math.min(MAP-1,tx1);ty1=Math.min(MAP-1,ty1);
+ let any=false;for(let y=ty0;y<=ty1&&!any;y++)for(let x=tx0;x<=tx1;x++)if(gtNearW[idx(x,y)]){any=true;break}if(!any)return;
+ const X0=Math.max(0,Math.floor(TOX+(tx0-ty1-1)*HW)),X1=Math.min(c.canvas.width,Math.ceil(TOX+(tx1+1-ty0)*HW)),Y0=Math.max(0,Math.floor(TOY+(tx0+ty0)*HH)),Y1=Math.min(c.canvas.height,Math.ceil(TOY+(tx1+ty1+2)*HH));
+ const N4=gtNoise,K=1/(2*HH),T=G.terrain;
+ for(let sy0=Y0;sy0<Y1;sy0+=96){const sh=Math.min(96,Y1-sy0),sw=X1-X0;if(sw<=0)break;const img=new ImageData(sw,sh),D=img.data;let wrote=false;
+  for(let py=0;py<sh;py++){const sy=sy0+py,wy=(sy+0.5-TOY)/HH;
+   // only the pixels whose tile is inside the range: u=(wx+wy)/2 in [tx0,tx1+1), v=(wy-wx)/2 in [ty0,ty1+1)
+   const wa=Math.max(2*tx0-wy,wy-2*(ty1+1)),wb=Math.min(2*(tx1+1)-wy,wy-2*ty0);if(wa>=wb)continue;
+   const pa=Math.max(0,Math.floor(TOX+wa*HW-0.5)-X0),pb=Math.min(sw,Math.ceil(TOX+wb*HW+0.5)-X0);
+   for(let px=pa;px<pb;px++){const sx=X0+px,wx=(sx+0.5-TOX)/HW;const u=(wx+wy)/2,v=(wy-wx)/2;const ix=Math.floor(u),iy=Math.floor(v);
+    if(ix<tx0||iy<ty0||ix>tx1||iy>ty1)continue;const ti=idx(ix,iy);if(!gtNearW[ti])continue;const inner=wtrIn[ti];if(!inner&&!wAt(u,v))continue;
+    let col=null;if(!inner){
+    // back shore: land 1..3px above
+    let up=0;for(let k=1;k<=4;k++)if(!wAt(u-k*K,v-k*K)){up=k;break}
+    if(up){const fu=Math.floor(u-up*K),fv=Math.floor(v-up*K);const lit=fv<iy&&!(fu<ix);
+     col=up===1?WC.ink:up===2?(lit?WC.lit:WC.sh):up===3?(lit?WC.lit2:WC.sh2):((sx+sy)&1?WC.foam2:null)}
+    if(!col){let dn=0;for(let k=1;k<=2;k++)if(!wAt(u+k*K,v+k*K)){dn=k;break}
+     if(dn===1)col=WC.foam;else if(dn===2)col=(sx+sy)&1?WC.foam2:WPAL[0]}}
+    if(!col){const dd=(inner||T[ti]===2?wDist(u,v,ti):0)+(N4[2](u*0.5,v*0.5)-0.5)*0.5+WBAY[(sy&3)*4+(sx&3)]*0.22;
+     col=WPAL[dd<0.16?0:dd<0.55?1:dd<1.15?2:dd<1.75?3:4];
+     const ds=wtrDash[ti*3];if(ds>=0){const dy0=wtrDash[ti*3+1],ln=wtrDash[ti*3+2];if(sy===dy0&&sx>=ds&&sx<ds+ln)col=WC.rip;else if(sy===dy0+1&&sx>ds&&sx<=ds+ln)col=WC.ripD}}
+    const o=(py*sw+px)*4;D[o]=col[0];D[o+1]=col[1];D[o+2]=col[2];D[o+3]=255;wrote=true}}
+  // composited through a scratch canvas (never read back from the terrain canvas, which would push it off the GPU)
+  if(wrote){if(!wtrScratch)wtrScratch=document.createElement('canvas');if(wtrScratch.width<sw||wtrScratch.height<96){wtrScratch.width=Math.max(sw,wtrScratch.width);wtrScratch.height=96}
+   const sc=wtrScratch.getContext('2d');sc.clearRect(0,0,sw,sh);sc.putImageData(img,0,0);c.drawImage(wtrScratch,0,0,sw,sh,X0,sy0,sw,sh)}}}
+// glints: a pixel that swells to a small cross and fades, one tile in a few at a time (open water, seen tiles only)
+function wtrGlints(onscreen){if(!wtrTiles||!wtrTiles.length)return;const t=G.time,v=G.vis[ME];ctx.fillStyle='#e6f3f6';
+ for(const g of wtrTiles){const l=(t+g.ph)%5;if(l>0.66)continue;if(!onscreen(g.gx,g.gy)||v[g.i]===0)continue;const s=Math.floor(l/0.22);
+  if(s===1){ctx.fillRect(g.gx-1,g.gy,3,1);ctx.fillRect(g.gx,g.gy-1,1,3)}else ctx.fillRect(g.gx,g.gy,s===0?1:2,1)}}
+// a fish shoal in crisp pixels: two widening ripple rings and three silver fish circling at the surface.
+// Rings (16 phases) and the fish (two facings) are cached canvases, so a shoal costs four drawImage calls a frame.
+const WFISH=['s.kkkk.','.sSSSSk','s.kkkk.'],WFC={k:'#1a3050',S:'#d8e8ee',s:'#8fb4c8'};let wtrFishC=null;
+function wtrFishCache(){wtrFishC={rings:[],fish:[]};
+ for(let q=0;q<16;q++){const cv=document.createElement('canvas');cv.width=42;cv.height=24;const x=cv.getContext('2d');
+  for(let k=0;k<2;k++){const p=(q/16+k*0.5)%1,rx=7+p*12,ry=rx/2,n=Math.ceil(rx*4);x.fillStyle=`rgba(222,240,246,${(0.15+0.8*(1-p)).toFixed(2)})`;let lx=1e9,ly=0;
+   for(let j=0;j<n;j++){const a=j/n*Math.PI*2,X=21+Math.round(Math.cos(a)*rx),Y=12+Math.round(Math.sin(a)*ry);if(X===lx&&Y===ly)continue;lx=X;ly=Y;x.fillRect(X,Y,1,1)}}
+  wtrFishC.rings.push(cv)}
+ for(const d of[1,-1]){const cv=document.createElement('canvas');cv.width=7;cv.height=3;const x=cv.getContext('2d');
+  for(let j=0;j<3;j++)for(let i=0;i<7;i++){const ch=WFISH[j][i];if(ch==='.')continue;x.fillStyle=WFC[ch];x.fillRect(d>0?i:6-i,j,1,1)}wtrFishC.fish.push(cv)}}
+function wtrFish(wx,wy,t){if(!wtrFishC)wtrFishCache();wx=Math.round(wx);wy=Math.round(wy)-4;
+ ctx.drawImage(wtrFishC.rings[Math.floor(((t/3)%1+1)%1*16)&15],wx-21,wy-12);
+ for(let k=0;k<3;k++){const a=t+k*2.1,X=Math.round(wx+Math.cos(a)*7),Y=Math.round(wy+Math.sin(a)*3),d=-Math.sin(a)>=0; // swims along the circle
+  ctx.drawImage(wtrFishC.fish[d?0:1],X-3,Y-1)}}
 function buildTerrain(){TOX=MAP*HW;terrainCv=document.createElement('canvas');terrainCv.width=MAP*TW;terrainCv.height=MAP*TH+TOY+4;const c=terrainCv.getContext('2d');gtBuild();
  c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
  c.setTransform(HW/GTS,HH/GTS,-HW/GTS,HH/GTS,TOX,TOY);c.drawImage(terrainGT,0,0);c.setTransform(1,0,0,1,0,0);
  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(!tileRaised(x,y))gtDetail(c,x,y);
- for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(tileRaised(x,y)){gtTile(c,x,y);gtDetail(c,x,y)}terrainDirty=[]}
+ for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(tileRaised(x,y)){gtTile(c,x,y);gtDetail(c,x,y)}
+ wtrPaint(c,0,0,MAP-1,MAP-1);terrainDirty=[]}
 function redrawDirty(){if(!terrainCv||!terrainDirty.length)return;const c=terrainCv.getContext('2d');c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
- for(const d of terrainDirty){const x0=Math.max(0,d.x0-1),y0=Math.max(0,d.y0-1),x1=Math.min(MAP-1,d.x1+1),y1=Math.min(MAP-1,d.y1+1);gtFill(x0,y0,x1,y1);for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){gtTile(c,x,y);gtDetail(c,x,y)}}terrainDirty=[]}
+ for(const d of terrainDirty){const x0=Math.max(0,d.x0-1),y0=Math.max(0,d.y0-1),x1=Math.min(MAP-1,d.x1+1),y1=Math.min(MAP-1,d.y1+1);gtFill(x0,y0,x1,y1);for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){gtTile(c,x,y);gtDetail(c,x,y)}wtrPaint(c,x0-1,y0-1,x1+1,y1+1)}terrainDirty=[]}
+// ---------------- end WATER ----------------
 const resSprites={};
 // the sprite as seen under explored fog, cached so dimming costs nothing per frame
 function resSpriteDim(kind,v){const key='dim'+kind+v;if(resSprites[key])return resSprites[key];const src=resSprite(kind,v);const c=document.createElement('canvas');c.width=src.width;c.height=src.height;const x=c.getContext('2d');x.drawImage(src,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba(6,4,2,0.47)';x.fillRect(0,0,c.width,c.height);return resSprites[key]=c}
@@ -33664,7 +33738,7 @@ function cliffRender(tx,ty){const[nA,nB,nC]=cliffN;const open=[];for(let oy=-1;o
 function drawResource(r,dim){
  // trees come in species patches of 4x4 tiles (a quarter mixed in), two forms per species, so a wood reads as one stand; drawing only, the sim never sees it
  function woodVariant(r){const h=(a,b)=>{let x=(a*374761393+b*668265263)|0;x=Math.imul(x^(x>>>13),1274126177);return((x^(x>>>16))>>>0)/4294967296};let sp=Math.floor(h(r.tx>>2,r.ty>>2)*3);if(h(r.tx,r.ty+99)<0.25)sp=r.v%3;return sp+(h(r.tx+7,r.ty)<0.5?0:3)}
- const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){const t=G.time*1.5+r.tx;ctx.strokeStyle='rgba(255,255,255,0.35)';for(let k=0;k<2;k++){ctx.beginPath();ctx.ellipse(wx,wy-4,8+((t+k*1.5)%3)*4,4+((t+k*1.5)%3)*2,0,0,7);ctx.stroke()}ctx.fillStyle='#cfd8dc';for(let k=0;k<3;k++){const a=t+k*2.1;ctx.beginPath();ctx.ellipse(wx+Math.cos(a)*7,wy-4+Math.sin(a)*3,3,1.3,a,0,7);ctx.fill()}return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
+ const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){wtrFish(wx,wy,G.time*1.5+r.tx);return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
 let fogCv=null,fogData=null,fogLo=null,fogBl=null;const FOGS=8;
 function updateFog(){if(!fogCv){fogCv=document.createElement('canvas');fogCv.width=fogCv.height=MAP*4;fogData=fogCv.getContext('2d').createImageData(MAP*4,MAP*4)}const v=G.vis[ME];const d=fogData.data;
  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){const a=v[idx(x,y)]===2?0:v[idx(x,y)]===1?120:255;for(let yy=0;yy<4;yy++)for(let xx=0;xx<4;xx++){const i=((y*4+yy)*MAP*4+(x*4+xx))*4;d[i]=6;d[i+1]=4;d[i+2]=2;d[i+3]=a}}fogCv.getContext('2d').putImageData(fogData,0,0)}
@@ -33674,7 +33748,7 @@ function rangeRing(r,R){ctx.beginPath();const cs=[[r.x1,r.y1,0],[r.x0,r.y1,Math.
  for(const[cx,cy,a0]of cs)for(let k=0;k<=12;k++){const a=a0+k/12*Math.PI/2;const x=Math.max(0,Math.min(MAP,cx+Math.cos(a)*R)),y=Math.max(0,Math.min(MAP,cy+Math.sin(a)*R));const px=wpx(x,y),py=wpy(x,y);if(first){ctx.moveTo(px,py);first=false}else ctx.lineTo(px,py)}ctx.closePath()}
 function render(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fillRect(0,0,W,H);if(!G)return;fxFrame();
  const z=cam.zoom;ctx.setTransform(z,0,0,z,W/2-cam.x*z,H/2-cam.y*z);
- if(!terrainCv)buildTerrain();else redrawDirty();ctx.drawImage(terrainCv,-TOX,-TOY);
+ if(!terrainCv)buildTerrain();else redrawDirty();ctx.imageSmoothingEnabled=z<1;ctx.drawImage(terrainCv,-TOX,-TOY);ctx.imageSmoothingEnabled=true;wtrGlints((wx,wy)=>wx>cam.x-W/2/z-8&&wx<cam.x+W/2/z+8&&wy>cam.y-H/2/z-8&&wy<cam.y+H/2/z+8);
  const x0=cam.x-W/2/z-80,x1=cam.x+W/2/z+80,y0=cam.y-H/2/z-100,y1=cam.y+H/2/z+60;const onscreen=(wx,wy)=>wx>x0&&wx<x1&&wy>y0&&wy<y1;
  const selSet=new Set(G.sel||[]);
  // ground effects
