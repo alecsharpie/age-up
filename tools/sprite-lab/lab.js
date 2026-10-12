@@ -82,13 +82,74 @@ function fakeUnit(type, o = {}) {
   else if (st === 'work') { u.state = 'gather'; u.phase = 'gathering'; u.carryKind = o.carryKind || 'wood'; }
   else if (st === 'carry') { u.state = 'gather'; u.goal = {}; u.carry = 10; u.carryKind = o.carryKind || 'wood'; }
   else if (st === 'convert') { u.state = 'convert'; u.target = {}; u.goal = {}; }
+  else if (st === 'build') { u.state = 'build'; u.target = {}; }   // hammering at a foundation (drawUnit: build without a goal = working)
   if (o.carry) { u.carry = o.carry; u.carryKind = o.carryKind || 'food'; }
   if (d.packs) u.packed = o.packed ?? true;
   return u;
 }
 function fakeRes(kind, o = {}) { return { id: 3, kind: 'res', res: kind, tx: o.tx ?? 0, ty: o.ty ?? 0, amount: o.amount ?? 100, max: 100, v: o.v ?? 0, fish: !!o.fish, gatherers: 0 }; }
 
-// ---------------------------------------------------------------- ground (mirrors buildTerrain in the game)
+// ---------------------------------------------------------------- world: small maps drawn with the game's own code
+// extract.mjs hands the lab the game's terrain texture + water (buildTerrain, gtFill, wtrPaint …) and its render FX (fxApron,
+// fxShadows, fxLight …). A lab world is a little G (terrain, seed, buildings, resources, units) with MAP set to its size while
+// the game's functions run, so the ground, shores, aprons and shadows are the game's own.
+const HAS_WORLD = () => typeof LAB_WORLD !== 'undefined' && LAB_WORLD && typeof buildTerrain === 'function';
+const HAS_FX = () => typeof LAB_FX !== 'undefined' && LAB_FX && typeof fxApron === 'function';
+function withWorld(w, fn) {
+  const sG = G, sMAP = MAP, sN = N; G = w.g; MAP = w.n; N = w.n * w.n;
+  try { return fn(); } finally { G = sG; MAP = sMAP; N = sN; }
+}
+/** An n×n map; terrainAt(x,y) → 0 grass, 1 dirt, 2 water, 3 sand. Its terrain canvas is built once by the game's buildTerrain. */
+function makeWorld(n, terrainAt, seed = 7) {
+  const g = { time: 0, tick: 0, seed, terrain: new Uint8Array(n * n), elev: new Uint8Array((n + 1) * (n + 1)), buildings: [], resources: [], units: [], relics: [], effects: [], projectiles: [], pings: [], sel: [], vis: [new Uint8Array(n * n).fill(2)], players: [0, 1, 2, 3].map(t => ({ age: 0, techs: {}, side: t })) };
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) g.terrain[y * n + x] = terrainAt(x, y);
+  const w = { n, g };
+  withWorld(w, () => { buildTerrain(); w.cv = terrainCv; w.tox = TOX; w.toy = TOY; });
+  return w;
+}
+// ground for single cells: a few cached 24×24 maps; the entity stands on tile (GC,GC)
+const GC = 12, GROUND_PROFILES = {
+  grass: () => 0,
+  shore: (x, y) => (x >= GC && y >= GC ? 2 : (x >= GC - 1 && y >= GC - 1) ? 3 : 0),   // dock: on water, a beach behind it
+  sea: (x, y) => (x + y >= 2 * GC - 3 ? 2 : x + y >= 2 * GC - 5 ? 3 : 0),            // ships, fish: open water, the shore behind
+};
+const groundCache = {};
+function groundWorld(profile = 'grass') { return groundCache[profile] || (groundCache[profile] = makeWorld(24, GROUND_PROFILES[profile] || GROUND_PROFILES.grass, 11)); }
+/** Which ground an entity stands on in the game. */
+function profileFor(kind, type, o = {}) {
+  if (kind === 'building' && BUILDINGS[type] && BUILDINGS[type].water) return 'shore';
+  if (kind === 'unit' && UNITS[type] && UNITS[type].naval) return 'sea';
+  if (kind === 'resource' && o.fish) return 'sea';
+  return 'grass';
+}
+/** The earth apron fxGround lays under a building, for one drawn at local tile (0,0) (computed on the ground map, then shifted). */
+const apronCache = new Map();
+function cellApron(b) {
+  const key = b.type + '|' + b.w + '|' + b.h + '|' + (b.built ? 1 : 0); let a = apronCache.get(key); if (a) return a;
+  const tmp = -7771; a = withWorld(groundWorld(), () => { const r = fxApron(Object.assign({}, b, { id: tmp, tx: GC, ty: GC })); FX.aprons.delete(tmp); return { key: r.key, cv: r.cv, front: r.front, x: r.x, y: r.y - GC * TH }; });
+  apronCache.set(key, a); return a;
+}
+let scratchCv = null;
+function scratch() { if (!scratchCv) { scratchCv = document.createElement('canvas'); scratchCv.width = scratchCv.height = 8; } return scratchCv.getContext('2d'); }
+/** Draw a building once off-screen so the FX hook records its sprite (FX.seen), as the previous frame does in the game. */
+function primeBuilding(F, b) { const keep = ctx; ctx = scratch(); try { F.drawBuilding(b, false); } catch (e) { } finally { ctx = keep; } }
+// one light: the same shadows fxShadows casts in the game, drawn straight onto the canvas at SUN.a
+function buildingShadow(c, b) {
+  const s = FX.seen.get(b.id); if (!s || !s.c || s.clip < 1 || s.type !== b.type) return;
+  const sh = fxShadowCanvas(s.c, s.an[0], s.an[1], s.w, s.h); c.save(); c.globalAlpha = SUN.a; c.drawImage(sh.cv, s.dx - sh.pad, s.dy - sh.pad); c.restore();
+}
+function unitShadow(c, u) {
+  if (UNITS[u.type].naval) return; const sp = PIXELS[u.type], an = sp && sp.anchor;
+  c.save(); c.globalAlpha = SUN.a; fxBodyShadow(c, wpx(u.x, u.y), wpy(u.x, u.y), an ? an[0] * 2 : 14, an ? an[1] : 22); c.restore();
+}
+function resourceShadow(c, r) {
+  if (r.fish || !PIXELS[r.res]) return; c.save(); c.globalAlpha = SUN.a;
+  if (r.res === 'wood') { const [cv, x, y] = fxTreeShadow(r); c.drawImage(cv, x, y); }
+  else { const sp = resSprite(r.res, r.v), s = r.res === 'food' ? 1 : 0.55 + 0.45 * r.amount / r.max, sh = fxVolShadow(sp, 32, 68); const wx = wpx(r.tx + 0.5, r.ty + 0.5), wy = wpy(r.tx + 0.5, r.ty + 0.5); c.drawImage(sh.cv, wx - 32 * s - sh.pad * s, wy - 68 * s - sh.pad * s, sh.cv.width * s, sh.cv.height * s); }
+  c.restore();
+}
+
+// ---------------------------------------------------------------- ground fallback (a build of the game without buildTerrain)
 const TERRAIN_COLS = [['#5f9a3e', '#67a344', '#5a9239', '#6aa64a'], ['#9a7b4a', '#a0824f', '#917246'], ['#2f6fb0', '#2c69a8'], ['#d8c88a', '#d1bf80']];
 function tile(c, cx, cy, t, r) {
   const pal = TERRAIN_COLS[t] || TERRAIN_COLS[0];
@@ -99,8 +160,14 @@ function tile(c, cx, cy, t, r) {
   if (t === 1) { c.fillStyle = 'rgba(0,0,0,0.1)'; c.fillRect(cx + (r() - 0.5) * 30, cy + 8 + r() * 14, 3, 2); }
   c.strokeStyle = 'rgba(0,0,0,0.04)'; c.stroke();
 }
-/** Fill a canvas region with terrain; (ox,oy) is where tile (0,0)'s top corner lands. */
-function drawGround(c, ox, oy, W, H, seed = 3, terrainAt = () => 0) {
+/** Fill a canvas region with the game's ground; (ox,oy) is where tile (0,0)'s top corner lands. profile: grass | shore | sea. */
+function drawGround(c, ox, oy, W, H, seed = 3, profile = 'grass') {
+  if (HAS_WORLD()) {
+    const w = groundWorld(typeof profile === 'string' ? profile : 'grass');
+    c.save(); c.fillStyle = '#5a9239'; c.fillRect(0, 0, W, H); c.imageSmoothingEnabled = false;
+    c.drawImage(w.cv, Math.round(ox - w.tox), Math.round(oy - w.toy - GC * TH)); c.restore(); return;
+  }
+  const terrainAt = typeof profile === 'function' ? profile : () => 0;
   const r = mulberry32(seed);
   c.fillStyle = '#5f9a3e'; c.fillRect(0, 0, W, H);
   const inv = (sx, sy) => ({ x: ((sx - ox) / HW + (sy - oy) / HH) / 2, y: ((sy - oy) / HH - (sx - ox) / HW) / 2 });
@@ -140,20 +207,39 @@ function drawFootprint(c, kind, type) {
 function renderCell(kind, type, o = {}) {
   const g = cellGeom(kind, type);
   const off = document.createElement('canvas'); off.width = g.cw; off.height = g.ch;
-  const c = off.getContext('2d');
-  if (o.ground !== false) drawGround(c, g.ax, g.ay, g.cw, g.ch, o.seed ?? 3, o.terrainAt);
+  const c = off.getContext('2d'); const ground = o.ground !== false;
+  if (ground) drawGround(c, g.ax, g.ay, g.cw, g.ch, o.seed ?? 3, o.terrainAt || profileFor(kind, type, o));
   c.save(); c.translate(g.ax, g.ay);
+  const fxId = ground ? groundFX(c, kind, type, o) : null;
   if (o.footprint) drawFootprint(c, kind, type);
   try { drawEntity(c, kind, type, o); }
   catch (e) { c.restore(); c.fillStyle = '#ff5a4a'; c.font = '10px Menlo'; c.fillText('ERR ' + e.message.slice(0, 60), 2, 12); off.error = e.message; return off; }
+  finally { if (fxId !== null) FX.aprons.delete(fxId); }
   c.restore(); return off;
+}
+/** What the game lays under an entity before drawing it: a building's earth apron (and foundation stakes), and every cast shadow
+ *  (one light). Returns the building id whose apron front-skirt fxBldPost should draw, so the caller can clear it after. */
+function groundFX(c, kind, type, o) {
+  if (!HAS_FX()) return null;
+  const F = LAB.fns[o.src === 'draft' ? 'draft' : 'current']; usePixels(o.src === 'draft' ? 'draft' : 'current'); ctx = c; G.time = o.time ?? 0;
+  try {
+    if (kind === 'building') {
+      const b = fakeBuilding(type, o); let id = null;
+      if (type !== 'farm' && !BUILDINGS[type].water) { const a = cellApron(b); c.drawImage(a.cv, a.x, a.y); FX.aprons.set(b.id, a); id = b.id; if (!b.built) fxStakes(b); }
+      if (type !== 'farm' && !BUILDINGS[type].water && b.built) { primeBuilding(F, b); buildingShadow(c, b); }
+      return id;
+    }
+    if (kind === 'unit') unitShadow(c, fakeUnit(type, o));
+    else resourceShadow(c, fakeRes(type, o));
+  } catch (e) { /* the FX are decoration; a failure here must not hide the sprite */ }
+  return null;
 }
 /** Vector zoom: the same cell drawn at N× scale (shows shape intent, not pixel truth). */
 function renderCellVector(kind, type, o, mag) {
   const g = cellGeom(kind, type);
   const off = document.createElement('canvas'); off.width = g.cw * mag; off.height = g.ch * mag;
   const c = off.getContext('2d'); c.scale(mag, mag);
-  if (o.ground !== false) drawGround(c, g.ax, g.ay, g.cw, g.ch, o.seed ?? 3);
+  if (o.ground !== false) drawGround(c, g.ax, g.ay, g.cw, g.ch, o.seed ?? 3, profileFor(kind, type, o));
   c.save(); c.translate(g.ax, g.ay); if (o.footprint) drawFootprint(c, kind, type);
   try { drawEntity(c, kind, type, o); } catch (e) { off.error = e.message; }
   c.restore(); return off;
@@ -328,50 +414,171 @@ LAB.ages = (type = 'all', src = 'current', mag = 2, team = 0) => {
   return compose(`buildings across the ages · ${src} · ×${mag} pixel-true · t=0.3`, [{ title: '', rows }]);
 };
 
-/** A hand-placed village so sprites can be judged together, in depth order, on real terrain. */
-LAB.sceneCanvas = (o = {}) => {
-  const team = o.team ?? 0, src = o.src || 'current', time = o.time ?? 0.3, zoom = o.zoom ?? 1, M = 14;
-  const terrainAt = (x, y) => (x + y >= 22 ? 2 : x + y >= 20 ? 3 : (x >= 4 && x <= 8 && y >= 4 && y <= 8) ? 1 : 0);
-  const B = (type, tx, ty, p = 1, extra = {}) => Object.assign(fakeBuilding(type, { team, tx, ty, p, id: tx * 31 + ty, age: o.age }), extra);
-  const U = (type, x, y, o2 = {}) => fakeUnit(type, Object.assign({ team, x, y, id: Math.round(x * 7 + y * 13) }, o2));
-  const R = (res, tx, ty, o2 = {}) => fakeRes(res, Object.assign({ tx, ty }, o2));
-  const blds = [B('townhall', 5, 5), B('house', 2, 1), B('house', 5, 1), B('mill', 10, 4), B('farm', 12, 4), B('farm', 10, 6), B('farm', 12, 2), B('lumber', 1, 7), B('mine', 8, 9), B('smith', 2, 4),
-    B('barracks', 1, 10), B('archery', 5, 9), B('tower', 9, 0), B('wall', 10, 0), B('wall', 11, 0), B('gate', 12, 0), B('wall', 13, 0), B('dock', 12, 9), B('house', 8, 2, 0.45), B('temple', 9, 11, 0.8)];
-  const trees = [[0, 5], [0, 6], [0, 7], [0, 8], [0, 9], [0, 10], [0, 11], [0, 12], [1, 9], [2, 9], [0, 3], [0, 4], [1, 3]];
-  const res = [...trees.map(([x, y], i) => R('wood', x, y, { v: i % 3 })), R('gold', 10, 9, { v: 1 }), R('gold', 10, 8, { v: 0 }), R('stone', 6, 12, { v: 2 }), R('stone', 7, 12, { v: 0 }), R('food', 12, 7, { v: 1 }), R('food', 11, 8, { v: 0 }), R('food', 13, 12, { fish: true }), R('food', 12, 12, { fish: true })];
-  const units = [U('villager', 1.5, 6.3, { state: 'work', anim: time, carryKind: 'wood' }), U('villager', 3.6, 7.6, { state: 'carry', carryKind: 'wood', anim: time, face: 1 }), U('villager', 12.7, 4.6, { state: 'work', anim: time, carryKind: 'food' }),
-    U('villager', 9.9, 9.4, { state: 'work', anim: time, carryKind: 'gold', face: -1 }), U('villager', 8.6, 4.4), U('villager', 8.3, 3.4, { state: 'work', anim: time }), U('swordsman', 8.5, 12.4, { state: 'attack', swing: 0.15 }), U('swordsman', 9.2, 12.9), U('spearman', 8.8, 13.4),
-    U('archer', 9.5, 2.5, { state: 'attack', swing: 0.2 }), U('skirmisher', 10.3, 2.8), U('knight', 7.4, 1.4, { state: 'move', anim: time }), U('scout', 3.6, 9.4, { state: 'move', anim: time, face: -1 }), U('monk', 8.5, 7.5, { relic: true }),
-    U('sheep', 4.5, 4.2, { team }), U('sheep', 4.9, 3.5, { team }), U('sheep', 4.1, 3.6, { team: -1 }), U('deer', 0.6, 13.4, { team: -1 }), U('deer', 1.6, 13.3, { team: -1, state: 'move', anim: time }), U('boar', 5.4, 13.4, { team: -1 }),
-    U('fishing', 13.4, 11.4, { state: 'work' }), U('catapult', 11.5, 1.6, { team: 1 }), U('horseman', 12.3, 1.3, { team: 1, state: 'move', anim: time, face: -1 }), U('tradecart', 6.5, 7.9, { carry: 10, carryKind: 'gold', state: 'move', anim: time }), U('ram', 11.0, 11.0, { team: 1 })];
-  const relics = [{ kind: 'relic', x: 3.5, y: 3.3 }];
-  const ox = M * HW + 16, oy = 90; const W = (M + M) * HW + 32, H = (M + M) * HH + oy + 24;
-  const off = document.createElement('canvas'); off.width = W; off.height = H; const c = off.getContext('2d');
-  c.fillStyle = '#070503'; c.fillRect(0, 0, W, H);
-  const r = mulberry32(9);
-  for (let y = 0; y < M; y++) for (let x = 0; x < M; x++) tile(c, ox + wpx(x, y), oy + wpy(x, y), terrainAt(x, y), r);
-  c.save(); c.translate(ox, oy); ctx = c; G.time = time;
-  usePixels(src === 'draft' ? 'draft' : 'current'); const F = LAB.fns[src === 'draft' ? 'draft' : 'current'];
-  const errors = [];
-  const safely = (fn) => { try { fn(); } catch (e) { errors.push(e.message); } };
-  for (const b of blds) if (b.type === 'farm') safely(() => F.drawBuilding(b, false));
-  const items = [];
-  for (const b of blds) if (b.type !== 'farm') items.push({ k: b.tx + b.ty + b.w - 0.01, e: b });
-  for (const rs of res) items.push({ k: rs.tx + rs.ty + 1, e: rs });
-  for (const u of units) items.push({ k: u.x + u.y, e: u });
-  for (const rl of relics) items.push({ k: rl.x + rl.y, e: rl });
-  items.sort((a, b) => a.k - b.k);
-  for (const it of items) {
-    const e = it.e;
-    if (e.kind === 'unit') safely(() => F.drawUnit(e, false));
-    else if (e.kind === 'bld') safely(() => F.drawBuilding(e, false));
-    else if (e.kind === 'res') safely(() => F.drawResource(e));
-    else { const wx = wpx(e.x, e.y), wy = wpy(e.x, e.y); c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(wx, wy, 7, 3.5, 0, 0, 7); c.fill();
-      if (typeof pixRelic === 'function' && PIXELS.relic) safely(() => pixRelic(wx, wy, 'idle'));   // the game's relic, with its halo
-      else { c.fillStyle = '#e8c55a'; c.fillRect(wx - 5, wy - 14, 10, 12); c.strokeStyle = '#8a6a12'; c.strokeRect(wx - 5, wy - 14, 10, 12); c.fillStyle = '#fff8d0'; c.fillRect(wx - 2, wy - 11, 4, 3); } }
+// ---------------------------------------------------------------- the village: a town as it stands in the game
+// A 50×50 map built once with the game's own terrain code: dirt roads from the Town Hall's plaza to the four quarters, a wood
+// along the north-west and south-west edges, a coast with a beach in the south-east. The town is laid out on the tile grid
+// (footprints never overlap, checked when the plan is built) and drawn in the game's render order: ground and water, building
+// aprons, one-light shadows, farms, then everything that stands sorted by depth, then the warm light. Buildings stand in the
+// chosen age (or their first age, if it comes later) and the chosen team; villagers walk their rounds, soldiers drill.
+// Screen orientation: +x runs down-right, +y down-left; so x small = north-west (top-left), y small = north-east (top-right).
+const VIL = { n: 50, cx: 25.5, cy: 23, vw: 1400, vh: 860 };
+const vHash = (x, y, s = 0) => { let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul((s | 0) + 1, 2246822519); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const coastX = y => 39 + Math.round(1.3 * Math.sin(y * 0.31 + 0.6) + 0.6 * Math.sin(y * 0.83));   // water from here east
+const woodNW = y => 10 + Math.round(1.4 * Math.sin(y * 0.37 + 2) + 0.8 * Math.sin(y * 1.07));      // the north-west wood, x ≤ this
+const woodSW = x => 41 + Math.round(1.2 * Math.sin(x * 0.41 + 1) + 0.7 * Math.sin(x * 0.93));      // the south-west wood, y ≥ this
+const DOCK_X = Math.max(coastX(25), coastX(26));                                                  // the dock stands where the east road meets the water
+const VROADS = [[25, 9, 25, 23], [12, 25, 23, 25], [27, 25, DOCK_X - 1, 25], [25, 27, 25, 39]]; // [x0,y0,x1,y1] tile lines
+function villageTerrain(x, y) {
+  if (x >= coastX(y)) return 2;
+  for (const [x0, y0, x1, y1] of VROADS) if (x >= x0 && x <= x1 && y >= y0 && y <= y1) return 1;
+  if (x >= 23 && x <= 27 && y >= 23 && y <= 27) return 1;                 // the plaza round the Town Hall
+  if (x >= 18 && x <= 20 && y >= 18 && y <= 19) return 1;                 // the market square
+  return 0;
+}
+/** The town plan: buildings, resources and the people in it (positions in tiles). Built once; ages/teams are applied per draw. */
+function villagePlan() {
+  const n = VIL.n, occ = new Uint8Array(n * n), blds = [], res = [], units = [], problems = [];
+  const at = (x, y) => y * n + x;
+  const B = (type, tx, ty, o = {}) => {
+    const d = BUILDINGS[type]; if (!d) { problems.push('no building ' + type); return; }
+    for (let y = ty; y < ty + d.h; y++) for (let x = tx; x < tx + d.w; x++) {
+      if (x < 0 || y < 0 || x >= n || y >= n) { problems.push(`${type}@${tx},${ty} off the map`); return; }
+      if (occ[at(x, y)]) { problems.push(`${type}@${tx},${ty} overlaps at ${x},${y}`); return; }
+      const water = villageTerrain(x, y) === 2; if (water !== !!d.water) { problems.push(`${type}@${tx},${ty} on ${water ? 'water' : 'land'} at ${x},${y}`); return; }
+    }
+    for (let y = ty; y < ty + d.h; y++) for (let x = tx; x < tx + d.w; x++) occ[at(x, y)] = 2;
+    const b = fakeBuilding(type, { tx, ty, p: o.p ?? 1, id: 1000 + blds.length, relics: o.relics, garrison: o.garrison }); b.builders = o.p ? 0 : undefined; blds.push(b); return b;
+  };
+  const R = (kind, tx, ty, o = {}) => { if (tx < 0 || ty < 0 || tx >= n || ty >= n || occ[at(tx, ty)]) return; occ[at(tx, ty)] = 3; res.push(fakeRes(kind, Object.assign({ tx, ty, v: Math.floor(vHash(tx, ty, 5) * 3) }, o))); };
+  const U = (type, x, y, o = {}) => units.push({ type, x, y, o, ph: vHash(x * 10, y * 10, 9) * 3 });
+  const Walk = (type, path, o = {}) => units.push(Object.assign({ type, path, ph: 0, speed: 0.8 }, o));
+
+  // ---- the heart: the Town Hall on its plaza
+  B('townhall', 24, 24);
+  // ---- civic core, north: market on its square, blacksmith, temple with a relic, the Wonder
+  B('market', 19, 20); B('smith', 22, 18); B('temple', 15, 19, { relics: 1 }); B('wonder', 15, 12);
+  // ---- the wall across the north-east road, a gate where the road passes, towers either side; the Keep inside it
+  for (let x = 13; x <= 37; x++) if (x !== 25) B('wall', x, 9); B('gate', 25, 9);
+  B('tower', 23, 10); B('tower', 27, 10); B('btower', 33, 10); B('outpost', 13, 10);
+  B('keep', 28, 12);
+  // ---- military quarter, east: barracks, range, stable, siege workshop round a drill yard
+  B('barracks', 27, 18); B('archery', 31, 18); B('stable', 33, 14); B('siege', 33, 22);
+  // ---- gold and stone by the north wall, a mining camp beside them
+  B('mine', 20, 12);
+  for (const [x, y] of [[21, 10], [22, 10], [22, 11]]) R('gold', x, y);
+  for (const [x, y] of [[18, 10], [19, 10], [18, 11]]) R('stone', x, y);
+  // ---- fields, south: eight farms round a mill, berry bushes beyond
+  B('mill', 30, 30);
+  for (const [x, y] of [[28, 28], [30, 28], [32, 28], [28, 30], [32, 30], [28, 32], [30, 32], [32, 32]]) B('farm', x, y);
+  for (const [x, y] of [[35, 31], [36, 32], [35, 33], [36, 34]]) R('food', x, y);
+  // ---- the harbour, south-east: a dock where the road meets the shore, fish offshore
+  B('dock', DOCK_X, 25);
+  for (const [x, y] of [[43, 28], [44, 22], [42, 33]]) if (villageTerrain(x, y) === 2) { occ[at(x, y)] = 0; R('food', x, y, { fish: true }); }
+  // ---- homes, west: houses along the roads, one going up; a lumber camp at the wood's edge
+  for (const [x, y] of [[14, 22], [20, 26], [17, 27], [22, 29], [19, 30], [22, 33], [26, 34], [27, 37], [35, 26], [36, 29]]) B('house', x, y);
+  B('house', 19, 34, { p: 0.55 });
+  B('lumber', 12, 26); B('lumber', 23, 38); B('tower', 37, 23);
+  // garden trees between the houses
+  for (const [x, y] of [[20, 29], [15, 28], [18, 33], [24, 32], [16, 24], [34, 28]]) R('wood', x, y);
+  // ---- woods: the north-west and south-west edges are forest; a few lone trees and a copse elsewhere
+  const nearB = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < n && Y < n && occ[at(X, Y)] === 2) return true; } return false; };
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const t = villageTerrain(x, y); if (t !== 0 || occ[at(x, y)] || nearB(x, y)) continue;
+    const dNW = woodNW(y) - x, dSW = y - woodSW(x); const d = Math.max(dNW, dSW); const h = vHash(x, y, 1);
+    const core = x >= 13 && x <= 38 && y >= 10 && y <= 39;   // inside the town only the garden trees above stand
+    if (d >= 0 ? h < 0.93 : d >= -2 ? h < 0.3 + 0.15 * d : (y < 9 ? h < 0.06 : !core && h < 0.02)) R('wood', x, y);
   }
-  c.restore();
-  if (o.caption !== false) { c.fillStyle = '#d9b35a'; c.font = '14px Georgia'; c.fillText(`scene · ${src} · team ${teamName(team)}${o.age !== undefined ? ' · ' + AGE_NAMES[o.age] + ' Age' : ''} · t=${time}${errors.length ? ' · ERRORS: ' + errors.join(' | ') : ''}`, 10, 20); }
+  // ---- people. Villagers at work: farmers on the fields, woodcutters, miners, a builder; carriers walk the roads with loads
+  for (const [x, y] of [[29.1, 28.9], [31.2, 29.0], [33.0, 28.8], [29.0, 31.1], [33.1, 31.0], [29.2, 33.0], [31.1, 32.9]]) U('villager', x, y, { state: 'work', carryKind: 'food', face: vHash(x * 9, y, 3) < 0.5 ? 1 : -1 });
+  U('villager', 11.6, 24.6, { state: 'work', carryKind: 'wood', face: -1 }); U('villager', 11.4, 28.4, { state: 'work', carryKind: 'wood', face: -1 }); U('villager', 15.3, 40.2, { state: 'work', carryKind: 'wood', face: 1 });
+  U('villager', 21.4, 11.8, { state: 'work', carryKind: 'gold', face: 1 }); U('villager', 23.4, 11.6, { state: 'work', carryKind: 'gold', face: -1 }); U('villager', 19.6, 11.7, { state: 'work', carryKind: 'stone', face: -1 });
+  U('villager', 35.0, 32.4, { state: 'work', carryKind: 'food', face: 1 });
+  U('villager', 21.6, 34.6, { state: 'build', face: -1 }); U('villager', 20.2, 36.4, { state: 'build', face: -1 }); U('villager', 22.6, 40.6, { state: 'work', carryKind: 'wood', face: 1 });
+  Walk('villager', [[12.5, 25.5], [23.2, 25.5]], { ph: 0, fwd: { state: 'carry', carryKind: 'wood' }, back: { state: 'move' }, speed: 0.9 });   // wood to the Town Hall
+  Walk('villager', [[13.6, 25.6], [23.2, 25.4]], { ph: 7, fwd: { state: 'carry', carryKind: 'wood' }, back: { state: 'move' }, speed: 0.9 });
+  Walk('villager', [[25.5, 13.6], [25.5, 23.2]], { ph: 3, fwd: { state: 'carry', carryKind: 'gold' }, back: { state: 'move' }, speed: 0.8 });
+  Walk('villager', [[35.4, 31.6], [31.5, 27.5], [27.6, 25.6]], { ph: 2, fwd: { state: 'carry', carryKind: 'food' }, back: { state: 'move' }, speed: 0.85 });
+  // the market's trade cart to the harbour and back; a monk carrying the relic home; a scout riding out of the gate
+  Walk('tradecart', [[22.5, 22.6], [25.5, 25.5], [38.4, 25.5]], { ph: 1, fwd: { carry: 10, carryKind: 'gold', state: 'move' }, back: { state: 'move' }, speed: 0.7 });
+  Walk('monk', [[25.6, 22.5], [19.2, 22.6]], { ph: 4, fwd: { relic: true, state: 'move' }, back: { state: 'move' }, speed: 0.5 });
+  Walk('scout', [[25.5, 11.0], [25.5, 4.5]], { ph: 1, speed: 1.6 });
+  Walk('knight', [[26.5, 38.0], [26.5, 27.6]], { ph: 6, speed: 1.0 });
+  // soldiers: gate guards, archers by the towers, swordsmen sparring in the drill yard, spearmen in a file, siege parked
+  U('spearman', 24.4, 10.7, { face: 1 }); U('spearman', 26.6, 10.9, { face: -1 });
+  U('archer', 23.6, 11.6, { face: 1 }); U('crossbowguard', 27.7, 11.2, { face: -1 });
+  for (const [x, y, f, s] of [[30.0, 22.3, 1, 0], [30.9, 22.0, -1, 0.5], [30.2, 23.4, 1, 0.9], [31.1, 23.1, -1, 0.2]]) U('swordsman', x, y, { state: 'attack', face: f, swing: s, spar: true });
+  for (let k = 0; k < 4; k++) U('spearman', 28.0 + k * 0.7, 23.9 + k * 0.1, { face: 1 });
+  U('archer', 34.6, 21.0, { state: 'attack', face: 1, spar: true, swing: 0.3 }); U('skirmisher', 35.4, 20.7, { face: 1 });
+  U('catapult', 34.4, 25.8, { face: -1 }); U('ram', 36.4, 25.6, { face: -1 }); U('trebuchet', 31.8, 25.4, { face: 1 });
+  U('horseman', 33.6, 16.6, { face: -1 }); U('horsearcher', 35.0, 17.3, { face: -1 });
+  // ships: fishing boats at the shoals, a war galley and a transport by the dock
+  U('fishing', 42.4, 28.6, { state: 'work', face: -1 }); U('fishing', 43.5, 23.0, { state: 'work', face: 1 }); U('warship', 41.6, 25.4, { face: 1 }); U('transport', 41.8, 31.8, { face: -1 });
+  // animals: the flock by the Town Hall, deer in the wood's edge, a boar in the south wood
+  for (const [x, y, f] of [[23.4, 27.7, 1], [23.9, 28.3, -1], [24.6, 27.9, 1], [22.8, 28.6, 1]]) U('sheep', x, y, { face: f, tame: true });
+  for (const [x, y, f] of [[12.8, 33.6, -1], [13.6, 34.4, 1], [12.4, 34.9, 1]]) U('deer', x, y, { face: f, wild: true });
+  U('boar', 30.6, 42.6, { face: -1, wild: true });
+  return { blds, res, units, occ, problems };
+}
+let VILLAGE = null;
+function villageWorld() {
+  if (VILLAGE) return VILLAGE;
+  const w = makeWorld(VIL.n, villageTerrain, 23); const plan = villagePlan();
+  w.plan = plan; w.g.bAt = new Array(w.n * w.n).fill(null); w.g.rAt = new Array(w.n * w.n).fill(null);
+  for (const b of plan.blds) for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) w.g.bAt[y * w.n + x] = b;
+  for (const r of plan.res) w.g.rAt[r.ty * w.n + r.tx] = r;
+  w.g.buildings = plan.blds; w.g.resources = plan.res;
+  if (plan.problems.length) console.warn('village plan: ' + plan.problems.join('; '));
+  return (VILLAGE = w);
+}
+/** A unit of the plan at time t: standing at work, or walking its round (out loaded, back empty), facing where it goes. */
+function villageUnit(s, t, team) {
+  const o = Object.assign({}, s.o || {}); o.team = s.wild || o.wild ? -1 : team; o.id = s.id ?? Math.round((s.x || s.path[0][0]) * 7 + (s.y || s.path[0][1]) * 13);
+  o.anim = t + (s.ph || 0);
+  if (o.spar) { const ph = (t * 0.9 + (o.swing || 0)) % 1.1; o.swing = ph < 0.3 ? 0.3 - ph : 0; }
+  if (!s.path) { o.x = s.x; o.y = s.y; return fakeUnit(s.type, o); }
+  const P = s.path, segs = []; let L = 0; for (let i = 1; i < P.length; i++) { const l = Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); segs.push(l); L += l; }
+  const T = 2 * L / s.speed + 2; let q = ((t + (s.ph || 0) * 3) % T + T) % T;   // a second's pause at each end
+  let d, back = false; if (q < 1) d = 0; else if (q < 1 + L / s.speed) d = (q - 1) * s.speed; else if (q < 2 + L / s.speed) d = L; else { d = L - (q - 2 - L / s.speed) * s.speed; back = true; }
+  const moving = q >= 1 && !(q >= 1 + L / s.speed && q < 2 + L / s.speed);
+  let i = 0, rem = d; while (i < segs.length - 1 && rem > segs[i]) { rem -= segs[i]; i++; }
+  const A = P[i], Bp = P[i + 1], f = segs[i] ? Math.min(1, rem / segs[i]) : 0; o.x = A[0] + (Bp[0] - A[0]) * f; o.y = A[1] + (Bp[1] - A[1]) * f;
+  const dir = back ? -1 : 1, sx = ((Bp[0] - A[0]) - (Bp[1] - A[1])) * dir; o.face = sx >= 0 ? 1 : -1;
+  Object.assign(o, (back ? s.back : s.fwd) || {}); if (!moving) { if (o.state === 'move') o.state = 'idle'; if (o.state === 'carry') o.state = 'idle'; }
+  return fakeUnit(s.type, o);
+}
+LAB.sceneCanvas = (o = {}) => {
+  const team = o.team ?? 0, src = o.src || 'current', time = o.time ?? 0.3, zoom = o.zoom ?? 1;
+  const vw = Math.round(Math.max(960, Math.min(1500, o.vw || VIL.vw))), vh = VIL.vh;   // 1500 px wide is as far as the map reaches without showing its edge
+  const off = document.createElement('canvas'); off.width = vw; off.height = vh; const c = off.getContext('2d'); const errors = [];
+  if (!HAS_WORLD() || !HAS_FX()) { c.fillStyle = '#070503'; c.fillRect(0, 0, off.width, off.height); c.fillStyle = '#e36a5a'; c.font = '14px Georgia'; c.fillText('this build of the game has no buildTerrain / render FX for the lab to draw the village with', 20, 30); const img = magnify(off, zoom); img.errors = ['no world code']; return img; }
+  usePixels(src === 'draft' ? 'draft' : 'current'); const F = LAB.fns[src === 'draft' ? 'draft' : 'current'];
+  const w = villageWorld(), g = w.g, P = w.plan;
+  const ageOf = t => (o.age === undefined || o.age === null || o.age === '') ? agesOf(t)[0] : Math.max(+o.age, agesOf(t)[0]);
+  for (const b of P.blds) { b.team = team; b.age = ageOf(b.type); }
+  g.time = time; g.units = P.units.map(s => villageUnit(s, time, team)); g.relics = [];
+  const ox = Math.round(vw / 2 - wpx(VIL.cx, VIL.cy)), oy = Math.round(vh / 2 - (VIL.cx + VIL.cy) * HH);
+  const safely = fn => { try { fn(); } catch (e) { errors.push(e.message); } };
+  withWorld(w, () => {
+    const keep = ctx; ctx = c; cam.x = vw / 2 - ox; cam.y = vh / 2 - oy; cam.zoom = 1; W = vw; H = vh;
+    c.fillStyle = '#070503'; c.fillRect(0, 0, vw, vh);
+    c.setTransform(1, 0, 0, 1, ox, oy); c.imageSmoothingEnabled = false; c.drawImage(w.cv, -w.tox, -w.toy); c.imageSmoothingEnabled = true;
+    const on = () => true;
+    safely(() => wtrGlints(on));
+    const sig = team + '|' + o.age + '|' + src; if (w.sig !== sig) { w.sig = sig; for (const b of P.blds) primeBuilding(F, b); }   // shadows need this frame's sprites
+    safely(() => fxGround(on)); safely(() => fxShadows(on, -1e9, -1e9, 1e9, 1e9));
+    for (const b of P.blds) if (b.type === 'farm') safely(() => F.drawBuilding(b, false));
+    const items = [];
+    for (const b of P.blds) if (b.type !== 'farm') items.push({ k: b.tx + b.ty + b.w - 0.01, e: b });
+    for (const r of P.res) items.push({ k: r.tx + r.ty + 1, e: r });
+    for (const u of g.units) items.push({ k: u.x + u.y, e: u });
+    items.sort((a, b) => a.k - b.k);
+    for (const it of items) { const e = it.e; c.save(); safely(() => e.kind === 'unit' ? F.drawUnit(e, false) : e.kind === 'bld' ? F.drawBuilding(e, false) : F.drawResource(e, false)); c.restore(); }   // save/restore: one failing sprite must not shift the rest
+    if (o.grid) { c.font = '9px Menlo'; for (let y = 0; y < w.n; y += 1) for (let x = 0; x < w.n; x += 1) { if (x % 5 && y % 5) continue; const P2 = [wpx(x, y), (x + y) * HH]; c.fillStyle = 'rgba(255,255,255,0.8)'; c.fillRect(P2[0] - 1, P2[1] - 1, 2, 2); if (!(x % 5) && !(y % 5)) c.fillText(x + ',' + y, P2[0] + 2, P2[1] - 2); } }
+    c.setTransform(1, 0, 0, 1, 0, 0); safely(() => fxLight());
+    ctx = keep;
+  });
+  if (P.problems.length) errors.push('plan: ' + P.problems.join('; '));
+  if (o.caption !== false) { c.fillStyle = '#d9b35a'; c.font = '14px Georgia'; c.fillText(`village · ${src} · team ${teamName(team)}${o.age !== undefined ? ' · ' + AGE_NAMES[o.age] + ' Age' : ' · first ages'} · t=${time}${errors.length ? ' · ERRORS: ' + errors.join(' | ') : ''}`, 10, 20); }
   const img = magnify(off, zoom); img.errors = errors; return img;
 };
 LAB.scene = (o = {}) => { const img = LAB.sceneCanvas(o); const out = outCv(); out.width = img.width; out.height = img.height; out.getContext('2d').drawImage(img, 0, 0); return { w: img.width, h: img.height, errors: img.errors }; };
@@ -488,5 +695,5 @@ function buildUI() {
   if (!HEADLESS) go();
 }
 
-Object.assign(LAB, { agesOf, AGE_NAMES, pixCell, pixGroundCell, renderCell, renderCellVector, magnify, fakeBuilding, fakeUnit, fakeRes, drawGround, tile, drawEntity, cellGeom, drawFootprint, teamName, hasDraft });
+Object.assign(LAB, { profileFor, makeWorld, withWorld, groundWorld,  agesOf, AGE_NAMES, pixCell, pixGroundCell, renderCell, renderCellVector, magnify, fakeBuilding, fakeUnit, fakeRes, drawGround, tile, drawEntity, cellGeom, drawFootprint, teamName, hasDraft });
 boot().catch(e => { LAB.errors.push(e.message); log('boot failed: ' + e.message, 'err'); LAB.ready = true; LAB.bootFailed = e.message; });

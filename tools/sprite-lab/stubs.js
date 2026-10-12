@@ -6,3 +6,9 @@ function player(t) { return { techs: {}, civ: null, team: t }; }
 function bldHp(b) { return BUILDINGS[b.type].hp; }
 function unitStat(u, k) { const d = UNITS[u.type]; return k === 'maxhp' ? d.hp : (d[k] || 0); }
 function civ() { return {}; }
+// The world renderer (terrain, water, render FX) reads these; the lab's mini maps set them while they draw.
+var ME = 0;                   // whose eyes: every lab tile is seen (G.vis[0] filled with 2)
+var cam = { x: 0, y: 0, zoom: 1 }, W = 0, H = 0;   // camera + screen size, as the game's render() has them
+function allied(a, b) { return true; }
+function exploredBy(t, x, y) { return true; }
+function visibleTo(t, x, y) { return true; }

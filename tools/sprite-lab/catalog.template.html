@@ -20,6 +20,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 header{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;padding-block:18px 12px;border-bottom:2px solid var(--edge)}
 header h1{font-size:22px;color:var(--gold)}
 header .sub{color:var(--muted);font-size:14px}
+header .play{font-family:var(--display);font-size:14px;color:var(--gold);text-decoration:none;border:1px solid var(--edge);border-radius:3px;padding:4px 10px;background:var(--panel)}
+header .play:hover{border-color:var(--gold);background:var(--panel2)}
+/* the age picker: buildings change with their owner's age, so it is a first-class control, shared by the stage and the village */
+.agebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0 0 10px}
+.agebar .lbl{font-family:var(--display);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--edge);border-radius:4px;overflow:hidden;background:var(--panel)}
+.seg button{font-family:var(--display);font-size:15px;letter-spacing:.5px;padding:7px 16px;color:var(--muted);border-left:1px solid var(--edge2);min-width:96px}
+.seg button:first-child{border-left:0}
+.seg button:hover:not(:disabled){color:var(--fg);background:var(--panel2)}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#15100c;font-weight:600}
+.seg button:disabled{color:var(--dim);cursor:not-allowed;background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.03) 6px 12px)}
+.agebar .hint{flex:1 1 220px}
+.seg.off button[aria-pressed="true"]{background:var(--panel2);color:var(--gold)}
+@media (max-width:560px){.seg button{min-width:0;padding:6px 10px;font-size:13px}}
 nav.tabs{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
 nav.tabs button{padding:6px 12px;border:1px solid var(--edge);background:var(--panel);border-radius:3px;color:var(--muted)}
 nav.tabs button[aria-selected="true"]{color:var(--gold);border-color:var(--gold);background:var(--panel2)}
@@ -31,7 +45,7 @@ aside h3{font-size:12px;color:var(--muted);letter-spacing:1.5px;text-transform:u
 .item{display:grid;grid-template-columns:56px 1fr 10px;align-items:center;gap:10px;padding:4px 6px;border-radius:3px;text-align:left;border:1px solid transparent}
 .item:hover{background:var(--panel)}
 .item[aria-current="true"]{background:var(--panel2);border-color:var(--edge)}
-.item canvas{width:56px;height:44px;background:#5f9a3e;border:1px solid var(--edge2);display:block}
+.item canvas{width:56px;height:44px;background:#5a9239;border:1px solid var(--edge2);display:block}
 .item .nm{display:block;line-height:1.2}
 .item .meta{display:block;font-size:12px;color:var(--dim);line-height:1.2}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--edge2);display:block}
@@ -68,6 +82,9 @@ details.sheet .scroll{overflow-x:auto;margin-top:8px;border:1px solid var(--edge
 details.sheet canvas{display:block}
 .panel{padding-top:16px}
 .panel .bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;color:var(--muted);margin-bottom:10px}
+.panel .bar select{background:var(--panel2);color:var(--fg);border:1px solid var(--edge);padding:3px 6px;border-radius:3px;font:inherit;font-size:13px}
+.vscroll{overflow:auto;max-height:calc(100vh - 210px);min-height:420px}
+.vscroll canvas{image-rendering:pixelated;margin:0 auto}
 .panel .scroll{overflow-x:auto;border:2px solid var(--edge);border-radius:4px;background:#070503}
 .panel canvas{display:block}
 .empty{color:var(--dim);padding:24px;text-align:center}
@@ -91,7 +108,7 @@ details.sheet canvas{display:block}
 .hint{color:var(--dim);font-size:13px}
 .btn{padding:4px 10px;border:1px solid var(--edge);border-radius:3px;color:var(--muted);background:var(--panel)}
 .btn:hover{border-color:var(--gold);color:var(--gold)}
-/* review: verdict, tags, note and ink marks per sprite, kept in the artifact's db (or this browser when opened as a file) */
+/* review: a free-text note and ink marks (each with its comment) per sprite, kept in the artifact's db (or this browser when opened as a file) */
 .ink-wrap{position:relative;min-width:0;max-width:100%}
 .ink-wrap canvas{display:block}
 #ink{position:absolute;inset:0;width:100%;height:100%;max-width:none;touch-action:none;pointer-events:none}
@@ -101,22 +118,12 @@ details.sheet canvas{display:block}
 .rv-row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 .rv-row .grow{flex:1 1 auto}
 .rv-row select{background:var(--panel2);color:var(--fg);border:1px solid var(--edge);padding:3px 6px;border-radius:3px;font:inherit;font-size:13px}
-.vd{padding:4px 12px;border:1px solid var(--edge);border-radius:3px;color:var(--muted);background:var(--panel2)}
-.vd kbd,.btn kbd,.tog kbd{font:11px var(--mono);color:var(--dim);margin-right:4px}
-.vd[aria-pressed="true"]{color:#15100c;font-weight:600}
-.vd[aria-pressed="true"] kbd{color:#15100c}
-.vd[data-v="love"][aria-pressed="true"]{background:var(--gold);border-color:var(--gold)}
-.vd[data-v="good"][aria-pressed="true"]{background:var(--ok);border-color:var(--ok)}
-.vd[data-v="work"][aria-pressed="true"]{background:var(--warn);border-color:var(--warn)}
-.vd[data-v="redo"][aria-pressed="true"]{background:var(--bad);border-color:var(--bad)}
-.tag{padding:1px 9px;border:1px solid var(--edge2);border-radius:11px;font-size:13px;color:var(--muted)}
-.tag[aria-pressed="true"]{border-color:var(--gold);color:var(--gold);background:var(--panel2)}
-.tagadd{width:110px;background:var(--panel2);color:var(--fg);border:1px dashed var(--edge);padding:1px 8px;border-radius:11px;font:13px var(--body)}
+.btn kbd,.tog kbd{font:11px var(--mono);color:var(--dim);margin-right:4px}
 #rv-note{width:100%;min-height:58px;resize:vertical;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);border-radius:3px;font:14px/1.4 var(--body);padding:6px 8px}
 .pen{width:20px;height:20px;border-radius:50%;border:2px solid transparent}
 .pen[aria-pressed="true"]{border-color:#fff}
 .rvm{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:0 5px;border-radius:2px;color:#15100c;vertical-align:1px}
-.rvm.love{background:var(--gold)}.rvm.good{background:var(--ok)}.rvm.work{background:var(--warn)}.rvm.redo{background:var(--bad)}.rvm.seen{background:var(--edge)}.rvm.upd{background:transparent;color:var(--ok);border:1px solid var(--ok)}
+.rvm.seen{background:var(--gold)}.rvm.upd{background:transparent;color:var(--ok);border:1px solid var(--ok)}
 .marks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
 .marks li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center}
 .marks .num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 12px var(--mono);color:#15100c}
@@ -140,7 +147,6 @@ details.sheet canvas{display:block}
 .fb .th img,.fb .th canvas{max-width:100%;max-height:100%;image-rendering:pixelated}
 .fb h4{margin:0 0 4px;font:600 16px var(--display);color:var(--gold)}
 .fb p{margin:4px 0 0;white-space:pre-wrap}
-.fb .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 #fb-json{width:100%;min-height:160px;background:var(--panel2);color:var(--fg);border:1px solid var(--edge);border-radius:3px;font:12px/1.35 var(--mono);padding:8px}
 @media (max-width:820px){
   .fb{grid-template-columns:80px minmax(0,1fr)}.fb .th{width:80px;height:64px}
@@ -160,6 +166,7 @@ details.sheet canvas{display:block}
 <header>
   <h1>Age Up Sprite Catalogue</h1>
   <span class="sub" id="counts">loading…</span>
+  <a class="play" id="playlink" href="./index.html" hidden>← Play the game</a>
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="cat">Catalogue</button>
     <button role="tab" aria-selected="false" data-tab="feedback">Feedback <span id="fb-count"></span></button>
@@ -177,12 +184,12 @@ details.sheet canvas{display:block}
   </aside>
   <div id="detail">
     <div class="title-row"><h2 id="d-name">—</h2><span class="kind" id="d-kind"></span><span class="badge" id="d-badge" hidden>draft</span></div>
+    <div class="agebar" id="agebar"><span class="lbl">Age</span><span class="seg" role="group" aria-label="Age" id="ages"></span><span class="hint" id="age-hint"></span></div>
     <div class="stage" id="stage"><div class="ink-wrap"><canvas id="live" width="320" height="240"></canvas><canvas id="ink" width="320" height="240" aria-label="annotation layer"></canvas></div></div>
     <div class="controls">
       <label>team <span class="chips" id="chips"></span></label>
       <label id="c-state">state <select id="ustate"></select></label>
       <label id="c-progress">built <input id="progress" type="range" min="0.05" max="1" step="0.05" value="1"></label>
-      <label id="c-age">age <select id="age"><option value="0">Dark</option><option value="1">Feudal</option><option value="2">Castle</option><option value="3">Imperial</option></select></label>
       <label id="c-variant">variant <select id="variant"><option value="0">0</option><option value="1">1</option><option value="2">2</option></select></label>
       <label id="c-amount">left <input id="amount" type="range" min="10" max="100" step="5" value="100"></label>
       <label>zoom <input id="zoom" type="range" min="1" max="6" step="1" value="3"></label>
@@ -196,16 +203,9 @@ details.sheet canvas{display:block}
         <button class="btn" id="rv-prev" title="Previous sprite"><kbd>←</kbd>prev</button>
         <button class="btn" id="rv-next" title="Next sprite"><kbd>→</kbd>next</button>
         <span class="hint" id="rv-pos">—</span>
-        <label class="hint">flip through <select id="rv-filter"><option value="all">everything</option><option value="todo">not reviewed yet</option><option value="work">needs work + redo</option><option value="done">reviewed</option><option value="replied">changed last round</option></select></label>
+        <label class="hint">flip through <select id="rv-filter"><option value="all">everything</option><option value="todo">not reviewed yet</option><option value="done">reviewed (noted)</option><option value="replied">changed last round</option></select></label>
         <span class="hint grow" id="rv-status"></span>
       </div>
-      <div class="rv-row" role="group" aria-label="Verdict">
-        <button class="vd" data-v="love" aria-pressed="false"><kbd>1</kbd>Love it</button>
-        <button class="vd" data-v="good" aria-pressed="false"><kbd>2</kbd>Good</button>
-        <button class="vd" data-v="work" aria-pressed="false"><kbd>3</kbd>Needs work</button>
-        <button class="vd" data-v="redo" aria-pressed="false"><kbd>4</kbd>Redo</button>
-      </div>
-      <div class="rv-row" id="rv-tags" role="group" aria-label="Labels"></div>
       <textarea id="rv-note" placeholder="What should change, or what works? (N to type here, Esc to leave)" aria-label="Note"></textarea>
       <div class="rv-row">
         <button class="tog" id="rv-pen" aria-pressed="false"><kbd>A</kbd>annotate</button>
@@ -234,12 +234,12 @@ details.sheet canvas{display:block}
   </details>
 </section>
 <section id="tab-village" class="panel" role="tabpanel" hidden>
-  <div class="bar"><span>A hand-placed village drawn in depth order on real terrain, animating.</span>
+  <div class="agebar"><span class="lbl">Age</span><span class="seg" role="group" aria-label="Village age" id="v-ages"></span><span class="hint">Every building is drawn in the chosen age (or its first age, if it comes later), as the game draws it for its owner.</span></div>
+  <div class="bar"><span>A town as it stands in the game: drawn with the game's terrain, shadows and light, in depth order, animating.</span>
     <label>team <select id="v-team"><option value="0">Blue</option><option value="1">Red</option><option value="2">Green</option><option value="3">Yellow</option></select></label>
     <label>art <select id="v-src"><option value="current">current</option><option value="draft">with drafts</option></select></label>
-    <label>zoom <select id="v-zoom"><option value="1">1×</option><option value="2">2×</option></select></label>
-    <label>age <select id="v-age"><option value="">each building's first</option><option value="0">Dark</option><option value="1">Feudal</option><option value="2">Castle</option><option value="3">Imperial</option></select></label></div>
-  <div class="scroll"><canvas id="village"></canvas></div>
+    <label>zoom <select id="v-zoom"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label></div>
+  <div class="scroll vscroll" id="v-scroll"><canvas id="village"></canvas></div>
 </section>
 <section id="tab-contact" class="panel" role="tabpanel" hidden>
   <div class="bar"><span>Everything at ×2, pixel-true, so the set can be judged for consistency.</span>
@@ -288,7 +288,7 @@ details.sheet canvas{display:block}
   const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
   const REF=window.__REF__;
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const S={kind:'building',type:'townhall',team:0,src:'current',zoom:3,vector:false,p:1,age:null,ustate:'idle',v:0,amount:100,playing:!reduced,tab:'cat'};
+  const S={kind:'building',type:'townhall',team:0,src:'current',zoom:3,vector:false,p:1,age:0,ustate:'idle',v:0,amount:100,playing:!reduced,tab:'cat'};
   const TEAM_OPTS=[[0,'#2f6fd6','Blue'],[1,'#cf3b2b','Red'],[2,'#3ba34a','Green'],[3,'#d9b13a','Yellow'],[-1,'#cfc4a8','Wild']];
   const ageName=a=>AGES[a]||'Dark Age';
   const costStr=c=>Object.entries(c||{}).map(([k,v])=>`${v} ${k}`).join(', ')||'free';
@@ -310,7 +310,8 @@ details.sheet canvas{display:block}
         b.querySelector('.nm').insertAdjacentHTML('beforeend','<span class="rvm" hidden></span>'); b.dataset.name=name;
         b.dataset.search=(name+' '+t+' '+meta).toLowerCase();
         const cell=LAB.renderCell(k,t,{src:LAB.hasDraft(k,t)?'draft':'current',time:0.3,seed:5});
-        const tc=b.querySelector('canvas').getContext('2d'); const sc=Math.min(56/cell.width,44/cell.height); const dw=cell.width*sc,dh=cell.height*sc; tc.fillStyle='#5f9a3e';tc.fillRect(0,0,56,44); tc.drawImage(cell,(56-dw)/2,(44-dh)/2,dw,dh);
+        const tc=b.querySelector('canvas').getContext('2d'); const sc=Math.min(56/cell.width,44/cell.height); const dw=cell.width*sc,dh=cell.height*sc,ox=(56-dw)/2,oy=(44-dh)/2;
+        const g=LAB.cellGeom(k,t); tc.save(); tc.scale(sc,sc); LAB.drawGround(tc,ox/sc+g.ax,oy/sc+g.ay,56/sc,44/sc,5,LAB.profileFor(k,t)); tc.restore(); tc.drawImage(cell,ox,oy,dw,dh);
         b.onclick=()=>select(k,t);
         box.appendChild(b);
       }
@@ -335,14 +336,26 @@ details.sheet canvas{display:block}
     $('#d-name').textContent=d?d.name:type[0].toUpperCase()+type.slice(1);
     $('#d-kind').textContent=kind==='building'?`building · ${d.w}×${d.h} tiles · ${ageName(d.age)}`:kind==='unit'?`unit · ${d.animal?'animal':d.naval?'ship':ageName(d.age)+(UNITS[type].at?' · from the '+(BUILDINGS[d.at]||{name:d.at}).name:'')}`:'resource';
     $('#d-badge').hidden=!LAB.hasDraft(kind,type); $('#src').hidden=!LAB.hasDraft(kind,type); $('#src').setAttribute('aria-pressed',String(S.src==='draft')); $('#src').textContent=S.src==='draft'?'showing draft':'show draft';
-    $('#c-state').hidden=kind!=='unit'; $('#c-progress').hidden=kind!=='building'; $('#c-age').hidden=kind!=='building';
-    if(kind==='building'){ const ag=LAB.agesOf(type); $('#age').innerHTML=ag.map(a=>`<option value="${a}">${LAB.AGE_NAMES[a]}</option>`).join(''); if(S.age===null||!ag.includes(S.age))S.age=ag[0]; $('#age').value=S.age; } $('#c-variant').hidden=kind!=='resource'; $('#c-amount').hidden=!(kind==='resource'&&(type==='gold'||type==='stone'));
+    $('#c-state').hidden=kind!=='unit'; $('#c-progress').hidden=kind!=='building'; buildAges(); $('#c-variant').hidden=kind!=='resource'; $('#c-amount').hidden=!(kind==='resource'&&(type==='gold'||type==='stone'));
     if(kind==='unit'){ const u=UNITS[type]; const opts=[['idle','idle'],['move','walking']]; if(type==='villager')opts.push(['work','working'],['carry','carrying wood'],['carryfood','carrying food'],['carrygold','carrying gold']); else if(type==='monk')opts.push(['relic','holding a relic'],['convert','converting']); else if(type==='fishing')opts.push(['work','fishing']); else if(type==='tradecart')opts.push(['carrygold','carrying gold']); else if(UNITS[type].packs)opts.push(['deployed','deployed'],['fire','deployed, firing']); else if(!u.animal&&!u.naval||type==='warship')opts.push(['attack','attacking']);
       $('#ustate').innerHTML=opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join(''); if(!opts.some(o=>o[0]===S.ustate))S.ustate='idle'; $('#ustate').value=S.ustate; }
     buildChips(); renderTruth(); renderSpec(); renderLint(); Review.onSelect();
     $('#sheetbox').open=false; sheetDirty=true;
     drawLive(liveTime);
   }
+  // ---------- ages: one shared choice (stage and village); a building that only appears later stands in its first age
+  const effAge=t=>Math.max(S.age,LAB.agesOf(t)[0]);
+  function ageSeg(box,forType){ box.innerHTML='';
+    LAB.AGE_NAMES.forEach((n,a)=>{ const b=document.createElement('button'); b.textContent=n; b.dataset.age=a; const first=forType?LAB.agesOf(forType)[0]:0;
+      b.disabled=!!forType&&a<first; b.setAttribute('aria-pressed',String(forType?a===effAge(forType):a===S.age)); if(b.disabled)b.title=`${BUILDINGS[forType].name} first stands in the ${LAB.AGE_NAMES[first]} Age`;
+      b.onclick=()=>setAge(a); box.appendChild(b); }); }
+  function buildAges(){
+    const isB=S.kind==='building'; ageSeg($('#ages'),isB?S.type:null);
+    const hint=$('#age-hint'); $('#ages').classList.toggle('off',!isB);
+    hint.textContent=isB?(effAge(S.type)!==S.age?`${BUILDINGS[S.type].name} is not built before the ${LAB.AGE_NAMES[LAB.agesOf(S.type)[0]]} Age; shown there.`:'Buildings change with their owner\'s age. The choice carries over as you flip through, and to the village.'):'Ages change buildings; units and resources look the same in every age.';
+    ageSeg($('#v-ages'),null);
+  }
+  function setAge(a){ S.age=a; buildAges(); sheetDirty=true; drawLive(liveTime); if(S.tab==='village')drawVillage(liveTime); }
   function buildChips(){
     const box=$('#chips'); box.innerHTML='';
     const allowed=S.kind==='unit'&&UNITS[S.type].animal?(S.type==='sheep'?[-1,0,1,2,3]:[-1]):S.kind==='resource'?[]:[0,1,2,3];
@@ -372,7 +385,7 @@ details.sheet canvas{display:block}
   let liveTime=0.3, t0=null, sheetDirty=true;
   function liveOpts(time){
     const o={src:S.src,team:S.team,time,seed:5};
-    if(S.kind==='building'){o.p=S.p;if(S.age!==null)o.age=S.age;}
+    if(S.kind==='building'){o.p=S.p;o.age=effAge(S.type);}
     else if(S.kind==='unit'){ const st=S.ustate; o.anim=time;
       if(st==='move')o.state='move'; else if(st==='attack'){o.state='attack';const ph=time%1.2;o.swing=ph<0.3?0.3-ph:0;} else if(st==='work')o.state='work'; else if(st==='carry'){o.state='carry';o.carryKind='wood'} else if(st==='carryfood'){o.state='carry';o.carryKind='food'} else if(st==='carrygold'){if(S.type==='tradecart'){o.carry=10;o.carryKind='gold';o.state='move'}else{o.state='carry';o.carryKind='gold'}} else if(st==='relic')o.relic=true; else if(st==='convert')o.state='convert'; else if(st==='deployed')o.packed=false; else if(st==='fire'){o.packed=false;o.state='attack';const ph=time%2;o.swing=ph<0.6?0.6-ph:0;} }
     else {o.v=S.v;o.amount=S.amount;}
@@ -385,7 +398,7 @@ details.sheet canvas{display:block}
     cv.getContext('2d').drawImage(img,0,0);
   }
   function drawVillage(time){
-    const cv=$('#village'); const va=$('#v-age').value;const img=LAB.sceneCanvas({team:+$('#v-team').value,src:$('#v-src').value,zoom:+$('#v-zoom').value,time,caption:false,age:va===''?undefined:+va});
+    const cv=$('#village'); const img=LAB.sceneCanvas({vw:$('#v-scroll').clientWidth||1400,team:+$('#v-team').value,src:$('#v-src').value,zoom:+$('#v-zoom').value,time,caption:false,age:S.age});
     if(cv.width!==img.width||cv.height!==img.height){cv.width=img.width;cv.height=img.height}
     cv.getContext('2d').drawImage(img,0,0);
   }
@@ -401,14 +414,16 @@ details.sheet canvas{display:block}
     $('#ustate').onchange=e=>{S.ustate=e.target.value;drawLive(liveTime)};
     $('#progress').oninput=e=>{S.p=+e.target.value;drawLive(liveTime)};
     $('#variant').onchange=e=>{S.v=+e.target.value;drawLive(liveTime)};
-    $('#age').onchange=e=>{S.age=+e.target.value;drawLive(liveTime)};
     $('#amount').oninput=e=>{S.amount=+e.target.value;drawLive(liveTime)};
     $('#zoom').oninput=e=>{S.zoom=+e.target.value;drawLive(liveTime)};
     $('#vector').onclick=e=>{S.vector=!S.vector;e.currentTarget.setAttribute('aria-pressed',String(S.vector));drawLive(liveTime)};
     $('#src').onclick=()=>{S.src=S.src==='draft'?'current':'draft';select(S.kind,S.type)};
     $('#play').onclick=()=>setPlaying(!S.playing);
     $('#sheetbox').ontoggle=e=>{ if(e.target.open&&sheetDirty){ LAB.target=$('#sheet'); try{LAB.sheet(S.kind,S.type,'both')}finally{LAB.target=null} sheetDirty=false; } };
-    for(const id of ['v-team','v-src','v-zoom','v-age']) $('#'+id).onchange=()=>drawVillage(liveTime);
+    for(const id of ['v-team','v-src']) $('#'+id).onchange=()=>drawVillage(liveTime);
+    $('#v-zoom').onchange=()=>{ const sc=$('#v-scroll'), fx=(sc.scrollLeft+sc.clientWidth/2)/Math.max(1,sc.scrollWidth), fy=(sc.scrollTop+sc.clientHeight/2)/Math.max(1,sc.scrollHeight); drawVillage(liveTime); sc.scrollLeft=fx*sc.scrollWidth-sc.clientWidth/2; sc.scrollTop=fy*sc.scrollHeight-sc.clientHeight/2; };
+    // the catalogue links back to the game when it is served next to it (GitHub Pages, a local server); not inside an artifact
+    try{ const h=location.hostname; $('#playlink').hidden=!(/^https?:$/.test(location.protocol)&&!/(^|\.)claude\.ai$|claudeusercontent/.test(h)); }catch(e){}
     $('#k-src').onchange=()=>drawContact(); $('#k-view').onchange=()=>drawContact();
     for(const b of $$('nav.tabs button')) b.onclick=()=>showTab(b.dataset.tab);
     $('#play').setAttribute('aria-pressed',String(S.playing)); $('#play').textContent=S.playing?'animating':'paused';
@@ -422,7 +437,7 @@ details.sheet canvas{display:block}
     for(const t of ['cat','feedback','village','contact','palette','paint']) $('#tab-'+t).hidden=t!==tab;
     if(tab==='paint')Paint.show();
     if(tab==='feedback')Review.renderFeedback();
-    if(tab==='village')drawVillage(liveTime);
+    if(tab==='village'){ const first=!$('#village').width||$('#village').width<=300; drawVillage(liveTime); if(first){ const sc=$('#v-scroll'); sc.scrollLeft=(sc.scrollWidth-sc.clientWidth)/2; sc.scrollTop=(sc.scrollHeight-sc.clientHeight)/2; } }
     if(tab==='contact'&&!contactDone)drawContact();
     if(tab==='palette'&&!paletteDone){LAB.target=$('#palette');try{LAB.palette()}finally{LAB.target=null}paletteDone=true}
   }
@@ -479,13 +494,11 @@ details.sheet canvas{display:block}
     return { show(){ if(!P.shown){ wire(); P.shown=true; } fillSprites(); if(!P.id)P.id=Object.keys(PIXELS)[0]||null; if(!P.id){ $('#px-pal').innerHTML='<span class="hint">No painted sprites yet. Give one an id and a size, then press “new sprite”.</span>'; return; } all(); } };
   })();
 
-  // ---------- review: flip through sprites, give each a verdict, labels, a note and ink marks.
+  // ---------- review: flip through sprites, give each a note and ink marks with a comment per mark.
+  // (Records from earlier rounds may still carry verdict/tags; they are kept as stored but no longer shown or asked for.)
   // Stored in the published artifact's db collection "reviews" (one doc per sprite, id "<kind>.<type>"), so Claude can read it back;
   // opened as a plain file it falls back to this browser's localStorage. An annotated frame is also uploaded as a PNG asset.
   const Review=(()=>{
-    const VERDICTS={love:'Love it',good:'Good',work:'Needs work',redo:'Redo'};
-    const RANK={redo:0,work:1,love:3,good:2};
-    const BASE_TAGS=['silhouette','proportions','too small','too big','colours','team colour','light & shading','too noisy','too plain','animation','reads at 1×','style mismatch','wrong for its role'];
     const PENS=['#ff4d4d','#ffd84d','#4dd2ff','#ffffff'];
     const R={data:{},replies:{},db:null,assets:null,me:null,mode:'local',pen:false,penCol:PENS[0],stroke:null,timers:{},snapTimers:{},viewApplied:null};
     const key=()=>S.kind+'.'+S.type;
@@ -494,8 +507,8 @@ details.sheet canvas{display:block}
     const lsRead=()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}};
     const lsWrite=()=>{try{localStorage.setItem(LS,JSON.stringify(R.data))}catch(e){}};
     const order=()=>$$('.item').map(it=>({kind:it.dataset.kind,type:it.dataset.type,el:it}));
-    const reviewed=r=>!!(r&&(r.verdict||r.note||(r.tags&&r.tags.length)||(r.marks&&r.marks.length)));
-    function passes(k){ const r=R.data[k], f=$('#rv-filter').value; return f==='all'||(f==='todo'&&!reviewed(r))||(f==='done'&&reviewed(r))||(f==='work'&&r&&(r.verdict==='work'||r.verdict==='redo'))||(f==='replied'&&!!R.replies[k]); }
+    const reviewed=r=>!!(r&&((r.note&&r.note.trim())||(r.marks&&r.marks.length)));
+    function passes(k){ const r=R.data[k], f=$('#rv-filter').value; return f==='all'||(f==='todo'&&!reviewed(r))||(f==='done'&&reviewed(r))||(f==='replied'&&!!R.replies[k]); }
     function filterSidebar(){ const q=$('#search').value.toLowerCase(); for(const it of $$('.item')){ const k=it.dataset.kind+'.'+it.dataset.type; it.hidden=(!!q&&!it.dataset.search.includes(q))||(!passes(k)&&k!==key()); } updatePos(); }
     function step(dir){
       const q=$('#search').value.toLowerCase(); const list=order(); const n=list.length; let i=list.findIndex(o=>o.kind===S.kind&&o.type===S.type);
@@ -512,8 +525,8 @@ details.sheet canvas{display:block}
 
     // ---- editing the current record
     function edit(fn,{snap=false}={}){
-      const k=key(); const r=R.data[k]?JSON.parse(JSON.stringify(R.data[k])):{kind:S.kind,type:S.type,name:$('#d-name').textContent,verdict:null,tags:[],note:'',marks:[],view:null,snap:null,snapUrl:null};
-      fn(r); r.updatedAt=new Date().toISOString(); if(R.me)r.by=R.me; R.data[k]=r; lsWrite(); paintMarker(k); updatePos(); persist(k); if(snap)queueSnap(k);
+      const k=key(); const r=R.data[k]?JSON.parse(JSON.stringify(R.data[k])):{kind:S.kind,type:S.type,name:$('#d-name').textContent,note:'',marks:[],view:null,snap:null,snapUrl:null};
+      if(!r.marks)r.marks=[]; fn(r); r.updatedAt=new Date().toISOString(); if(R.me)r.by=R.me; R.data[k]=r; lsWrite(); paintMarker(k); updatePos(); persist(k); if(snap)queueSnap(k);
     }
     function persist(k){
       clearTimeout(R.timers[k]); setStatus(R.mode==='db'?'saving…':'saved in this browser');
@@ -541,8 +554,8 @@ details.sheet canvas{display:block}
     }
     function drawInk(){ const ink=$('#ink'), g=ink.getContext('2d'); g.clearRect(0,0,ink.width,ink.height); const r=cur(); const marks=(r?r.marks:[]).concat(R.stroke?[R.stroke]:[]); drawMarks(g,marks,ink.width,ink.height); }
     function inkVisibility(){ $('#ink').hidden=S.playing&&!R.pen; }
-    function view(){ return {team:S.team,ustate:S.ustate,zoom:S.zoom,p:S.p,v:S.v,amount:S.amount,src:S.src,vector:S.vector,time:+liveTime.toFixed(3)}; }
-    function applyView(v){ Object.assign(S,{team:v.team,ustate:v.ustate,zoom:v.zoom,p:v.p,v:v.v,amount:v.amount,vector:!!v.vector}); if(v.src==='draft'&&LAB.hasDraft(S.kind,S.type))S.src='draft'; liveTime=v.time;
+    function view(){ return {team:S.team,ustate:S.ustate,zoom:S.zoom,p:S.p,v:S.v,amount:S.amount,src:S.src,vector:S.vector,age:S.age,time:+liveTime.toFixed(3)}; }
+    function applyView(v){ Object.assign(S,{team:v.team,ustate:v.ustate,zoom:v.zoom,p:v.p,v:v.v,amount:v.amount,vector:!!v.vector}); if(v.age!==undefined&&v.age!==null)S.age=v.age; if(v.src==='draft'&&LAB.hasDraft(S.kind,S.type))S.src='draft'; liveTime=v.time;
       $('#zoom').value=S.zoom; $('#progress').value=S.p; $('#variant').value=S.v; $('#amount').value=S.amount; $('#vector').setAttribute('aria-pressed',String(S.vector)); }
     function setPen(on){ R.pen=on; $('#rv-pen').setAttribute('aria-pressed',String(on)); $('#ink').classList.toggle('on',on); $('#stage').classList.toggle('inking',on); if(on&&S.playing)setPlaying(false); inkVisibility(); }
     function pt(ev){ const ink=$('#ink'), b=ink.getBoundingClientRect(); return [Math.min(1,Math.max(0,(ev.clientX-b.left)/b.width)),Math.min(1,Math.max(0,(ev.clientY-b.top)/b.height))]; }
@@ -555,15 +568,8 @@ details.sheet canvas{display:block}
     }
 
     // ---- panel
-    function allTags(){ const set=new Set(BASE_TAGS); for(const r of Object.values(R.data))for(const t of r.tags||[])set.add(t); return [...set]; }
     function renderPanel(){
-      const r=cur()||{tags:[],note:'',verdict:null,marks:[]};
-      for(const b of $$('.vd')) b.setAttribute('aria-pressed',String(r.verdict===b.dataset.v));
-      const box=$('#rv-tags'); box.innerHTML='';
-      for(const t of allTags()){ const b=document.createElement('button'); b.className='tag'; b.textContent=t; b.setAttribute('aria-pressed',String(r.tags.includes(t))); b.onclick=()=>edit(x=>{x.tags=x.tags.includes(t)?x.tags.filter(y=>y!==t):[...x.tags,t]}); b.addEventListener('click',()=>renderPanel()); box.appendChild(b); }
-      const add=document.createElement('input'); add.className='tagadd'; add.placeholder='+ new label'; add.setAttribute('aria-label','add a label');
-      add.onkeydown=e=>{ if(e.key==='Enter'){ const t=add.value.trim().toLowerCase(); if(t){ edit(x=>{if(!x.tags.includes(t))x.tags.push(t)}); renderPanel(); $('.tagadd').focus(); } } if(e.key==='Escape')add.blur(); };
-      box.appendChild(add);
+      const r=Object.assign({note:'',marks:[]},cur()||{}); if(!r.marks)r.marks=[];
       const note=$('#rv-note'); if(document.activeElement!==note)note.value=r.note||'';
       const ml=$('#rv-marks'); const fi=ml.contains(document.activeElement)?$$('#rv-marks input').indexOf(document.activeElement):-1; ml.innerHTML='';
       r.marks.forEach((m,i)=>{ const li=document.createElement('li'); li.innerHTML=`<span class="num" style="background:${m.c}">${i+1}</span><input type="text" placeholder="What is wrong at ${i+1}? (Enter)" aria-label="comment for mark ${i+1}"><button class="x" aria-label="delete mark ${i+1}">✕</button>`;
@@ -593,7 +599,8 @@ details.sheet canvas{display:block}
       box.style.gridTemplateColumns=x.snapUrl?'':'1fr'; if(x.snapUrl)box.append(th,body); else box.append(body);
     }
     function paintMarker(k){ const [kind,type]=k.split('.'); const it=$(`.item[data-kind="${kind}"][data-type="${type}"]`); if(!it)return; const m=it.querySelector('.rvm'); const r=R.data[k];
-      if(!reviewed(r)){ if(R.replies[k]){m.hidden=false;m.className='rvm upd';m.textContent='updated';m.title='Changed after your last round of feedback'}else m.hidden=true; return; } m.title=''; m.hidden=false; m.className='rvm '+(r.verdict||'seen'); m.textContent=r.verdict?{love:'love',good:'good',work:'work',redo:'redo'}[r.verdict]:'noted'+(r.marks&&r.marks.length?' ✎':''); if(r.verdict&&r.marks&&r.marks.length)m.textContent+=' ✎'; }
+      if(!reviewed(r)){ if(R.replies[k]){m.hidden=false;m.className='rvm upd';m.textContent='updated';m.title='Changed after your last round of feedback'}else m.hidden=true; return; }
+      const nm=r.marks&&r.marks.length; m.hidden=false; m.className='rvm seen'; m.textContent='noted'+(nm?' ✎':''); m.title=(r.note&&r.note.trim()?'note':'')+(nm?(r.note&&r.note.trim()?' + ':'')+nm+' mark'+(nm>1?'s':''):''); }
     function onSelect(){
       if(R.pen)setPen(false);
       const r=cur(); const k=key();
@@ -603,22 +610,21 @@ details.sheet canvas{display:block}
 
     // ---- feedback tab
     function renderFeedback(){
-      const recs=order().map(o=>R.data[o.kind+'.'+o.type]).filter(reviewed).sort((a,b)=>(RANK[a.verdict]??1.5)-(RANK[b.verdict]??1.5));
-      const cnt=v=>recs.filter(r=>r.verdict===v).length;
-      $('#fb-sum').innerHTML=`<span>${recs.length} of ${order().length} sprites reviewed</span>`+Object.entries(VERDICTS).map(([v,l])=>`<span><span class="rvm ${v}">${l}</span> ${cnt(v)}</span>`).join('')+`<span class="hint">${R.mode==='db'?'Saved with the catalogue, Claude can read it.':'Saved in this browser only. Copy the JSON below to share it.'}</span>`;
-      const list=$('#fb-list'); list.innerHTML=recs.length?'':'<p class="empty">Nothing reviewed yet. Open a sprite in the Catalogue tab and press 1–4.</p>';
+      const recs=order().map(o=>R.data[o.kind+'.'+o.type]).filter(reviewed);
+      const withMarks=recs.filter(r=>r.marks&&r.marks.length).length, changed=Object.keys(R.replies).length;
+      $('#fb-sum').innerHTML=`<span>${recs.length} of ${order().length} sprites noted</span><span><span class="rvm seen">noted ✎</span> ${withMarks} with marks</span>`+(changed?`<span><span class="rvm upd">updated</span> ${changed} changed last round</span>`:'')+`<span class="hint">${R.mode==='db'?'Saved with the catalogue, Claude can read it.':'Saved in this browser only. Copy the JSON below to share it.'}</span>`;
+      const list=$('#fb-list'); list.innerHTML=recs.length?'':'<p class="empty">Nothing noted yet. Open a sprite in the Catalogue tab, write what should change in the note, or press A and draw on it.</p>';
       for(const r of recs){
         const b=document.createElement('button'); b.className='fb';
-        b.innerHTML=`<div class="th"></div><div><h4></h4><div>${r.verdict?`<span class="rvm ${r.verdict}">${VERDICTS[r.verdict]}</span>`:''}${r.marks&&r.marks.length?` <span class="hint">${r.marks.length} mark${r.marks.length>1?'s':''}</span>`:''}</div><div class="tags"></div><p></p><ol></ol></div>`;
+        b.innerHTML=`<div class="th"></div><div><h4></h4><div>${r.marks&&r.marks.length?`<span class="hint">${r.marks.length} mark${r.marks.length>1?'s':''}</span>`:''}${R.replies[r.kind+'.'+r.type]?' <span class="rvm upd">updated</span>':''}</div><p></p><ol></ol></div>`;
         b.querySelector('h4').textContent=r.name||r.type; b.querySelector('p').textContent=r.note||'';
-        for(const t of r.tags||[]){ const s=document.createElement('span'); s.className='tag'; s.textContent=t; b.querySelector('.tags').appendChild(s); }
         for(const m of r.marks||[]){ const li=document.createElement('li'); li.textContent=m.t||'(no comment)'; li.style.color=m.c; b.querySelector('ol').appendChild(li); }
         const th=b.querySelector('.th');
         if(r.snapUrl){ const img=new Image(); img.alt=''; img.src=r.snapUrl; img.onerror=()=>{img.remove();thumb(th,r)}; th.appendChild(img); } else thumb(th,r);
         b.onclick=()=>{ showTab('cat'); select(r.kind,r.type); };
         list.appendChild(b);
       }
-      $('#fb-json').value=JSON.stringify(recs.map(({kind,type,name,verdict,tags,note,marks,view,snap,updatedAt})=>({id:kind+'.'+type,name,verdict,tags,note,marks:(marks||[]).map((m,i)=>(i+1)+': '+(m.t||'')),view,snap,updatedAt})),null,1);
+      $('#fb-json').value=JSON.stringify(recs.map(({kind,type,name,note,marks,view,snap,updatedAt})=>({id:kind+'.'+type,name,note,marks:(marks||[]).map((m,i)=>(i+1)+': '+(m.t||'')),view,snap,updatedAt})),null,1);
     }
     function thumb(th,r){ try{ const c=LAB.magnify(LAB.renderCell(r.kind,r.type,{src:'current',team:r.view?r.view.team:0,time:0.3,seed:5}),2); if(r.marks&&r.marks.length)drawMarks(c.getContext('2d'),r.marks,c.width,c.height); th.appendChild(c); }catch(e){} }
 
@@ -628,7 +634,6 @@ details.sheet canvas{display:block}
       if(tag==='textarea'||tag==='input'||tag==='select'){ if(e.key==='Escape')e.target.blur(); return; }
       const k=e.key;
       if(k==='ArrowRight'||k==='j'){e.preventDefault();step(1)} else if(k==='ArrowLeft'||k==='k'){e.preventDefault();step(-1)}
-      else if('1234'.includes(k)&&k.length===1){ const v=['love','good','work','redo'][+k-1]; edit(x=>{x.verdict=x.verdict===v?null:v}); renderPanel(); }
       else if(k==='a'||k==='A')setPen(!R.pen); else if(k==='z'||k==='Z')$('#rv-undo').click();
       else if(k==='n'||k==='N'){e.preventDefault();$('#rv-note').focus()} else if(k===' '&&tag!=='button'){e.preventDefault();setPlaying(!S.playing)}
       else if(k==='Escape'&&R.pen)setPen(false);
@@ -651,7 +656,6 @@ details.sheet canvas{display:block}
     }
     function init(){
       R.data=lsRead(); for(const k in R.data)paintMarker(k);
-      for(const b of $$('.vd')) b.onclick=()=>{ const v=b.dataset.v; edit(x=>{x.verdict=x.verdict===v?null:v}); renderPanel(); };
       $('#rv-note').oninput=e=>{ const t=e.target.value; edit(x=>{x.note=t}); };
       $('#rv-prev').onclick=()=>step(-1); $('#rv-next').onclick=()=>step(1);
       $('#rv-filter').onchange=filterSidebar;
