@@ -15,6 +15,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 .res b{font-weight:normal;font-variant-numeric:tabular-nums;font-size:16px}
 .res small{color:var(--muted);font-size:11px;margin-left:2px}
 .res small:not(:empty)::before{content:'\00b7';margin-right:3px}
+.resleft{display:flex;align-items:center;gap:6px;margin:2px 0 3px;font-size:13px}.resleft img{width:18px;height:18px}.resleft b{font-size:18px;color:#f3e3b4}.resleft span{opacity:.85}
 .ci{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}.ci img{width:12px;height:12px;image-rendering:pixelated}
 #topbtns{display:flex;gap:6px}
 .tb{height:28px;min-width:34px;padding:0 10px;background:var(--panel2);border:2px solid var(--edge);border-radius:4px;color:var(--text);font:13px Georgia,serif;cursor:pointer}
@@ -577,7 +578,9 @@ function genMap(){
  // base layouts
  basec.forEach((c,i)=>{const toward=Math.atan2(c0.y-c.y,c0.x-c.x);
   const at=(ang,dist)=>({x:Math.round(c.x+Math.cos(toward+ang)*dist),y:Math.round(c.y+Math.sin(toward+ang)*dist)});
-  const place=(kind,p,count,amt,spread=1)=>{for(let k=0;k<count;k++){const x=p.x+RI(-spread,spread),y=p.y+RI(-spread,spread);if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5)makeResource(kind,x,y,amt)}};
+  // berry bushes grow as one tight patch: the free cells nearest the spot, not a random scatter
+  const patch=(p,count,amt)=>{const cells=[];for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)cells.push({x:p.x+dx,y:p.y+dy,d:Math.hypot(dx,dy*1.15)+R(0,0.35)});cells.sort((a,b)=>a.d-b.d);let n=0;for(const q of cells){if(n>=count)break;const {x,y}=q;if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5){makeResource('food',x,y,amt);n++}}};
+  const place=(kind,p,count,amt,spread=1)=>{if(kind==='food')return patch(p,count,amt);for(let k=0;k<count;k++){const x=p.x+RI(-spread,spread),y=p.y+RI(-spread,spread);if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5)makeResource(kind,x,y,amt)}};
   const f1=at(1.9,8.5),f2=at(-1.6,9);blob(f1.x,f1.y,3.6,tree);blob(f2.x,f2.y,3.2,tree);
   place('food',at(-0.7,5),8,200);place('food',at(1.2,10),6,150);place('gold',at(0.6,6.5),6,500);place('stone',at(2.6,6),5,400);place('gold',at(-2.4,11),4,500);
  });
@@ -586,6 +589,7 @@ function genMap(){
   for(let k=0;k<MAP*1.3;k++){const x=RI(0,MAP-1),y=RI(0,MAP-1);if(dBase(x,y)<9)continue;tree(x,y)}}
  // mid resources
  const midN=Math.round(MAP/7);for(let k=0;k<midN;k++){let x,y,t=0;do{x=RI(4,MAP-5);y=RI(4,MAP-5);t++}while((dBase(x,y)<15||B[idx(x,y)])&&t<80);if(t>=80)continue;const kind=k%3===2?'stone':k%3===1?'food':'gold';
+  if(kind==='food'){const cl=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)cl.push([x+dx,y+dy,Math.hypot(dx,dy)+R(0,0.4)]);cl.sort((a,b)=>a[2]-b[2]);let n=0;for(const [tx,ty] of cl){if(n>=6)break;if(inMap(tx,ty)&&!B[idx(tx,ty)]&&!G.rAt[idx(tx,ty)]&&T[idx(tx,ty)]!==2){makeResource('food',tx,ty,150);n++}}continue}
   for(let j=0;j<(kind==='food'?6:5);j++){const tx=x+RI(-1,1),ty=y+RI(-1,1);if(inMap(tx,ty)&&!B[idx(tx,ty)]&&!G.rAt[idx(tx,ty)]&&T[idx(tx,ty)]!==2)makeResource(kind,tx,ty,kind==='food'?150:kind==='gold'?500:350)}}
  // fish: shore patches near each base, deep patches in open water
  const water=[];for(let y=1;y<MAP-1;y++)for(let x=1;x<MAP-1;x++)if(T[idx(x,y)]===2)water.push({x,y});
@@ -808,7 +812,7 @@ function damageOf(att,target){const d=att.kind==='unit'?UNITS[att.type]:BUILDING
  const ca=center(att),ct=center(target);const dh=heightAt(ca.x,ca.y)-heightAt(ct.x,ct.y);const hg=dh>0.5?1.25:dh<-0.5?0.75:1;
  return Math.max(1,Math.round((atk+bonus)*hg)-armor)}
 function applyDamage(t,amt,att){if(t.dead)return;t.hp-=amt;t.flash=0.15;if(att&&att.kind==='unit'&&t.kind==='unit')t.hitFrom={x:att.x,y:att.y};if(att&&att.team>=0&&t.team>=0&&att.team!==t.team){const tp=player(t.team);tp.lastHit=tp.lastHit||{};tp.lastHit[att.team]=G.time}
- if(t.team===ME&&att&&!isAnimal(att)){const p=player(ME);if(G.time-p.alertT>8){p.alertT=G.time;const c=center(t);G.pings.push({x:c.x,y:c.y,t:G.time,kind:'alert'});msg(t.kind==='unit'?(t.type==='villager'?'A villager is under attack!':'Your army is fighting.'):(BUILDINGS[t.type].name+' is under attack!'));sfx('alert')}}
+ if(t.team===ME&&att&&!isAnimal(att)){const c0=center(t);noteAttack(c0.x,c0.y);const p=player(ME);if(G.time-p.alertT>8){p.alertT=G.time;const c=center(t);G.pings.push({x:c.x,y:c.y,t:G.time,kind:'alert'});msg(t.kind==='unit'?(t.type==='villager'?'A villager is under attack!':'Your army is fighting.'):(BUILDINGS[t.type].name+' is under attack!'));sfx('alert')}}
  if(t.hp<=0)kill(t,att)
  else if(t.kind==='unit'&&att&&att.kind==='unit'&&!allied(att.team,t.team)){
   if(isAnimal(t)){if(t.type==='boar'&&t.state!=='attack'){t.state='attack';t.target=att;t.resume=null}else if(t.type==='deer'||t.type==='sheep'){fleeFrom(t,att)}}
@@ -1029,10 +1033,16 @@ function scoreParts(p){const t=p.team,st=p.stats;let mil=st.kills*10+st.razed*40
  let relics=0;for(const b of G.buildings)if(b.team===t&&b.built){if(b.type==='wall')soc+=1;else if(b.type==='keep')soc+=100;else if(b.type==='wonder')soc+=300;else if(BUILDINGS[b.type].trains||BUILDINGS[b.type].atk)soc+=15;else eco+=15;relics+=b.relics||0}
  soc+=relics*50;return{military:Math.round(mil),economy:Math.round(eco),technology:Math.round(tech),society:Math.round(soc)}}
 function computeScore(p){const s=scoreParts(p);return s.military+s.economy+s.technology+s.society}
+// Land units never end a tick inside water, a building, a tree or a mine: several movement paths (closing in on a target,
+// work spots, hunting, herding) step without testing the cell they land in, and a few hundredths of a tile was enough
+// for units to stand on water. A unit that came from a walkable cell slides along the edge instead (x or y only), or
+// stays put. One already inside a blocked cell (pushed out by a new building next tick, unloading) is left alone.
+function keepOnWalkable(u,ox,oy){if(u.dead||u.inside||(u.x===ox&&u.y===oy))return;const ok=(x,y)=>isWalkable(Math.floor(x),Math.floor(y),u.team,u.naval);
+ if(ok(u.x,u.y)||!ok(ox,oy))return;if(ok(u.x,oy))u.y=oy;else if(ok(ox,u.y))u.x=ox;else{u.x=ox;u.y=oy}}
 function update(){for(const r of G.relics)if(r.holder&&!r.holder.inside){r.x=r.holder.x;r.y=r.holder.y}G.tick++;G.time+=DT;buildGrid();
  for(const p of G.players)if(p.ai&&!p.dead&&G.tick%20===(p.team*7)%20)aiThink(p);
  for(const b of G.buildings)updateBuilding(b);
- for(const u of G.units)updateUnit(u);
+ for(const u of G.units){const ox=u.x,oy=u.y;updateUnit(u);keepOnWalkable(u,ox,oy)}
  separation();updateProjectiles();
  if(G.tick%20===0){for(const k in G.market)G.market[k]+=(100-G.market[k])*0.01}
  for(const r of G.resources)if(r.carcass&&!r.dead&&!r.cliff){r.amount-=0.15*DT;if(r.amount<=0)removeResource(r)}
@@ -24207,11 +24217,14 @@ const inkOf = (n, x, y, litRim) => BERRY.includes(n) ? 'Q' : n === 'x' || n === 
 /** a berry: 2×2 round fruit, highlight top-left, shade bottom-right */
 function berry(g, x, y) { pixSet(g, x, y, 'R'); pixSet(g, x + 1, y, 'r'); pixSet(g, x, y + 1, 'r'); pixSet(g, x + 1, y + 1, 'q'); }
 function bush(blobs, seed, bunches, twigs) {
+  // drawn at 0.72 of the designed size so a patch of bushes sits close together, one bush to a tile (playtest 5)
+  const K = 0.72, sc = a => a.map(v => v * K);
+  blobs = blobs.map(([x, y, r, ry]) => [x * K, y * K, r * K, (ry || r) * K]); bunches = bunches.map(([x, y, n]) => [x * K, y * K, Math.max(2, n - 1)]); twigs = twigs && twigs.map(sc);
   const g = pixGrid(W, H);
-  crown(g, LEAF, rng(seed), blobs, AX, AY, 3);
+  crown(g, LEAF, rng(seed), blobs, AX, AY, 2.5);
   const R = rng(seed + 1);
   for (const [bx, by, n] of bunches) {                                  // a bunch: n berries jostled together, the front one bigger
-    const OFF = [[0, 0], [3, 1], [-2, 2], [1, 3], [4, 4]];
+    const OFF = [[0, 0], [3, 1], [-2, 2], [1, 3]];
     for (let i = 0; i < n; i++) { const x = Math.round(AX + bx + OFF[i][0]), y = Math.round(AY + by + OFF[i][1]); if (LEAF.includes(pixGet(g, x, y)) && LEAF.includes(pixGet(g, x + 1, y + 1))) berry(g, x, y, false); }
   }
   ink(g, inkOf);
@@ -33737,7 +33750,11 @@ function cliffRender(tx,ty){const[nA,nB,nC]=cliffN;const open=[];for(let oy=-1;o
 function drawResource(r,dim){
  // trees come in species patches of 4x4 tiles (a quarter mixed in), two forms per species, so a wood reads as one stand; drawing only, the sim never sees it
  function woodVariant(r){const h=(a,b)=>{let x=(a*374761393+b*668265263)|0;x=Math.imul(x^(x>>>13),1274126177);return((x^(x>>>16))>>>0)/4294967296};let sp=Math.floor(h(r.tx>>2,r.ty>>2)*3);if(h(r.tx,r.ty+99)<0.25)sp=r.v%3;return sp+(h(r.tx+7,r.ty)<0.5?0:3)}
- const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){wtrFish(wx,wy,G.time*1.5+r.tx);return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
+ const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){wtrFish(wx,wy,G.time*1.5+r.tx);return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;if(r.res==='food'&&!r.carcass){const o=berryNudge(r);ctx.drawImage(sp,Math.round(wx+o.x-32),Math.round(wy+o.y-68),64,80);return}ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
+// a berry bush leans toward the other bushes of its patch (render only), so a patch reads as one clump
+const BERRY_NUDGE=new WeakMap();
+function berryNudge(r){let o=BERRY_NUDGE.get(r);if(o&&o.n===G.resources.length)return o;let sx=0,sy=0,c=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy||!inMap(r.tx+dx,r.ty+dy))continue;const q=G.rAt[idx(r.tx+dx,r.ty+dy)];if(q&&q.res==='food'&&!q.carcass&&!q.fish){sx+=dx;sy+=dy;c++}}
+ const k=c?0.34/Math.max(1,Math.hypot(sx/c,sy/c)*1.4):0,mx=c?sx/c*k:0,my=c?sy/c*k:0;o={x:(mx-my)*HW,y:(mx+my)*HH,n:G.resources.length};BERRY_NUDGE.set(r,o);return o}
 let fogCv=null,fogData=null,fogLo=null,fogBl=null;const FOGS=8;
 function updateFog(){if(!fogCv){fogCv=document.createElement('canvas');fogCv.width=fogCv.height=MAP*4;fogData=fogCv.getContext('2d').createImageData(MAP*4,MAP*4)}const v=G.vis[ME];const d=fogData.data;
  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){const a=v[idx(x,y)]===2?0:v[idx(x,y)]===1?120:255;for(let yy=0;yy<4;yy++)for(let xx=0;xx<4;xx++){const i=((y*4+yy)*MAP*4+(x*4+xx))*4;d[i]=6;d[i+1]=4;d[i+2]=2;d[i+3]=a}}fogCv.getContext('2d').putImageData(fogData,0,0)}
@@ -33803,13 +33820,30 @@ function render(){ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fill
  if(ui.build&&ui.build.tx!==undefined)drawPlacementGhost();
  // rally points
  for(const b of (G.sel||[]))if(b.kind==='bld'&&b.rally){if(b.rally.t===b){const c=center(b);const p=w2sLocal(c.x,c.y);flag(p.x,p.y-8,ME,16);continue}const c=center(b);const a=w2sLocal(c.x,c.y),p=w2sLocal(b.rally.x,b.rally.y);ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(a.x,a.y-20);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([]);flag(p.x,p.y,ME,16)}
+ drawAttackZones();
  // pings
  for(const p of G.pings){const f=(G.time-p.t)/3;if(f>1)continue;const wx=wpx(p.x,p.y),wy=wpy(p.x,p.y);ctx.strokeStyle=p.kind==='alert'?`rgba(255,80,60,${1-f})`:`rgba(255,255,255,${1-f})`;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(wx,wy,10+f*30,5+f*15,0,0,7);ctx.stroke();ctx.lineWidth=1}
  G.pings=G.pings.filter(p=>G.time-p.t<3);
  // drag box
  ctx.setTransform(1,0,0,1,0,0);
+ drawAttackArrows();
  if(ui.drag&&ui.dragging){const d=ui.drag;ctx.strokeStyle='#fff';ctx.strokeRect(Math.min(d.x0,d.x1),Math.min(d.y0,d.y1),Math.abs(d.x1-d.x0),Math.abs(d.y1-d.y0))}
  renderMini();}
+// ---- attack alerts (render only, your own side): every place you are being hit is a fight zone that lasts while the hits keep
+// coming. Zones show on the minimap (pulsing red disc and ring), on the ground (red pulsing rings and crossed swords) and, when
+// off-screen, as a red arrow at the screen edge that pans there on click. Space jumps to the newest. Not part of the sim state.
+let ATTACKS=[];const ATTACK_HOLD=6;
+function noteAttack(x,y){if(!G||G.tick===undefined)return;const z=ATTACKS.find(a=>Math.hypot(a.x-x,a.y-y)<7&&G.time-a.t<ATTACK_HOLD);if(z){z.t=G.time;z.n++;z.x+=(x-z.x)*0.1;z.y+=(y-z.y)*0.1;return}ATTACKS.push({x,y,t0:G.time,t:G.time,n:1});if(ATTACKS.length>12)ATTACKS.shift()}
+function liveAttacks(){if(ATTACKS.length&&(G.time<ATTACKS[0].t0-1))ATTACKS=[];ATTACKS=ATTACKS.filter(a=>G.time-a.t<ATTACK_HOLD);return ATTACKS}
+function swords(x,y,sz,col,lw){ctx.lineCap='round';for(const [c,w] of [['rgba(40,10,6,0.9)',lw+2.5],[col,lw]]){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x-sz,y-sz);ctx.lineTo(x+sz,y+sz);ctx.moveTo(x+sz,y-sz);ctx.lineTo(x-sz,y+sz);ctx.moveTo(x-sz*0.95,y+sz*0.35);ctx.lineTo(x-sz*0.35,y+sz*0.95);ctx.moveTo(x+sz*0.95,y+sz*0.35);ctx.lineTo(x+sz*0.35,y+sz*0.95);ctx.stroke()}ctx.lineCap='butt';ctx.lineWidth=1}
+function drawAttackZones(){const z=1/Math.max(0.5,cam.zoom);for(const a of liveAttacks()){const wx=wpx(a.x,a.y),wy=wpy(a.x,a.y),fresh=Math.max(0,1-(G.time-a.t)/ATTACK_HOLD);
+ ctx.fillStyle=`rgba(255,40,20,${0.08+0.1*fresh*(0.5+0.5*Math.sin(G.time*7))})`;ctx.beginPath();ctx.ellipse(wx,wy,70,35,0,0,7);ctx.fill();
+ for(let k=0;k<2;k++){const ph=(G.time*0.9+k*0.5)%1;ctx.strokeStyle=`rgba(255,55,35,${(1-ph)*(0.45+0.55*fresh)})`;ctx.lineWidth=4*z;ctx.beginPath();ctx.ellipse(wx,wy,30+ph*80,15+ph*40,0,0,7);ctx.stroke()}
+ const sy=wy-64+Math.sin(G.time*5)*2;ctx.fillStyle='rgba(200,30,18,0.92)';ctx.strokeStyle='#2a0c06';ctx.lineWidth=2*z;ctx.beginPath();ctx.arc(wx,sy,13*z+3,0,7);ctx.fill();ctx.stroke();swords(wx,sy,7*z+1,'#fff4e0',2*z)}}
+function drawAttackArrows(){ui.attackArrows=[];const m=40,top=8,bot=H-8;for(const a of liveAttacks()){const p=w2s(a.x,a.y);if(p.x>m&&p.x<W-m&&p.y>top+m&&p.y<bot-m)continue;
+ const cx=W/2,cy=(top+bot)/2,dx=p.x-cx,dy=p.y-cy;const k=Math.min((W/2-m)/Math.abs(dx||1e-6),((bot-top)/2-m)/Math.abs(dy||1e-6));const x=cx+dx*k,y=cy+dy*k,ang=Math.atan2(dy,dx);
+ const sc=1+0.08*Math.sin(G.time*8);ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);ctx.rotate(ang);ctx.fillStyle='#e03a22';ctx.strokeStyle='#2a0c06';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(34,0);ctx.lineTo(14,-12);ctx.lineTo(14,12);ctx.closePath();ctx.fill();ctx.stroke();ctx.rotate(-ang);
+ ctx.fillStyle='#c62a1a';ctx.beginPath();ctx.arc(0,0,17,0,7);ctx.fill();ctx.stroke();ctx.strokeStyle='rgba(255,220,190,0.7)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(0,0,14,0,7);ctx.stroke();swords(0,0,8,'#fff4e0',2.2);ctx.restore();ui.attackArrows.push({x,y,a})}}
 function w2sLocal(x,y){return{x:wpx(x,y),y:wpy(x,y)}}
 let miniImg=null,miniTick=-1;let MINI_COL=[[80,140,255],[255,80,60],[70,200,90],[240,200,60]];
 function renderMini(){if(!miniImg){miniImg=document.createElement('canvas');miniImg.width=miniImg.height=MAP*2}
@@ -33822,7 +33856,10 @@ function renderMini(){if(!miniImg){miniImg=document.createElement('canvas');mini
  const mw=mini.width,mh=mini.height;mctx.setTransform(1,0,0,1,0,0);mctx.fillStyle='#0a0806';mctx.fillRect(0,0,mw,mh);const s=(mw-4)/(MAP*TW);mctx.setTransform(HW*s/2,HH*s/2,-HW*s/2,HH*s/2,mw/2,4);mctx.imageSmoothingEnabled=false;mctx.drawImage(miniImg,0,0);
  // viewport
  mctx.setTransform(HW*s,HH*s,-HW*s,HH*s,mw/2,4);const cs=[s2w(0,0),s2w(W,0),s2w(W,H),s2w(0,H)];mctx.strokeStyle='#fff';mctx.lineWidth=0.3;mctx.beginPath();mctx.moveTo(cs[0].x,cs[0].y);for(let i=1;i<4;i++)mctx.lineTo(cs[i].x,cs[i].y);mctx.closePath();mctx.stroke();
- for(const p of G.pings){const f=(G.time-p.t)/3;mctx.strokeStyle=p.kind==='alert'?'#f44':'#fff';mctx.lineWidth=0.4;mctx.beginPath();mctx.arc(p.x,p.y,1+f*4,0,7);mctx.stroke()}}
+ for(const p of G.pings){if(p.kind==='alert')continue;const f=(G.time-p.t)/3;mctx.strokeStyle='#fff';mctx.lineWidth=0.4;mctx.beginPath();mctx.arc(p.x,p.y,1+f*4,0,7);mctx.stroke()}
+ // where you are being attacked: a pulsing red disc and an expanding ring per fight, for as long as the fight goes on
+ for(const a of liveAttacks()){const age=G.time-a.t0,ph=(G.time*1.6)%1,fresh=Math.max(0,1-(G.time-a.t)/ATTACK_HOLD);mctx.fillStyle=`rgba(255,40,30,${(0.35+0.3*Math.sin(G.time*8))*fresh+0.15})`;mctx.beginPath();mctx.arc(a.x,a.y,2.4,0,7);mctx.fill();
+  mctx.strokeStyle=`rgba(255,70,50,${(1-ph)*(0.4+0.6*fresh)})`;mctx.lineWidth=1.2;mctx.beginPath();mctx.arc(a.x,a.y,2.4+ph*(age<1.5?10:6),0,7);mctx.stroke();mctx.strokeStyle='rgba(255,230,200,0.9)';mctx.lineWidth=0.6;mctx.beginPath();mctx.arc(a.x,a.y,2.4,0,7);mctx.stroke()}}
 // ================= SOUND =================
 let AC=null;function sfx(name){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();const t=AC.currentTime;const o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);
  const env=(v,d)=>{g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(v,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.start(t);o.stop(t+d)};
@@ -33918,15 +33955,18 @@ function tipHtml(b){const p=player(ME);let h=`<div class="tt-h"><b>${b.label}</b
  if(b.bt){const d=BUILDINGS[b.bt];if(d.trains&&d.trains.length)h+=`<div class="tt-e">Trains: ${d.trains.map(ATTR_NAMES).join(', ')}</div>`;if(p.age<d.age)h+=`<div class="tt-x">Requires ${AGES[d.age]}</div>`}
  if(short&&short.length)h+=`<div class="tt-x">Need ${short.join(', ')} more</div>`;return h}
 function marketTable(p){const g=iconUrl('res','gold');return `<table id="mkt"><tr><th></th><th>Buy 100 costs</th><th>Sell 100 gives</th></tr>${['wood','food','stone'].map(k=>`<tr><td><span class="ci"><img src="${iconUrl('res',k)}" alt="">${k[0].toUpperCase()+k.slice(1)}</span></td><td><span class="ci"><img src="${g}" alt="">${buyPrice(p,k)}</span></td><td><span class="ci"><img src="${g}" alt="">${sellPrice(p,k)}</span></td></tr>`).join('')}</table>`}
+// how much is left in a resource, as a coloured bar with its icon: "420 / 500 gold left"
+const RES_BAR={food:'#d9564a',wood:'#a8743e',gold:'#e8c040',stone:'#a9a9a0'};
+function resLeft(k,amt,max){const a=Math.max(0,Math.ceil(amt)),m=Math.max(a,Math.round(max||a));return `<div class="resleft"><img src="${iconUrl('res',k)}" alt=""><b>${a}</b><span>/ ${m} ${k} left</span></div><div class="bar"><i style="width:${m?100*a/m:0}%;background:${RES_BAR[k]}"></i></div>`}
 function renderInfo(){const s=G.sel||[];const el=$('info');if(!s.length){el.innerHTML='<h3>Nothing selected</h3><div class="row">Left-click or drag to select. Press H for your Town Hall.</div>';return}
  if(s.length>1){const counts={};for(const e of s){const n=e.kind==='unit'?UNITS[e.type].name:BUILDINGS[e.type].name;counts[n]=(counts[n]||0)+1}
   const MAXP=45;const grid=s.slice(0,MAXP).map(e=>{const mx=e.kind==='unit'?unitStat(e,'maxhp'):bldHp(e);const nm=e.kind==='unit'?UNITS[e.type].name:BUILDINGS[e.type].name;return `<div class="su" title="${nm} · ${Math.ceil(e.hp)}/${mx} HP" onclick="selOne(${e.id})"><img src="${iconUrl(e.kind==='unit'?'unit':'bld',e.type,TEAM[e.team])}" alt=""><i><b style="width:${Math.max(0,Math.min(100,Math.round(100*e.hp/mx)))}%;background:${e.hp/mx>0.5?'#4caf50':e.hp/mx>0.25?'#e0b03a':'#d9442c'}"></b></i></div>`}).join('');
   el.innerHTML=`<h3>${s.length} selected</h3><div class="row">${Object.entries(counts).map(([k,v])=>v+'× '+k).join(', ')}</div><div class="sgrid">${grid}${s.length>MAXP?`<div class="row" style="align-self:center">+${s.length-MAXP}</div>`:''}</div><div class="row" style="font-size:11px">Click a portrait to pick one · Tab cycles unit type</div>`;return}
- const e=s[0];const who=e.team===ME?'':e.team<0?' <small style="color:#ccb">(wild)</small>':allied(e.team,ME)?` <small style="color:#9f9">(${TEAM[e.team].n}, ally)</small>`:` <small style="color:#f88">(${TEAM[e.team].n})</small>`;
+ const e=s[0];const who=e.team===ME?'':!(e.team>=0)?(e.kind==='unit'?' <small style="color:#ccb">(wild)</small>':''):allied(e.team,ME)?` <small style="color:#9f9">(${TEAM[e.team].n}, ally)</small>`:` <small style="color:#f88">(${TEAM[e.team].n})</small>`;
  if(e.kind==='res'&&e.cliff){el.innerHTML='<h3>Cliff</h3><div class="row">Impassable rock. Find a gap.</div>';return}
- if(e.kind==='res'){el.innerHTML=`<h3>${e.carcass?UNITS[e.carcass].name+' carcass':e.res==='wood'?'Tree':e.res==='food'?'Berry bush':e.res==='gold'?'Gold mine':'Stone mine'}</h3><div class="row">${fmt(e.amount)} ${e.res} left${e.carcass?' (decaying)':''}</div>`;return}
+ if(e.kind==='res'){const vis=G.vis[ME][idx(e.tx,e.ty)]===2;el.innerHTML=`<h3>${e.carcass?UNITS[e.carcass].name+' carcass':e.fish?'Fish':e.res==='wood'?'Tree':e.res==='food'?'Berry bush':e.res==='gold'?'Gold mine':'Stone mine'}</h3>${resLeft(e.res,e.amount,e.max)}<div class="row">${e.carcass?'Decaying: gather it soon':e.fish?'Fishing ships gather it':'Villagers gather it'}${vis&&e.gatherers?' · '+e.gatherers+' working':''}</div>`;return}
  if(e.kind==='relic'){el.innerHTML='<h3>Relic</h3><div class="row">Send a Monk to pick it up and carry it to a Temple for a steady gold trickle.</div>';return}
- if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div><div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?' · Food '+d.food:' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range')+(d.minRange?' (min '+d.minRange+')':''):'')+(d.packs?' · '+(e.state==='pack'?(e.packGoal?'Packing…':'Unpacking…'):e.packed===false?'Deployed: fires, cannot move':'Packed: moves, cannot fire'):'')}</div><div class="row">${e.explore?'Exploring':e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>${d.animal?'':counterLines(e.type,4).map(l=>`<div class="row cv" title="+n is extra damage per hit">${l}</div>`).join('')}`;return}
+ if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div>${d.animal?resLeft('food',d.food,d.food):''}<div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?'':' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range')+(d.minRange?' (min '+d.minRange+')':''):'')+(d.packs?' · '+(e.state==='pack'?(e.packGoal?'Packing…':'Unpacking…'):e.packed===false?'Deployed: fires, cannot move':'Packed: moves, cannot fire'):'')}</div><div class="row">${e.explore?'Exploring':e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>${d.animal?'':counterLines(e.type,4).map(l=>`<div class="row cv" title="+n is extra damage per hit">${l}</div>`).join('')}`;return}
  const d=BUILDINGS[e.type];const maxhp=bldHp(e);let q='';if(e.queue.length&&allied(e.team,ME))q='<div class="q">'+e.queue.map((x,i)=>{const n=x.unit?UNITS[x.unit].name:x.age?AGES[x.age]:TECHS[x.tech].name[x.lvl];return `<span>${n}${i===0?' '+Math.floor(100*x.t/(x.total||1))+'%':''}</span>`}).join('')+'</div>';
  el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*(e.built?e.hp/maxhp:e.progress)}%;background:${e.built?'#4caf50':'#aaa'}"></i></div><div class="row">${e.built?'HP '+Math.ceil(e.hp)+'/'+maxhp:'Building '+Math.floor(e.progress*100)+'%'+(e.builders?'':' — needs a villager')}${e.garrison&&e.garrison.length&&allied(e.team,ME)?' · '+e.garrison.length+'/'+d.garrison+' inside':''}${e.relics?' · '+e.relics+' relic'+(e.relics>1?'s':''):''}</div>${e.type==='market'&&e.team===ME?marketTable(player(ME)):''}${e.built&&(d.trains||d.garrison)&&e.team===ME?'<div class="row" style="font-size:11px">Right-click to set a rally point'+(d.garrison?' · right-click with units to garrison':'')+'</div>':''}<div class="row" style="font-size:11px">${d.desc}</div>${q}`}
 function setSel(list){G.sel=list;renderCmds();renderInfo();if(list.length&&list[0].team===ME)sfx('select')}
@@ -34011,6 +34051,7 @@ function cycleTH(){const ths=G.buildings.filter(b=>b.team===ME&&b.type==='townha
 // ---- events ----
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('mousedown',e=>{if(!G||G.over)return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
+ if(e.button===0&&ui.attackArrows){const hit=ui.attackArrows.find(q=>Math.hypot(q.x-sx,q.y-sy)<26);if(hit){centerOn(hit.a.x,hit.a.y);return}}
  if(e.button===1){ui.mid={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};e.preventDefault();return}
  if(e.button===2){if(ui.build){ui.build=null;renderCmds();return}if(ui.mode){ui.mode=null;renderCmds();return}rightClick(sx,sy,e.shiftKey);return}
  if(e.button===0){if(ui.build){const w=s2w(sx,sy);if(ui.build.type==='wall'){ui.build.start={x:Math.floor(w.x),y:Math.floor(w.y)}}else{aimBuild(w);placeBuild(e.shiftKey)}return}
@@ -34041,7 +34082,7 @@ window.addEventListener('keydown',e=>{if(!G||G.over){return}const k=e.key;ui.key
  if(k==='+'||k==='='){if(!NET.active)G.speed=Math.min(3,G.speed+0.5);return}if(k==='-'||k==='_'){if(!NET.active)G.speed=Math.max(0.5,G.speed-0.5);return}
  if(k==='Delete'||k==='Backspace'){const ids=(G.sel||[]).filter(s=>s.team===ME&&(s.kind==='unit'||s.kind==='bld')).map(s=>s.id);if(ids.length)submit({v:'delete',ids});G.sel=[];renderCmds();renderInfo();return}
  if(k==='Tab'){e.preventDefault();const s=G.sel||[];if(s.length>1){const t=s[0].type;const rest=s.filter(x=>x.type!==t);const first=s.filter(x=>x.type===t);setSel(rest.concat(first))}return}
- if(k===' '){e.preventDefault();const p=G.pings.filter(x=>x.kind==='alert');if(p.length)centerOn(p[p.length-1].x,p[p.length-1].y);return}
+ if(k===' '){e.preventDefault();const z=liveAttacks().slice().sort((a,b)=>b.t-a.t)[0];const p=G.pings.filter(x=>x.kind==='alert');if(z)centerOn(z.x,z.y);else if(p.length)centerOn(p[p.length-1].x,p[p.length-1].y);return}
  if(/^[1-9]$/.test(k)){if(e.ctrlKey||e.metaKey){ui.groups[k]=(G.sel||[]).filter(x=>x.team===ME);e.preventDefault()}else{const g=(ui.groups[k]||[]).filter(x=>!x.dead);if(g.length){setSel(g);if(ui.lastGroup===k&&performance.now()-ui.lastGroupT<400){const c=center(g[0]);centerOn(c.x,c.y)}ui.lastGroup=k;ui.lastGroupT=performance.now()}}return}
  const b=ui.buttons.find(x=>x.key.toLowerCase()===k.toLowerCase());if(b&&!e.ctrlKey&&!e.metaKey){if(b.enabled===false){sfx('error');return}b.act();renderCmds();renderInfo();e.preventDefault()}});
 window.addEventListener('keyup',e=>{ui.keys[e.key]=false});
@@ -34211,7 +34252,7 @@ function frame(t){requestAnimationFrame(frame);if(!G)return;stepSim(t);netStatus
   if(G.tick%5===0){updateTop();if(G.tick%10===0){renderCmds();renderInfo()}if(ui.menu&&G.tick%20===0)renderDiplomacy()}}
  render()}
 function endGame(won,reason,keep){if(G.over||(keep&&WATCHING))return;if(keep)WATCHING=true;else G.over=true;sfx(won?'win':'lose');$('overlay').classList.remove('hidden');$('start').classList.add('hidden');$('end').classList.remove('hidden');$('watch').classList.toggle('hidden',!keep);$('endTitle').textContent=(won?'Victory':'Defeat')+(G.cheated?' (cheats used)':'');
- const m=Math.floor(G.time/60),s=Math.floor(G.time%60);$('endSub').textContent=(reason||'')+` after ${m}:${s<10?'0':''}${s}.`;
+ const m=Math.floor(G.time/60),s=Math.floor(G.time%60);const ais=G.players.filter(p=>p.ai);$('endSub').textContent=(reason||'')+` after ${m}:${s<10?'0':''}${s}.`+(ais.length?` Difficulty: ${aiSummary(G.setup)==='mixed levels'?ais.map(p=>DIFF_NAMES[aiLevel(p)]).join(', '):aiSummary(G.setup)}.`:'');
  for(const p of G.players)p.score=computeScore(p);G.timeline=G.timeline||[];if(!G.timeline.length||G.timeline[G.timeline.length-1].t<G.time)timelineSample();
  ui.endWon=won;endTab(ui.endTab||'score')}
 // ---- post-game statistics (classic RTS layout: Score, Military, Economy, Technology, Society, Timeline) ----
@@ -34219,7 +34260,7 @@ const END_TABS=[['score','Score'],['military','Military'],['economy','Economy'],
 function endTab(tab){ui.endTab=tab;$('endTabs').innerHTML=END_TABS.map(([k,n])=>`<div class="tab${k===tab?' on':''}" onclick="endTab('${k}')">${n}</div>`).join('');
  const ps=G.players;const ft=x=>{if(x===undefined||x<0||x===null)return '—';const mm=Math.floor(x/60),ss=Math.floor(x%60);return mm+':'+(ss<10?'0':'')+ss};
  const st=p=>p.stats||{};const g=(p,k)=>st(p)[k]||0;
- const head=`<tr><th></th>${ps.map(p=>`<th style="color:${TEAM[p.team].c}"><span class="pc" style="background:${TEAM[p.team].c}"></span>${p.team===ME?'You':esc(p.name||TEAM[p.team].n)}${p.dead?'<div class="sub" style="font-size:10px;font-weight:normal">defeated</div>':''}</th>`).join('')}</tr>`;
+ const head=`<tr><th></th>${ps.map(p=>`<th style="color:${TEAM[p.team].c}"><span class="pc" style="background:${TEAM[p.team].c}"></span>${p.team===ME?'You':esc(p.name||TEAM[p.team].n)}<div class="sub" style="font-size:10px;font-weight:normal">${p.ai?DIFF_NAMES[aiLevel(p)]+' AI':'Human'}${p.dead?' · defeated':''}</div></th>`).join('')}</tr>`;
  // row: [label, values, opts]; opts.low = lower is better; opts.text = no highlight
  const row=(label,vals,o={})=>{let best=-1;if(!o.text){const nums=vals.map(v=>typeof v==='number'&&!(o.low&&v<0)?v:NaN);const bv=o.low?Math.min(...nums.filter(x=>!isNaN(x))):Math.max(...nums.filter(x=>!isNaN(x)));if(isFinite(bv)&&nums.filter(x=>x===bv).length===1)best=nums.indexOf(bv);if(!o.low&&bv===0)best=-1}
   return `<tr${o.total?' class="total"':''}><td>${label}</td>${vals.map((v,i)=>`<td${i===best?' class="best"':''}>${o.fmt?o.fmt(v):typeof v==='number'?fmt(v):v}</td>`).join('')}</tr>`};

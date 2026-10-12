@@ -46,11 +46,14 @@ const inkOf = (n, x, y, litRim) => BERRY.includes(n) ? 'Q' : n === 'x' || n === 
 /** a berry: 2×2 round fruit, highlight top-left, shade bottom-right */
 function berry(g, x, y) { pixSet(g, x, y, 'R'); pixSet(g, x + 1, y, 'r'); pixSet(g, x, y + 1, 'r'); pixSet(g, x + 1, y + 1, 'q'); }
 function bush(blobs, seed, bunches, twigs) {
+  // drawn at 0.72 of the designed size so a patch of bushes sits close together, one bush to a tile (playtest 5)
+  const K = 0.72, sc = a => a.map(v => v * K);
+  blobs = blobs.map(([x, y, r, ry]) => [x * K, y * K, r * K, (ry || r) * K]); bunches = bunches.map(([x, y, n]) => [x * K, y * K, Math.max(2, n - 1)]); twigs = twigs && twigs.map(sc);
   const g = pixGrid(W, H);
-  crown(g, LEAF, rng(seed), blobs, AX, AY, 3);
+  crown(g, LEAF, rng(seed), blobs, AX, AY, 2.5);
   const R = rng(seed + 1);
   for (const [bx, by, n] of bunches) {                                  // a bunch: n berries jostled together, the front one bigger
-    const OFF = [[0, 0], [3, 1], [-2, 2], [1, 3], [4, 4]];
+    const OFF = [[0, 0], [3, 1], [-2, 2], [1, 3]];
     for (let i = 0; i < n; i++) { const x = Math.round(AX + bx + OFF[i][0]), y = Math.round(AY + by + OFF[i][1]); if (LEAF.includes(pixGet(g, x, y)) && LEAF.includes(pixGet(g, x + 1, y + 1))) berry(g, x, y, false); }
   }
   ink(g, inkOf);
