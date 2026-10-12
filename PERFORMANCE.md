@@ -109,3 +109,17 @@ M3, 1920×1080 (median / slowest 5% / slowest, in ms):
 
 Breakdown of one update at minute 19 on the M3 (1.9 ms total): unit updates 1.6 ms (mostly pathfinding),
 fog of war 0.09 ms, separation 0.06 ms, buildings 0.04 ms, AI 0.03 ms, everything else under 0.02 ms.
+
+## Render pass, 2026-10-13
+
+The late-game lag in 4-player games and when dragging the map was in drawing, not the simulation (about 0.7 ms per
+update at minute 20). Measured in headless Chrome, minute 18–20 of the bench game:
+
+- Fog-dimmed buildings (explored, not in sight) were drawn through `ctx.filter='brightness(0.53)'`, which re-filters
+  every draw: 50–1000 ms frames zoomed out. They now use a darkened copy of each sprite frame (`pixDim`, cached).
+- X-ray silhouettes ran every composite pass over the whole building box; now only over the box round the hidden units.
+- New sprite frames are built within a 5 ms budget per frame (`PIX_BUDGET`), showing an already-built frame of the same
+  animation meanwhile, so a fast pan over a new town spreads the work out.
+
+Live rAF loop while dragging the minimap: slowest 5% of frames 113 → 23 ms, frames over 50 ms 20 → 2. Middle-drag
+panning: slowest 5% 73 → 20 ms, worst frame 101 → 23 ms.

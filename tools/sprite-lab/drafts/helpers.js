@@ -35,7 +35,14 @@ export function pixFrame(spec, frame, i, tc) {
   const list = spec.frames[frame] || spec.frames.idle || Object.values(spec.frames)[0];
   const n = list.length, k = ((Math.floor(i) % n) + n) % n;
   const key = spec.id + '|' + frame + '|' + k + '|' + (tc ? tc.c : '');
-  let c = PIX_CACHE[key]; if (!c) { c = pixBuild(spec, list[k], tc); PIX_CACHE[key] = c; }
+  let c = PIX_CACHE[key];
+  if (!c) {
+    // building a frame costs 1-30 ms: past this frame's budget, show an already built frame of the same animation instead
+    // (the game sets PIX_BUDGET.until during render, so a fast pan over a new town spreads the work over a few frames)
+    const ak = spec.id + '|' + frame + '|' + (tc ? tc.c : ''), B = typeof PIX_BUDGET !== 'undefined' ? PIX_BUDGET : null;
+    if (B && B.any[ak] && performance.now() > B.until) return B.any[ak];
+    c = pixBuild(spec, list[k], tc); PIX_CACHE[key] = c; if (B) B.any[ak] = c;
+  }
   return c;
 }
 
@@ -43,6 +50,7 @@ export function pixFrame(spec, frame, i, tc) {
 export function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
   let c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
   if (o && o.flash) c = pixFlash(c);
+  if (typeof PIX_DIM !== 'undefined' && PIX_DIM) c = pixDim(c);   // fog-dimmed sprites (game-side flag)
   const m = c2d.getTransform();
   c2d.save(); c2d.setTransform(m.a, m.b, m.c, m.d, Math.round(m.e), Math.round(m.f)); c2d.imageSmoothingEnabled = Math.hypot(m.a, m.b) < 0.99; c2d.imageSmoothingQuality = "low";  // crisp at 1× and up; filtered when zoomed out so thin details average instead of dropping out
   if (o && o.alpha !== undefined) c2d.globalAlpha *= o.alpha;
@@ -61,6 +69,13 @@ export function pixFlash(c) {
   const f = document.createElement('canvas'); f.width = c.width; f.height = c.height; const x = f.getContext('2d');
   x.drawImage(c, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(255,250,235,0.65)'; x.fillRect(0, 0, f.width, f.height);
   return (c._flash = f);
+}
+/** A darkened copy of the frame (cached), the look of brightness(0.53), for sprites in explored-but-unseen fog. */
+export function pixDim(c) {
+  if (c._dim) return c._dim;
+  const f = document.createElement('canvas'); f.width = c.width; f.height = c.height; const x = f.getContext('2d');
+  x.drawImage(c, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = 'rgba(0,0,0,0.47)'; x.fillRect(0, 0, f.width, f.height);
+  return (c._dim = f);
 }
 export function pixDraw(spec, frame, i, tc, x = 0, y = 0, o) { pixBlit(ctx, spec, frame, i, tc, x, y, o); }
 
