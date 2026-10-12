@@ -28,8 +28,17 @@ node tools/sprite-lab/lab.mjs <command>        # run from the repo root
 8. `lab.mjs sheet all` — contact sheet of everything; check the new piece sits with the rest.
 
 Catalogue: `lab.mjs catalog` builds `out/catalog.html`, a self-contained browsable catalogue (live animated stage,
-team/state/construction controls, lint, genre reference notes from `reference.json`, village, contact sheet, palette).
+team/state/construction controls, a prominent age bar shared by the stage and the village, lint, genre reference notes
+from `reference.json`, village, contact sheet, palette, free-text notes and ink marks per sprite). It also writes the same
+file to the repo root as `catalog.html`, which the deployed site serves at `/catalog.html` next to the game (commit it;
+`--no-root` skips it). Served from http(s) it shows a "← Play the game" link to `./index.html`; as an Artifact it does not.
 It is also served at `/catalog.html` by `serve`, and can be published as an Artifact as-is.
+
+Ground: `extract.mjs` also pulls the game's terrain + water (`buildTerrain`, `gtFill`, `wtrPaint` …) and render FX
+(`fxApron`, `fxShadows`, `fxLight`, the construction reveal) into the lab. Cells, thumbnails and the village stand on small
+maps built by that code (`makeWorld` in `lab.js`), so ground, beaches, aprons and the one-light shadows are the game's own.
+The village (`villagePlan` in `lab.js`) is a laid-out 50×50 town drawn in the game's render order; its plan is checked
+for overlapping footprints and land/water placement (problems show in the console and in `scene`'s caption).
 
 Interactive: `lab.mjs serve` → http://127.0.0.1:8765/lab.html (drafts and `index.html` re-read on reload).
 
@@ -105,7 +114,7 @@ frame → red tiles/dressed stone → slate/limestone/gilt — as Greek-letter p
 | `lab.mjs` | CLI + static/API server + Playwright driver |
 | `extract.mjs` | pulls constants, helpers and draw functions out of `index.html`; the only writer back into it |
 | `splice.js` | pure string ops shared by node and browser: case segments, splicing, draft parsing |
-| `lab.js`, `lab.html`, `stubs.js` | the browser engine: fake entities, ground, sheets, scene, lint, palette |
+| `lab.js`, `lab.html`, `stubs.js` | the browser engine: fake entities, game-ground worlds, sheets, village, lint, palette |
 | `REFERENCE.md`, `reference.json` | what each asset truly is in the genre + this game's style rules (json feeds the catalogue) |
 | `catalog.template.html` | the browsable catalogue; `lab.mjs catalog` inlines the game code, drafts and engine into `out/catalog.html` |
 | `drafts/helpers.js` | shared helpers drafts may call (`pixBuild`, `pixDraw`); installed by `apply helpers` |

@@ -58,7 +58,7 @@ export function gameJs(html = readIndex()) {
   for (const o of OBJECTS) parts.push(grabObject(src, o).text);
   for (const f of FUNCS) parts.push(grabFunction(src, f).text);
   // things the draw code may lean on that newer versions of the game added (elevation etc.) — included when present
-  for (const l of ['const EPX=', 'const PIX_ROOF =', 'const FLAG_CV=']) if (src.includes('\n' + l)) parts.push(grabLine(src, l).text);
+  for (const l of ['const EPX=', 'const SWING=', 'const PIX_ROOF =', 'const FLAG_CV=']) if (src.includes('\n' + l)) parts.push(grabLine(src, l).text);
   for (const f of ['hCorner', 'heightAt']) if (new RegExp('\\nfunction ' + f + '\\(').test(src)) parts.push(grabFunction(src, f).text);
   // pixel-sprite support: present in the game once `apply helpers` / `apply pixel` have run; otherwise the lab supplies stubs + drafts/helpers.js
   parts.push(src.includes('\nconst PIXELS={};') ? 'const PIXELS={};' : 'const PIXELS={}; // (not yet in the game)');
@@ -66,9 +66,30 @@ export function gameJs(html = readIndex()) {
   // every pixel helper the game has (pixBuild, pixDraw, the grid kit…) must precede the PIXELS statements that call them
   for (const m of src.matchAll(/\nfunction (pix[A-Za-z0-9_]*)\(/g)) parts.push(grabFunction(src, m[1]).text);
   for (const m of src.matchAll(/\nPIXELS\.([a-z]+)=/g)) { const start = m.index + 1; parts.push(src.slice(start, statementEnd(src, start))); }
+  parts.push(worldJs(src));
   const out = parts.join('\n') + '\n';
   new vm.Script(out, { filename: 'game.generated.js' }); // throws a SyntaxError with line info if extraction went wrong
   return out;
+}
+
+/** Text between two markers at line starts (start line included, end marker line excluded); null when the game lacks it. */
+function grabRange(src, startsWith, endMarker) {
+  const i = src.indexOf('\n' + startsWith); if (i < 0) return null;
+  const e = src.indexOf(endMarker, i); if (e < 0) return null;
+  return src.slice(i + 1, e);
+}
+/** The game's own ground: terrain texture + water (buildTerrain and friends) and the render FX (aprons, one-light shadows,
+ *  construction reveal, warm light). The lab builds small maps with these so every sprite stands on the game's ground. */
+function worldJs(src) {
+  const parts = ['// ---- world: the game\'s terrain, water and render FX (extracted)'];
+  for (const f of ['valueNoise', 's2w', 'tilePts']) if (new RegExp('\\nfunction ' + f + '\\(').test(src)) parts.push(grabFunction(src, f).text);
+  for (const l of ['const idx=', 'const inMap=', 'let terrainCv=']) if (src.includes('\n' + l)) parts.push(grabLine(src, l).text);
+  const terr = grabRange(src, 'const TBASE=', '// ---------------- end WATER');
+  const fx = grabRange(src, '// ===== RENDER FX', '// ===== end RENDER FX =====');
+  if (terr) parts.push(terr);
+  if (fx) parts.push(fx);
+  parts.push(`var LAB_WORLD=${terr ? 'true' : 'false'}, LAB_FX=${fx ? 'true' : 'false'};`);
+  return parts.join('\n');
 }
 
 const HEX = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g;

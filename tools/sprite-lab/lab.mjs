@@ -168,6 +168,8 @@ const commands = {
   async catalog() {
     fs.mkdirSync(OUT, { recursive: true }); const file = path.join(OUT, 'catalog.html'); const html = buildCatalog(); fs.writeFileSync(file, html);
     console.log(`${rel(file)}  (${(html.length / 1024).toFixed(0)} KB) — open it in a browser, or publish it`);
+    // the deployed site (GitHub Pages from the repo root) serves this copy at /catalog.html, next to the game
+    if (!flags['no-root']) { const pub = path.join(X.ROOT, 'catalog.html'); fs.writeFileSync(pub, html); console.log(`${rel(pub)}  (the copy the site serves next to index.html; commit it)`); }
   },
   async lint() {
     const m = X.meta(); let targets = [];
@@ -306,7 +308,7 @@ if (!cmd || cmd === 'help' || cmd === '--help' || !commands[cmd]) {
   aaa [id|all] [--verbose]          the AAA bar for painted sprites: frame counts, ramps, outline, ground contact (AAA.md)
   lint [kind [type] | all]          overflow, team colour, construction stages, animation, new colours, exceptions
   palette                           every colour currently in use, by section
-  catalog                           build out/catalog.html: a self-contained browsable catalogue (also served at /catalog.html)
+  catalog [--no-root]               build out/catalog.html (self-contained) and the copy at the repo root the site serves as /catalog.html
   diff <kind> <type>                show what apply would change
   apply <kind> <type> [--dry]       splice the draft into index.html (backup first); apply helpers → drafts/helpers.js; apply all → everything
   verify [--seed s] [--age n] [--map m] [--wait ms]  smoke-test the real game headlessly (press Play, run, report errors, out/game.png)
