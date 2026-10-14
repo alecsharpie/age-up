@@ -184,6 +184,11 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay table.st tr.total td.best{color:var(--gold)}
 #overlay table.st tr.sec td{color:var(--gold);padding-top:10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:0}
 #endBody{position:relative}
+/* the results card: wide, and the same size on every tab (the body scrolls if a tab is long) */
+#overlay #end.card{max-width:1240px;width:96vw}
+#overlay:has(#end:not(.hidden)){position:fixed;z-index:50} /* the results cover the whole window, bottom panel included */
+#endBody{height:min(calc(100vh - 250px),680px);min-height:300px;overflow:auto;padding-right:4px}
+#endBody .tl-svg{max-height:calc(100vh - 360px);width:100%}
 #tl-tip .tt-g{border-collapse:collapse;font-size:12px}#tl-tip .tt-g th{font-weight:normal;color:var(--muted);text-align:right;padding:0 0 2px 10px}#tl-tip .tt-g td{text-align:right;padding:1px 0 1px 10px;white-space:nowrap}#tl-tip .tt-g td:first-child{text-align:left;padding-left:0}#tl-tip .tt-g i{display:inline-block;width:9px;height:9px;margin-right:5px;vertical-align:-1px}
 #overlay .tl-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 8px}
 #overlay .tl-seg{display:inline-flex;border:1px solid var(--edge);border-radius:4px;overflow:hidden}
@@ -464,7 +469,7 @@ const BUILDINGS={
  btower:{name:'Bombard Tower',w:2,h:2,hp:1800,cost:{stone:200,gold:100},time:80,age:3,key:'J',atk:60,range:8,rof:6,los:10,proj:'ball',splash:0.5,needs:'chemistry',garrison:5,desc:'Imperial cannon tower. Needs Chemistry.'},
  wall:{name:'Wall',w:1,h:1,hp:900,cost:{stone:5},time:6,age:0,key:'C',wall:true,desc:'Cheap stone wall. Drag to build a line.'},
  gate:{name:'Gate',w:1,h:1,hp:1200,cost:{stone:30},time:20,age:1,key:'V',wall:true,gate:true,desc:'Your units pass, enemies do not.'},
- keep:{name:'Keep',w:4,h:4,hp:3000,cost:{stone:550},time:130,age:2,key:'B',atk:12,range:8.5,rof:1.8,los:11,proj:'arrow',garrison:20,trains:['knight','trebuchet'],desc:'Fortress. Fires many arrows, trains knights and trebuchets, garrisons 20.'},
+ keep:{name:'Keep',w:4,h:4,hp:3000,cost:{stone:550},time:130,age:2,key:'B',atk:12,range:8.5,rof:1.8,los:11,proj:'arrow',garrison:20,trains:['trebuchet'],desc:'Fortress. Fires many arrows, trains your culture\'s unique unit and trebuchets, garrisons 20.'},
 };
 const BUILD_ORDER=['house','farm','lumber','mine','mill','dock','market','barracks','archery','stable','smith','siege','temple','outpost','tower','wall','gate','keep','btower','townhall','wonder'];
 
@@ -956,8 +961,13 @@ function ejectAll(b,destroyed){const list=b.kind==='unit'?b.cargo:b.garrison;if(
   let i=0;for(const u of list){u.inside=null;const s=land[i++%land.length];u.x=s.x+R(-0.2,0.2);u.y=s.y+R(-0.2,0.2);u.state='idle';u.path=null;u.goal=null}b.cargo=[];return}
  for(const u of list){u.inside=null;const s=spawnSpot(b,{x:b.tx+b.w/2+R(-3,3),y:b.ty+b.h/2+R(-3,3)});u.x=s.x;u.y=s.y;u.state='idle';if(u.prev&&u.prev.t&&!u.prev.t.dead&&!destroyed){const pv=u.prev;u.prev=null;runCmd(u,pv)}}b.garrison=[]}
 function animalStep(u){const d=UNITS[u.type];
- if(u.type==='sheep'){if(u.team<0){let cap=null;forNear(u.x,u.y,2.5,e=>{if(cap||e.team<0||isAnimal(e))return;cap=e});if(cap){u.team=cap.team;msg('Sheep captured!',cap.team);cmdFollow(u,cap);u.owner=cap;return}}
-  else if(u.state==='follow'){const t=u.target;if(!t||t.dead||t.inside){stop(u);return}const th=nearestBuilding(u.team,'townhall',u.x,u.y);if(th&&rectDist(u.x,u.y,rectOf(th))<4){stop(u);u.home={x:u.x,y:u.y};return}
+ // sheep go to whoever comes near: a wild one to the first unit within 2.5 tiles; an owned one to an enemy unit within 2.5
+ // tiles when none of its owner's side (or allies) is within 4, checked every 10 ticks
+ if(u.type==='sheep'){let cap=null;
+  if(u.team<0)forNear(u.x,u.y,2.5,e=>{if(cap||e.team<0||isAnimal(e)||e.naval)return;cap=e});
+  else if((G.tick+u.id)%10===0){let guard=false,foe=null;forNear(u.x,u.y,4,e=>{if(e===u||e.team<0||isAnimal(e)||e.naval)return;if(allied(e.team,u.team))guard=true;else if(!foe&&Math.hypot(e.x-u.x,e.y-u.y)<=2.5)foe=e});if(!guard)cap=foe}
+  if(cap){if(u.team>=0)msg('A sheep was stolen!',u.team);u.team=cap.team;msg('Sheep captured!',cap.team);cmdFollow(u,cap);u.owner=cap;return}
+  if(u.team>=0&&u.state==='follow'){const t=u.target;if(!t||t.dead||t.inside){stop(u);return}const th=nearestBuilding(u.team,'townhall',u.x,u.y);if(th&&rectDist(u.x,u.y,rectOf(th))<4){stop(u);u.home={x:u.x,y:u.y};return}
    const dist=Math.hypot(t.x-u.x,t.y-u.y);if(dist<1.5){u.path=null;u.goal=null;return}if(!u.goal||(G.tick+u.id)%20===0){u.goal={x0:t.x,y0:t.y,x1:t.x,y1:t.y};u.adj=false;u.path=null}step(u);return}}
  if(u.state==='move'){if(step(u)){stop(u);u.home={x:u.x,y:u.y}}return}
  if(u.state==='idle'&&u.cmds.length){runCmd(u,u.cmds.shift());return}
@@ -1093,7 +1103,9 @@ function playerAlive(p){return !p.dead}
 function tryTrain(b,type){const p=player(b.team);const d=UNITS[type];if(!b.built||p.age<d.age||b.queue.length>=8)return false;if(d.needs&&!p.techs[d.needs]){msg('Requires '+TECHS[d.needs].name[0]+'.',b.team);return false}const cost=ucost(p,type);if(!canAfford(p,cost)){msg('Not enough resources.',b.team);return false}if(p.pop+d.pop>p.popCap){msg('Need more Houses (population cap).',b.team);return false}pay(p,cost);p.pop+=d.pop;b.queue.push({unit:type,t:0,paid:cost});return true}
 function tryAge(b){const p=player(b.team);if(p.age>=3||p.ageing||!b.built)return false;const c=AGE_COST[p.age+1];if(!canAfford(p,c)){msg('Not enough resources to age up.',b.team);return false}pay(p,c);p.ageing=true;b.queue.push({age:p.age+1,t:0});return true}
 function techLevel(p,k){return p.techs[k]||0}
-function tryResearch(b,k){const p=player(b.team);const t=TECHS[k];const lvl=techLevel(p,k);p.researching=p.researching||{};if(lvl>=t.name.length||p.researching[k]||!b.built||p.age<t.age[lvl])return false;if(!canAfford(p,t.cost[lvl])){msg('Not enough resources.',b.team);return false}pay(p,t.cost[lvl]);p.researching[k]=true;b.queue.push({tech:k,lvl,t:0});return true}
+// a culture's elite unique-unit upgrade belongs to that culture only (every culture's sits on the Keep)
+function techFor(p,k){const t=TECHS[k];return !(t.line&&UNITS[t.line].unique&&civ(p).unique!==t.line)}
+function tryResearch(b,k){const p=player(b.team);const t=TECHS[k];if(!techFor(p,k))return false;const lvl=techLevel(p,k);p.researching=p.researching||{};if(lvl>=t.name.length||p.researching[k]||!b.built||p.age<t.age[lvl])return false;if(!canAfford(p,t.cost[lvl])){msg('Not enough resources.',b.team);return false}pay(p,t.cost[lvl]);p.researching[k]=true;b.queue.push({tech:k,lvl,t:0});return true}
 function relicOn(x,y){for(const r of G.relics)if(!r.holder&&!r.temple&&Math.floor(r.x)===x&&Math.floor(r.y)===y)return true;return false}
 // AI placement: true when a footprint at (tx,ty) would close off a small pocket of walkable ground (fewer than 48 cells)
 // against other buildings, mines and trees, where villagers working there could no longer reach a drop-off.
@@ -1139,8 +1151,9 @@ function applyCmd(seat,c){const p=G.players[seat];if(!p||!c||p.dead)return false
  case'pack':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit'&&UNITS[u.type].packs){if(u.state!=='pack')stop(u);beginPack(u,!!c.on,null)}}return true}
  case'stance':{for(const id of c.ids||[]){const u=entById(id);if(own(seat,u)&&u.kind==='unit')u.stance=c.s==='ground'?'ground':'aggr'}return true}
  case'rally':{const t=c.t!=null?entById(c.t):null;const x=+c.x,y=+c.y;if(!isFinite(x)||!isFinite(y))return false;for(const id of c.ids||[]){const b=entById(id);if(!own(seat,b)||b.kind!=='bld'||!(BUILDINGS[b.type].trains||BUILDINGS[b.type].garrison))continue;
-   // a rally point on the building itself: new units go straight inside if it holds a garrison, otherwise it clears the rally point
-   if(t===b){const c2=center(b);b.rally=BUILDINGS[b.type].garrison?{x:c2.x,y:c2.y,t:b}:null;continue}b.rally={x,y,t:t&&!t.dead?t:null}}return true}
+   // a rally point on the building itself: new units go straight inside if it holds a garrison; otherwise it is just a spot
+   // there (a click on the tall sprite near the door used to clear the rally point)
+   if(c.clear){b.rally=null;continue}if(t===b&&BUILDINGS[b.type].garrison){const c2=center(b);b.rally={x:c2.x,y:c2.y,t:b};continue}b.rally={x,y,t:t&&!t.dead&&t!==b?t:null}}return true}
  case'eject':{const b=entById(c.id);if(!own(seat,b))return false;const list=b.kind==='unit'?b.cargo:b.garrison;if(!list||!list.length)return false;ejectAll(b,false);return true}
  case'train':{const b=entById(c.id);if(!own(seat,b)||b.kind!=='bld'||!UNITS[c.type])return false;const tr=trainsOf(p,b);if(!tr||!tr.includes(c.type))return false;return tryTrain(b,c.type)}
  case'age':{const b=entById(c.id);if(!own(seat,b)||b.type!=='townhall')return false;return tryAge(b)}
@@ -1293,7 +1306,7 @@ if(S.n%5===0&&p.res.food<120&&p.res.wood>250&&count('farm')<Math.round(want.food
  const enemy=G.units.filter(u=>!allied(u.team,t)&&isMil(u)&&!u.inside);const en={inf:enemy.filter(u=>u.type==='swordsman'||u.type==='spearman').length,arc:enemy.filter(u=>u.type==='archer'||u.type==='skirmisher').length,cav:enemy.filter(u=>u.type==='horseman'||u.type==='knight').length};
  const wantArmy=vills.length>=8&&(p.ageing||p.age>=1||p.res.food>250||army.length<3);
  if(wantArmy){for(const b of blds){if(!b.built||b.queue.length>=2)continue;const d=BUILDINGS[b.type];if(!d.trains||b.type==='townhall')continue;
-   let pick=null;if(b.type==='barracks')pick=en.cav>en.inf&&p.age>=1?'spearman':'swordsman';else if(b.type==='archery')pick=en.arc>en.inf+en.cav?'skirmisher':(p.res.gold<60?'skirmisher':(p.techs.chem&&en.inf>=en.cav&&spare('gold')>200?'handgunner':'archer'));else if(b.type==='stable')pick=p.age>=2?'knight':'horseman';else if(b.type==='siege'){const siege=army.filter(u=>UNITS[u.type].onlyBuildings||u.type==='catapult').length;pick=siege>=(foeWalled?4:3)?null:p.age>=3&&spare('gold')>400?(p.techs.chem?'bombard':'catapult'):(en.arc>3&&spare('gold')>200?'catapult':'ram')}else if(b.type==='keep'){const uq=civ(p).unique;const trebs=my.filter(u=>u.type==='trebuchet').length;pick=p.age>=3&&trebs<(foeWalled?3:2)&&spare('gold')>400&&S.n%3===0?'trebuchet':spare('gold')>300?(uq&&S.n%2===0?uq:'knight'):null}else if(b.type==='temple')pick=my.filter(u=>u.type==='monk').length<(G.relics.some(r=>!r.holder&&!r.temple)?3:1)?'monk':null;
+   let pick=null;if(b.type==='barracks')pick=en.cav>en.inf&&p.age>=1?'spearman':'swordsman';else if(b.type==='archery')pick=en.arc>en.inf+en.cav?'skirmisher':(p.res.gold<60?'skirmisher':(p.techs.chem&&en.inf>=en.cav&&spare('gold')>200?'handgunner':'archer'));else if(b.type==='stable')pick=p.age>=2?'knight':'horseman';else if(b.type==='siege'){const siege=army.filter(u=>UNITS[u.type].onlyBuildings||u.type==='catapult').length;pick=siege>=(foeWalled?4:3)?null:p.age>=3&&spare('gold')>400?(p.techs.chem?'bombard':'catapult'):(en.arc>3&&spare('gold')>200?'catapult':'ram')}else if(b.type==='keep'){const uq=civ(p).unique;const trebs=my.filter(u=>u.type==='trebuchet').length;pick=p.age>=3&&trebs<(foeWalled?3:2)&&spare('gold')>400&&S.n%3===0?'trebuchet':spare('gold')>300?(uq||null):null}else if(b.type==='temple')pick=my.filter(u=>u.type==='monk').length<(G.relics.some(r=>!r.holder&&!r.temple)?3:1)?'monk':null;
    if(!pick)continue;const c=ucost(p,pick);let ok=true;const navNeed=S.landPath===false&&dock&&my.filter(u=>u.type==='transport').length<Math.min(3,Math.max(1,Math.ceil(army.length/10)))&&army.length>=6;for(const k in c)if(spare(k)<c[k]+(p.ageing?0:40)+(navNeed&&k==='wood'?250:0))ok=false;if(ok&&p.pop+UNITS[pick].pop<=p.popCap)tryTrain(b,pick)}}
  if(S.n%6===0&&p.age>=3){const kp=built('keep')[0];const uq=civ(p).unique;if(kp&&kp.queue.length===0&&uq&&spare('food')>700&&spare('gold')>500)tryResearch(kp,'u_'+uq)}
  // ---- allies: trade carts & tribute ----
@@ -33975,10 +33988,12 @@ function buildButtons(){const s=G.sel||[];const p=player(ME);const out=[];const 
   if(!b.built){out.push({key:'X',label:'Cancel',icon:['glyph','cancel'],tip:'Cancel construction (75% refund)',act:()=>{submit({v:'delete',ids:[b.id]});G.sel=[]}});return out}
   const trainOn=type=>{const tgt=same.slice().sort((a,c)=>a.queue.length-c.queue.length)[0];if(submit({v:'train',id:tgt.id,type})===false)sfx('error')};
   const tr=trainsOf(p,b);if(tr)for(const t of tr){const u=UNITS[t];const locked=p.age<u.age||(u.needs&&!p.techs[u.needs]);out.push({key:u.key,label:u.name,icon:['unit',t],cost:ucost(p,t),enabled:!locked,ut:t,tip:u.desc+(p.age<u.age?` (${AGES[u.age]})`:''),act:()=>trainOn(t)})}
+  // new units garrison straight inside (a rally point on the building itself); right-click elsewhere to rally out again
+  if(tr&&d.garrison){const on=same.every(x=>x.rally&&x.rally.t===x);out.push({key:'G',label:on?'Stop garrisoning':'Garrison new units',icon:['bld',b.type],tip:on?'New units come out to the rally point again':'New units go straight inside this '+d.name+' (shelter, more arrows). Right-click the ground to set a normal rally point.',act:()=>{for(const x of same){const c=center(x);submit({v:'rally',ids:[x.id],x:c.x,y:c.y,t:on?null:x.id,clear:on})}}})}
   if(b.type==='townhall'){const na=p.age+1;if(na<=3)out.push({key:'A',label:'Age up: '+AGES[na].replace(' Age',''),icon:['glyph','age'],cost:AGE_COST[na],enabled:!p.ageing,tip:`Advance to the ${AGES[na]} (${AGE_TIME[na]}s)`,act:()=>{if(submit({v:'age',id:b.id})===false)sfx('error')}});out.push({key:'B',label:p.bell?'Back to work':'Town Bell',icon:['glyph','bell'],tip:'Villagers garrison in the nearest Town Hall, tower or keep. Ring again to send them back.',act:()=>submit({v:'bell'})})}
   if(b.type==='market'){for(const k of['wood','food','stone']){out.push({key:k==='wood'?'Z':k==='food'?'X':'C',label:'Buy '+k,icon:['res',k],cost:{gold:buyPrice(p,k)},gain:{[k]:100},tip:'Buy 100 '+k+' for '+buyPrice(p,k)+' gold. The price rises with each purchase.',act:()=>{if(submit({v:'buy',k})===false)sfx('error')}})}for(const k of['wood','food','stone']){out.push({key:k==='wood'?'A':k==='food'?'S':'D',label:'Sell '+k,icon:['glyph','sell'],cost:{[k]:100},gain:{gold:sellPrice(p,k)},tip:'Sell 100 '+k+' for '+sellPrice(p,k)+' gold. The price falls with each sale.',act:()=>{if(submit({v:'sell',k})===false)sfx('error')}})}
    const ally=G.players.find(q=>q.team!==ME&&!q.dead&&allied(q.team,ME));if(ally)for(const k of RES_KINDS){out.push({key:k==='wood'?'F':k==='food'?'G':k==='gold'?'H':'J',label:'Give '+k,icon:['glyph','give'],cost:{[k]:100},tip:'Send 100 '+k+' to '+TEAM[ally.team].n,act:()=>{if(p.res[k]<100){sfx('error');return}submit({v:'tribute',to:ally.team,k})}})}}
-  for(const k in TECHS){const t=TECHS[k];if(t.at!==b.type)continue;const lvl=techLevel(p,k);if(lvl>=t.name.length)continue;const locked=p.age<t.age[lvl];const busy=p.researching&&p.researching[k];out.push({key:t.key,label:t.name[lvl],icon:['glyph','tech:'+(lvl+1)],cost:t.cost[lvl],enabled:!locked&&!busy,tk:k,tl:lvl,tip:t.desc+(locked?` (${AGES[t.age[lvl]]})`:''),act:()=>{if(submit({v:'research',id:b.id,k})===false)sfx('error')}})}
+  for(const k in TECHS){const t=TECHS[k];if(t.at!==b.type||!techFor(p,k))continue;const lvl=techLevel(p,k);if(lvl>=t.name.length)continue;const locked=p.age<t.age[lvl];const busy=p.researching&&p.researching[k];out.push({key:t.key,label:t.name[lvl],icon:['glyph','tech:'+(lvl+1)],cost:t.cost[lvl],enabled:!locked&&!busy,tk:k,tl:lvl,tip:t.desc+(locked?` (${AGES[t.age[lvl]]})`:''),act:()=>{if(submit({v:'research',id:b.id,k})===false)sfx('error')}})}
   if(d.garrison&&b.garrison.length)out.push({key:'U',label:'Ungarrison ('+b.garrison.length+')',icon:['glyph','eject'],tip:'Send everyone inside back out',act:()=>submit({v:'eject',id:b.id})});
   if(b.queue.length)out.push({key:'X',label:'Cancel last',icon:['glyph','cancel'],tip:'Remove last item from the queue',act:()=>submit({v:'cancel',id:b.id,i:b.queue.length-1})})}
  return out}
@@ -34510,7 +34525,7 @@ function renderTree(){const p=player(ME);const cv=civ(p);const tc=TEAM[ME];let h
  for(let a=0;a<4;a++){h+=`<div class="age">${AGES[a]}${p.age===a?' <small style="color:var(--muted)">(current)</small>':''}</div>`;
   const bl=Object.keys(BUILDINGS).filter(k=>BUILDINGS[k].age===a).map(k=>chip(iconUrl('bld',k,tc),BUILDINGS[k].name,'',G.buildings.some(b=>b.team===ME&&b.type===k&&b.built)?'have':'',BUILDINGS[k].desc));
   const un=Object.keys(UNITS).filter(k=>UNITS[k].age===a&&!UNITS[k].animal&&(!UNITS[k].unique||k===cv.unique)).map(k=>chip(iconUrl('unit',k,tc),UNITS[k].name,BUILDINGS[UNITS[k].at].name,G.units.some(u=>u.team===ME&&u.type===k)?'have':'',UNITS[k].desc));
-  const te=[];for(const k in TECHS){const t=TECHS[k];t.age.forEach((ag,i)=>{if(ag===a)te.push(chip(iconUrl('glyph','tech:'+(i+1)),t.name[i],BUILDINGS[t.at].name,techLevel(p,k)>i?'have':'',t.desc))})}
+  const te=[];for(const k in TECHS){const t=TECHS[k];if(!techFor(p,k))continue;t.age.forEach((ag,i)=>{if(ag===a)te.push(chip(iconUrl('glyph','tech:'+(i+1)),t.name[i],BUILDINGS[t.at].name,techLevel(p,k)>i?'have':'',t.desc))})}
   h+=grp('Buildings',bl)+grp('Units',un)+grp('Techs',te)}
  h+=`<div style="margin-top:8px;font-size:12px"><b style="color:var(--gold);font-weight:normal">${cv.name}:</b> ${cv.desc} <span style="color:var(--muted)">Gold outlines mark what you already have.</span></div>`;$('tree').innerHTML=h}
 refreshMenu();
