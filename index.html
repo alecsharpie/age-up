@@ -49,7 +49,7 @@ html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:Geo
 #mkt th{font-weight:normal;color:var(--muted);font-size:10px;text-align:left;padding:0 4px 2px 0}
 #mkt .ci{color:var(--text)}
 #age{color:var(--gold)}#score{margin-left:auto;color:var(--muted)}#timers{margin-left:12px}
-#netbar{margin-left:12px;font-size:13px;color:#9fd8c8;white-space:nowrap}#netbar.wait{color:#ffb86b}
+#netbar{margin-left:12px;font-size:13px;color:#9fd8c8;white-space:nowrap;font-variant-numeric:tabular-nums}#netbar.wait{color:#ffb86b}
 #mp-lobby{border:2px solid var(--gold);background:#33261a;padding:12px 14px;margin:12px 0 4px;font-size:13px;line-height:1.45;border-radius:5px}
 #mpwrap .mp-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 8px}
 #mpwrap .mp-card{border:1px solid var(--edge);background:rgba(0,0,0,.18);padding:10px 12px;border-radius:4px;display:flex;flex-direction:column;gap:6px}
@@ -108,7 +108,7 @@ canvas#c{display:block;width:100%;height:100%}
 #scoreboard{background:rgba(28,21,15,.82);border:1px solid var(--edge);border-radius:5px;padding:5px 8px;font:12.5px Georgia,serif;min-width:170px;pointer-events:none;text-shadow:0 1px 2px #000}#scoreboard .sb-r{display:flex;align-items:center;gap:6px;line-height:1.55}#scoreboard .sb-s{width:9px;height:9px;border-radius:2px;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.6)}#scoreboard .sb-n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#scoreboard .sb-a{color:var(--muted);font-size:11px}#scoreboard .sb-v{color:var(--gold);min-width:42px;text-align:right}#scoreboard .dead{opacity:.45;text-decoration:line-through}#score{cursor:pointer}
 #msgs{position:absolute;left:12px;top:10px;pointer-events:none;font-size:14px;text-shadow:0 1px 2px #000}
 #msgs div{opacity:.95;margin-bottom:3px}
-#tr{position:absolute;right:12px;top:10px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}#hint{font-size:12px;color:var(--muted);text-shadow:0 1px 2px #000;text-align:right;pointer-events:none}
+#tr{position:absolute;right:12px;top:10px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}#hint{font-size:12px;color:var(--muted);text-shadow:0 1px 2px #000;text-align:right;pointer-events:none}#hint .bellbtn{pointer-events:auto;cursor:pointer;color:#ffd27a;background:rgba(20,14,8,.75);border:1px solid #8a6a32;border-radius:4px;padding:2px 7px;display:inline-block;margin-bottom:2px}#hint .bellbtn:hover{color:#fff}
 #info{width:300px;border-right:2px solid #1a120c;padding:8px 12px;font-size:13px;overflow:hidden}
 #info h3{margin:0 0 4px;font-size:16px;color:var(--gold);font-weight:normal}
 #info .row{color:var(--muted);line-height:1.5}
@@ -282,7 +282,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
     <div class="res" title="Population / cap (build Houses for more)"><img id="i-pop" alt=""><b id="r-pop">0/5</b></div>
     <div id="timers" style="color:#ffd27a"></div><div id="netbar"></div><div id="score" title="Score: economy + military + tech">0</div><div id="age">Dark Age</div>
     <div id="clock">0:00</div>
-    <div id="topbtns"><button class="tb" id="b-pause" title="Pause (P)">&#10074;&#10074;</button><button class="tb" id="b-menu" title="Menu (F1)">Menu</button></div>
+    <div id="topbtns"><button class="tb" id="b-full" title="Full screen">&#x26F6;</button><button class="tb" id="b-pause" title="Pause (P)">&#10074;&#10074;</button><button class="tb" id="b-menu" title="Menu (F1)">Menu</button></div>
   </div>
   <div id="view">
     <canvas id="c"></canvas>
@@ -577,11 +577,18 @@ function genMap(){
  // deep forest fill
  if(mt==='forest'){for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){if(dBase(x,y)<11)continue;const v=n1(x/5+3,y/5+3)*0.6+n2(x/2,y/2)*0.4;if(v<0.68)tree(x,y)}}
  // base layouts
+ // berry bushes grow as one patch two bushes deep (a short double row, the second row offset by up to one), so every bush
+ // has open ground on a side and the patch leaves no pocket a villager can be shoved into and trapped
+ const berryPatch=(p,count,amt,ok)=>{const alongX=rnd()<0.5,len=Math.ceil(count/2),sh=RI(0,1);let n=0;
+  for(let k=0;k<len+3&&n<count;k++)for(let row=0;row<2&&n<count;row++){const a=k-(len>>1)+(row?sh:0),x=alongX?p.x+a:p.x+row,y=alongX?p.y+row:p.y+a;
+   if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&ok(x,y)){const r=makeResource('food',x,y,amt);if(berryShuts(x,y))removeResource(r);else n++}}};
+ // true when a bush at x,y leaves itself, a neighbouring bush or a free cell nearby with no open side
+ const open=(x,y)=>inMap(x,y)&&!B[idx(x,y)]&&T[idx(x,y)]!==2;
+ const berryShuts=(x,y)=>{for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const cx=x+dx,cy=y+dy;if(!inMap(cx,cy))continue;const r=G.rAt[idx(cx,cy)];if(!(open(cx,cy)||(r&&r.res==='food'&&!r.fish)))continue;
+  if(!(open(cx+1,cy)||open(cx-1,cy)||open(cx,cy+1)||open(cx,cy-1)))return true}return false};
  basec.forEach((c,i)=>{const toward=Math.atan2(c0.y-c.y,c0.x-c.x);
   const at=(ang,dist)=>({x:Math.round(c.x+Math.cos(toward+ang)*dist),y:Math.round(c.y+Math.sin(toward+ang)*dist)});
-  // berry bushes grow as one tight patch: the free cells nearest the spot, not a random scatter
-  const patch=(p,count,amt)=>{const cells=[];for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)cells.push({x:p.x+dx,y:p.y+dy,d:Math.hypot(dx,dy*1.15)+R(0,0.35)});cells.sort((a,b)=>a.d-b.d);let n=0;for(const q of cells){if(n>=count)break;const {x,y}=q;if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5){makeResource('food',x,y,amt);n++}}};
-  const place=(kind,p,count,amt,spread=1)=>{if(kind==='food')return patch(p,count,amt);for(let k=0;k<count;k++){const x=p.x+RI(-spread,spread),y=p.y+RI(-spread,spread);if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5)makeResource(kind,x,y,amt)}};
+  const place=(kind,p,count,amt,spread=1)=>{if(kind==='food')return berryPatch(p,count,amt,(x,y)=>dBase(x,y)>2.5);for(let k=0;k<count;k++){const x=p.x+RI(-spread,spread),y=p.y+RI(-spread,spread);if(inMap(x,y)&&!B[idx(x,y)]&&!G.rAt[idx(x,y)]&&T[idx(x,y)]!==2&&dBase(x,y)>2.5)makeResource(kind,x,y,amt)}};
   const f1=at(1.9,8.5),f2=at(-1.6,9);blob(f1.x,f1.y,3.6,tree);blob(f2.x,f2.y,3.2,tree);
   place('food',at(-0.7,5),8,200);place('food',at(1.2,10),6,150);place('gold',at(0.6,6.5),6,500);place('stone',at(2.6,6),5,400);place('gold',at(-2.4,11),4,500);
  });
@@ -590,7 +597,7 @@ function genMap(){
   for(let k=0;k<MAP*1.3;k++){const x=RI(0,MAP-1),y=RI(0,MAP-1);if(dBase(x,y)<9)continue;tree(x,y)}}
  // mid resources
  const midN=Math.round(MAP/7);for(let k=0;k<midN;k++){let x,y,t=0;do{x=RI(4,MAP-5);y=RI(4,MAP-5);t++}while((dBase(x,y)<15||B[idx(x,y)])&&t<80);if(t>=80)continue;const kind=k%3===2?'stone':k%3===1?'food':'gold';
-  if(kind==='food'){const cl=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)cl.push([x+dx,y+dy,Math.hypot(dx,dy)+R(0,0.4)]);cl.sort((a,b)=>a[2]-b[2]);let n=0;for(const [tx,ty] of cl){if(n>=6)break;if(inMap(tx,ty)&&!B[idx(tx,ty)]&&!G.rAt[idx(tx,ty)]&&T[idx(tx,ty)]!==2){makeResource('food',tx,ty,150);n++}}continue}
+  if(kind==='food'){berryPatch({x,y},6,150,()=>true);continue}
   for(let j=0;j<(kind==='food'?6:5);j++){const tx=x+RI(-1,1),ty=y+RI(-1,1);if(inMap(tx,ty)&&!B[idx(tx,ty)]&&!G.rAt[idx(tx,ty)]&&T[idx(tx,ty)]!==2)makeResource(kind,tx,ty,kind==='food'?150:kind==='gold'?500:350)}}
  // fish: shore patches near each base, deep patches in open water
  const water=[];for(let y=1;y<MAP-1;y++)for(let x=1;x<MAP-1;x++)if(T[idx(x,y)]===2)water.push({x,y});
@@ -681,12 +688,14 @@ function findPath(sx,sy,goal,adjacent,team,naval){
  const isGoal=adjacent?(x,y)=>(x>=gx0-1&&x<=gx1+1&&y>=gy0-1&&y<=gy1+1&&!(x>=gx0&&x<=gx1&&y>=gy0&&y<=gy1)):(x,y)=>(x>=gx0&&x<=gx1&&y>=gy0&&y<=gy1);
  const si=idx(sx,sy);PF.stamp[si]=st;PF.g[si]=0;PF.par[si]=-1;PF.closed[si]=0;heapPush(h,si,hfn(sx,sy));
  let best=si,bestH=hfn(sx,sy),expanded=0,found=-1;
+ // a unit shoved into a pocket with no open side (only diagonal gaps) may slip out diagonally from its start cell
+ const boxed=!isWalkable(sx+1,sy,team,naval)&&!isWalkable(sx-1,sy,team,naval)&&!isWalkable(sx,sy+1,team,naval)&&!isWalkable(sx,sy-1,team,naval);
  while(h.length){const [f,i]=heapPop(h);if(PF.closed[i]&&PF.stamp[i]===st)continue;PF.closed[i]=1;const x=i%MAP,y=(i/MAP)|0;
   if(isGoal(x,y)){found=i;break}
   if(++expanded>3500)break;
   const hh=hfn(x,y);if(hh<bestH){bestH=hh;best=i}
   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(!isWalkable(nx,ny,team,naval))continue;
-   if(dx&&dy&&(!isWalkable(x+dx,y,team,naval)||!isWalkable(x,y+dy,team,naval)))continue;
+   if(dx&&dy&&!(i===si&&boxed)&&(!isWalkable(x+dx,y,team,naval)||!isWalkable(x,y+dy,team,naval)))continue;
    const j=idx(nx,ny);const ng=PF.g[i]+((dx&&dy)?1.414:1)+(G.terrain[j]===3?0.2:0);
    if(PF.stamp[j]!==st||ng<PF.g[j]){PF.stamp[j]=st;PF.closed[j]=0;PF.g[j]=ng;PF.par[j]=i;heapPush(h,j,ng+hfn(nx,ny))}}}
  const end=found>=0?found:best;const path=[];let i=end;while(i>=0&&i!==si){path.push({x:(i%MAP)+0.5,y:((i/MAP)|0)+0.5});i=PF.par[i]}
@@ -712,7 +721,7 @@ function packStep(u){if(--u.packT>0)return;u.packed=u.packGoal;const nx=u.packTo
 function packGuard(u,c){if(!UNITS[u.type].packs||u.packed&&u.state!=='pack')return false;if(u.state==='pack'&&u.packGoal===true&&u.packed===false){u.packTo=c;return true}if(u.packed===false||u.state==='pack'){beginPack(u,true,c);return true}return false}
 // Facing is a screen-space flip, so it follows the projected direction (x-y on the iso grid), not world x.
 function faceTo(u,x,y){const s=(x-u.x)-(y-u.y);if(Math.abs(s)>0.02)u.face=s<0?-1:1}
-function stop(u){u.flee=null;if(u.state==='gather')releaseGather(u);u.state='idle';u.target=null;u.path=null;u.goal=null;u.resume=null;u.patrol=null}
+function stop(u){u.flee=null;u.after=null;if(u.state==='gather')releaseGather(u);u.state='idle';u.target=null;u.path=null;u.goal=null;u.resume=null;u.patrol=null}
 // Progress watch: true when the unit has moved under a quarter tile over the last second while trying to walk, i.e. it is
 // being jostled in place by a crowd. Call it every tick a unit is walking; a gap in the calls restarts the watch.
 function stalled(u){if(u.pwT===G.tick)return false;if(u.pwT===G.tick-1){u.pwN++}else{u.pwN=0;u.pwX=u.x;u.pwY=u.y}u.pwT=G.tick;if(u.pwN<20)return false;const s=Math.hypot(u.x-u.pwX,u.y-u.pwY)<0.25;u.pwN=0;u.pwX=u.x;u.pwY=u.y;return s}
@@ -720,7 +729,7 @@ function step(u){
  if(!u.goal)return true;
  const sp=unitStat(u,'speed')*DT;
  if(!u.path){const r=findPath(Math.floor(u.x),Math.floor(u.y),u.goal,u.adj,u.team,u.naval);u.path=r.path;u.pi=0;u.complete=r.complete;u.stuck=0;
-  if(!u.path.length){ if(!u.adj){const gx=(u.goal.x0+u.goal.x1)/2,gy=(u.goal.y0+u.goal.y1)/2; if(Math.hypot(gx-u.x,gy-u.y)<0.05)return true; u.path=[{x:gx,y:gy}];} else return true }}
+  if(!u.path.length){ if(!u.adj){const gx=(u.goal.x0+u.goal.x1)/2,gy=(u.goal.y0+u.goal.y1)/2; if(Math.hypot(gx-u.x,gy-u.y)<0.05||!lineWalkable(u.x,u.y,gx,gy,u.team,u.naval))return true; u.path=[{x:gx,y:gy}];} else return true }}
  // a crowd sent to one point: once close and no longer getting closer for a second, the others are standing on it
  if(!u.adj&&stalled(u)&&Math.hypot((u.goal.x0+u.goal.x1)/2-u.x,(u.goal.y0+u.goal.y1)/2-u.y)<1.6)return true;
  if(u.pi>=u.path.length){ if(!u.adj){const gx=(u.goal.x0+u.goal.x1)/2,gy=(u.goal.y0+u.goal.y1)/2;const d=Math.hypot(gx-u.x,gy-u.y);if(d<0.08||!lineWalkable(u.x,u.y,gx,gy,u.team,u.naval))return true;const k=Math.min(1,sp/d);u.x+=(gx-u.x)*k;u.y+=(gy-u.y)*k;u.anim+=DT;faceTo(u,gx,gy);return d<=sp} return true }
@@ -741,12 +750,15 @@ function goNear(u,t,range,strict){if(arrived(u,t,range)){return 'there'}
  const r=rectOf(t);const c={x:Math.min(Math.max(u.x,r.x0),r.x1),y:Math.min(Math.max(u.y,r.y0),r.y1)};const d=Math.hypot(c.x-u.x,c.y-u.y)||0.001;const sp=unitStat(u,'speed')*DT;const nx=u.x+(c.x-u.x)/d*sp,ny=u.y+(c.y-u.y)/d*sp;
  if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny;u.anim+=DT;faceTo(u,c.x,c.y);return 'moving'}u.path=null;u.goal=null;if(!strict&&dd<=range+0.5){return 'there'}return 'stuck'}
 // A free place to stand while working on t (a tree, mine, bush, foundation or damaged building): a walkable cell touching
-// its footprint, preferring cells nobody is working from, then the nearest. The point sits 0.3 from the footprint's edge,
+// its footprint, preferring cells nobody is working from, then the nearest. The point sits 0.3 from the footprint's edge (a bush: 0.12),
 // so workers stand right against what they work on and spread around it instead of queueing on one cell.
-function workSpot(u,t){const r=rectOf(t);let best=null,bs=1e9;const x0=Math.floor(r.x0),y0=Math.floor(r.y0),x1=Math.ceil(r.x1),y1=Math.ceil(r.y1);
+function workSpot(u,t){const r=rectOf(t);let best=null,bs=1e9;const pad=t.kind==='res'&&t.res==='food'&&!t.fish?0.12:0.3; // a berry bush is small: pick right at it
+const x0=Math.floor(r.x0),y0=Math.floor(r.y0),x1=Math.ceil(r.x1),y1=Math.ceil(r.y1);
  for(let y=y0-1;y<=y1;y++)for(let x=x0-1;x<=x1;x++){if(x>=x0&&x<x1&&y>=y0&&y<y1)continue;if(!walk(u,x,y))continue;
-  const px=Math.min(Math.max(x+0.5,r.x0-0.3),r.x1+0.3),py=Math.min(Math.max(y+0.5,r.y0-0.3),r.y1+0.3);
+  const px=Math.min(Math.max(x+0.5,r.x0-pad),r.x1+pad),py=Math.min(Math.max(y+0.5,r.y0-pad),r.y1+pad);
   let crowd=0;forNear(px,py,0.55,v=>{if(v!==u&&!v.naval&&!isAnimal(v))crowd++});
+  // spots others are still walking to count too, so workers sent together spread out instead of stacking on one point
+  forNear(px,py,10,v=>{if(v!==u&&v.spot&&v.spotT===t.id&&Math.hypot(v.spot.x-px,v.spot.y-py)<0.4)crowd++});
   const sc=Math.hypot(px-u.x,py-u.y)+crowd*4;if(sc<bs){bs=sc;best={x:px,y:py}}}
  return best}
 // A spot inside a farm plot: farmers work standing on their field, each on its own patch (by unit id).
@@ -799,7 +811,7 @@ function tradeStep(u){const m=u.target;if(!m||m.dead){stop(u);return}
  else{const hm=(u.home&&!u.home.dead)?u.home:nearestBuilding(u.team,'market',u.x,u.y);if(!hm){stop(u);return}const g=goNear(u,hm,1.0);if(g==='there'){const p=player(u.team);p.res.gold+=u.carry;p.stats.gathered+=u.carry;stat(p,'trade',u.carry);u.carry=0;u.phase='go';u.path=null;u.goal=null}else if(g==='stuck'){u.wait=(u.wait||0)+1;if(u.wait>30){u.wait=0;stop(u)}}}}
 function cmdRelic(u,r){if(u.type!=='monk'||r.holder||r.temple)return;u.state='relic';u.target=r;u.path=null;u.goal=null}
 function releaseGather(u){if(u.target&&u.target.kind==='res'&&u.state==='gather')u.target.gatherers=Math.max(0,u.target.gatherers-1);if(u.target&&u.target.kind==='bld'&&u.target.type==='farm'&&u.target.worker===u)u.target.worker=null;if(u.state==='hunt'&&u.target)u.target.hunters=Math.max(0,(u.target.hunters||0)-1);u.phase=null}
-function issue(u,cmd,queue){if(u.inside)return;u.flee=null;if(queue&&u.state!=='idle'){u.cmds.push(cmd);return}u.cmds.length=0;runCmd(u,cmd)}
+function issue(u,cmd,queue){if(u.inside)return;u.flee=null;u.after=null;if(queue&&u.state!=='idle'){u.cmds.push(cmd);return}u.cmds.length=0;runCmd(u,cmd)}
 function runCmd(u,c){if(c.k!=='explore')u.explore=false;switch(c.k){case'explore':cmdExplore(u);break;case'move':cmdMove(u,c.x,c.y);break;case'amove':cmdAttackMove(u,c.x,c.y);break;case'patrol':cmdPatrol(u,c.x,c.y);break;case'gather':if(c.t.dead){stop(u);break}cmdGather(u,c.t);break;case'build':if(c.t.dead||c.t.built){stop(u);break}cmdBuild(u,c.t);break;case'repair':if(c.t.dead){stop(u);break}cmdRepair(u,c.t);break;case'attack':if(c.t.dead){stop(u);break}cmdAttack(u,c.t);break;case'follow':if(c.t.dead){stop(u);break}cmdFollow(u,c.t);break;case'garrison':if(c.t.dead){stop(u);break}cmdGarrison(u,c.t);break;case'relic':cmdRelic(u,c.t);break;case'trade':if(c.t.dead){stop(u);break}cmdTrade(u,c.t);break}}
 
 // ---- combat ----
@@ -813,12 +825,12 @@ function damageOf(att,target){const d=att.kind==='unit'?UNITS[att.type]:BUILDING
  const ca=center(att),ct=center(target);const dh=heightAt(ca.x,ca.y)-heightAt(ct.x,ct.y);const hg=dh>0.5?1.25:dh<-0.5?0.75:1;
  return Math.max(1,Math.round((atk+bonus)*hg)-armor)}
 function applyDamage(t,amt,att){if(t.dead)return;t.hp-=amt;t.flash=0.15;if(att&&att.kind==='unit'&&t.kind==='unit')t.hitFrom={x:att.x,y:att.y};if(att&&att.team>=0&&t.team>=0&&att.team!==t.team){const tp=player(t.team);tp.lastHit=tp.lastHit||{};tp.lastHit[att.team]=G.time}
- if(t.team===ME&&att&&!isAnimal(att)){const c0=center(t);noteAttack(c0.x,c0.y);const p=player(ME);if(G.time-p.alertT>8){p.alertT=G.time;const c=center(t);G.pings.push({x:c.x,y:c.y,t:G.time,kind:'alert'});msg(t.kind==='unit'?(t.type==='villager'?'A villager is under attack!':'Your army is fighting.'):(BUILDINGS[t.type].name+' is under attack!'));sfx('alert')}}
+ if(t.team===ME&&att&&!isAnimal(att)&&!isAnimal(t)&&!allied(att.team,ME)){const c0=center(t);noteAttack(c0.x,c0.y);const p=player(ME);if(G.time-p.alertT>8){p.alertT=G.time;const c=center(t);G.pings.push({x:c.x,y:c.y,t:G.time,kind:'alert'});msg(t.kind==='unit'?(t.type==='villager'?'A villager is under attack!':'Your army is fighting.'):(BUILDINGS[t.type].name+' is under attack!'));sfx('alert')}}
  if(t.hp<=0)kill(t,att)
  else if(t.kind==='unit'&&att&&att.kind==='unit'&&!allied(att.team,t.team)){
   if(isAnimal(t)){if(t.type==='boar'&&t.state!=='attack'){t.state='attack';t.target=att;t.resume=null}else if(t.type==='deer'||t.type==='sheep'){fleeFrom(t,att)}}
   else if(isMil(t)&&!UNITS[t.type].onlyBuildings&&!isAnimal(att))answerHit(t,att);
-  else if(t.type==='villager'&&att.type==='villager'){if(t.state==='idle')cmdAttack(t,att)}
+  else if(t.type==='villager'&&att.type==='villager')villAnswer(t,att);
   else if(t.type==='villager'&&isMil(att))villFlee(t,att);}
  else if(t.kind==='unit'&&att&&att.kind==='bld'&&!allied(att.team,t.team)){t.hitFrom={x:center(att).x,y:center(att).y};if(isMil(t)&&!UNITS[t.type].onlyBuildings)answerHit(t,att);else if(t.type==='villager')villFlee(t,att)}}
 // A soldier that is hit turns on its attacker unless it is under a direct order (move, garrison, pack...) or already
@@ -830,6 +842,10 @@ function answerHit(t,att){const s=t.state,cur=t.target;
  if(cur.kind==='bld'){cmdAttack(t,att,t.resume);return}
  // chasing a unit it cannot reach yet: take on the nearer attacker instead
  if(entDist(t,cur)>unitStat(t,'range')+0.05&&(entDist(t,att)<entDist(t,cur)||entDist(t,att)<=UNITS[t.type].los))cmdAttack(t,att,t.resume)}
+// A villager hit by another villager hits back, idle or at work (not on a direct order), and goes back to its job once the
+// other is dead or has run more than 5 tiles off (see attackStep).
+function villAnswer(t,att){const s=t.state;if(t.inside||t.flee||!(s==='idle'||s==='gather'||s==='build'||s==='repair'))return;
+ const job=s!=='idle'&&t.target&&!t.target.dead?{k:s,t:t.target}:null;cmdAttack(t,att);t.after=job}
 // A villager hit by a soldier or a tower runs from it, then goes back to what it was doing (see fleeDone).
 function villFlee(u,att){if(u.inside||u.state==='attack'||u.state==='hunt'||u.state==='garrison'||u.state==='pack'||(u.state==='move'&&!u.flee))return;
  if(!u.flee){const k=u.state==='gather'||u.state==='build'||u.state==='repair'?u.state:'idle';const f={k,t:u.target&&!u.target.dead?u.target:null,kind:u.carryKind,n:0};releaseGather(u);u.flee=f}
@@ -859,6 +875,7 @@ function fireAt(att,t){const d=att.kind==='unit'?UNITS[att.type]:BUILDINGS[att.t
  if(d.proj){G.projectiles.push({x:c.x+R(-0.2,0.2),y:c.y+R(-0.2,0.2),z:att.kind==='bld'?(att.type==='keep'?2.2:1.6):0.5,target:t,tx:tc.x,ty:tc.y,speed:d.proj==='rock'?5:d.proj==='ball'?7:d.proj==='flame'?6:d.proj==='shot'?16:11,dmg,kind:d.proj,team:att.team,splash:d.splash||0,src:att,t:0})}
  else{applyDamage(t,dmg,att);G.effects.push({k:'hit',x:tc.x,y:tc.y,t:G.time})}}
 function attackStep(u){const t=u.target;const d=UNITS[u.type];
+ if(u.after&&(!t||t.dead||t.inside||entDist(u,t)>5)){const a=u.after;u.after=null;if(!a.t.dead){runCmd(u,a);return}}
  if(!t||t.dead||t.inside){if(u.resume&&u.resume.follow&&!u.resume.follow.dead){cmdFollow(u,u.resume.follow)}else if(u.resume&&u.resume.amove){cmdAttackMove(u,u.resume.amove.x,u.resume.amove.y);u.patrol=u.resume.patrol||null}else{stop(u);if(isMil(u)){const e=findEnemy(u,u.packed===false?unitStat(u,'range'):Math.max(d.los,unitStat(u,'range')),!d.onlyBuildings);if(e)cmdAttack(u,e)}}return}
  const range=unitStat(u,'range');const dist=entDist(u,t);
  if(d.packs&&u.packed===false&&(dist>range||(d.minRange&&dist<d.minRange))){if(u.stance==='ground'&&!(u.resume&&u.resume.amove)){stop(u);return}beginPack(u,true,{k:'attack',t,resume:u.resume});return}
@@ -969,8 +986,11 @@ function updateUnit1(u){if(u.inside){if(u.hp<unitStat(u,'maxhp'))u.hp=Math.min(u
   case'relic':relicStep(u);break;
   case'trade':tradeStep(u);break;}}
 
+// build speed for n villagers on one foundation: each extra builder adds half a builder (2 → 1.5×, 4 → 2.5×). A foundation's HP
+// grows with its progress, so damage done to it while it goes up stays done.
+function bldRate(n){return (n+1)/2}
 function updateBuilding(b){const d=BUILDINGS[b.type];const p=player(b.team);if(b.flash>0)b.flash-=DT;
- if(!b.built){if(b.builders>0){b.lastProg=G.time;const rate=(b.builders+2)/3*(p.techs.crane?1.2:1);b.progress+=DT/d.time*rate;b.hp=Math.max(b.hp,Math.round(bldHp(b)*(0.1+0.9*b.progress)));if(b.progress>=1){b.built=true;b.progress=1;b.hp=bldHp(b);b.builtAt=G.time;recalcPop(p);updateVis();if(b.type==='wonder')stat(p,'wonders',1);if(b.type==='keep')stat(p,'keeps',1);if(b.team===ME&&!(b.type==='wall'||b.type==='farm'))sfx('built');if(b.type==='wonder'){msg(TEAM[b.team].n+' has built a Wonder! It must fall within 5 minutes.');sfx('age')}}}b.builders=0;return}
+ if(!b.built){if(b.builders>0){b.lastProg=G.time;const rate=bldRate(b.builders)*(p.techs.crane?1.2:1);const dp=Math.min(DT/d.time*rate,1-b.progress);b.progress+=dp;b.hp=Math.min(bldHp(b),b.hp+bldHp(b)*0.9*dp);if(b.progress>=1-1e-9){b.built=true;b.progress=1;b.builtAt=G.time;recalcPop(p);updateVis();if(b.type==='wonder')stat(p,'wonders',1);if(b.type==='keep')stat(p,'keeps',1);if(b.team===ME&&!(b.type==='wall'||b.type==='farm'))sfx('built');if(b.type==='wonder'){msg(TEAM[b.team].n+' has built a Wonder! It must fall within 5 minutes.');sfx('age')}}}b.builders=0;return}
  if(b.relics>0){p.res.gold+=0.4*b.relics*DT;stat(p,'relicGold',0.4*b.relics*DT)}
  if(b.queue.length){const q=b.queue[0];let tt=q.unit?UNITS[q.unit].time*(MILITARY.has(q.unit)&&p.techs.conscript?0.75:1):q.age?AGE_TIME[q.age]:TECHS[q.tech].time[q.lvl];if(p.ai)tt/=aiDiff(p).eco;q.t+=DT;q.total=tt;
   if(q.t>=tt){b.queue.shift();
@@ -998,7 +1018,7 @@ function separation(){const us=G.units;
   // walkers also sidestep (everyone keeps to the same hand), so two units meeting head-on in a lane slip past each other
   const walking=!!u.goal;
   const min=u.naval?1.0:(isMil(u)?0.55:0.45);forNear(u.x,u.y,min,v=>{if(v===u||!!v.naval!==!!u.naval||(toWork&&planted(v)))return;const ddx=u.x-v.x,ddy=u.y-v.y;const d=Math.hypot(ddx,ddy);if(d<0.001){px+=R(-0.02,0.02);py+=R(-0.02,0.02)}else{const f=(min-d)/min*0.06;px+=ddx/d*f;py+=ddy/d*f;if(walking){px-=ddy/d*f*0.6;py+=ddx/d*f*0.6}}});
-  if(px||py){const nx=u.x+px,ny=u.y+py;if(isWalkable(Math.floor(nx),Math.floor(ny),u.team,u.naval)){u.x=nx;u.y=ny}}}}
+  if(px||py){const nx=u.x+px,ny=u.y+py,fx=Math.floor(nx),fy=Math.floor(ny),cx=Math.floor(u.x),cy=Math.floor(u.y);if(isWalkable(fx,fy,u.team,u.naval)&&(fx===cx||fy===cy||isWalkable(fx,cy,u.team,u.naval)||isWalkable(cx,fy,u.team,u.naval))){u.x=nx;u.y=ny}}}}
 
 // spatial hash of live, outside units (rebuilt each tick)
 let GRID=null,GW=0;function buildGrid(){GW=(MAP>>2)+1;if(!GRID||GRID.length!==GW*GW){GRID=new Array(GW*GW)}for(let i=0;i<GRID.length;i++)GRID[i]=null;for(const u of G.units){if(u.dead||u.inside)continue;const k=((u.y|0)>>2)*GW+((u.x|0)>>2);(GRID[k]||(GRID[k]=[])).push(u)}}
@@ -1041,10 +1061,17 @@ function computeScore(p){const s=scoreParts(p);return s.military+s.economy+s.tec
 // herding) step without testing the cell they land in, and units were seen walking on the water's edge. A unit that came
 // from dry land slides along the shore instead (x or y only), or stays put. (Buildings, trees and mines are left alone:
 // closing in on them needs a sliver of overlap, and it doesn't show.)
+// Walls and gates it may not pass are held the same way, corners included (two wall tiles touching diagonally), so no step,
+// shove or chase ever carries a unit through a wall line.
 function keepOnWalkable(u,ox,oy){if(u.naval||u.dead||u.inside||(u.x===ox&&u.y===oy))return;const wet=(x,y)=>{const tx=Math.floor(x),ty=Math.floor(y);if(!inMap(tx,ty))return true;const i=idx(tx,ty);return G.terrain[i]===2&&!G.bAt[i]};
+ const wall=(tx,ty)=>{if(!inMap(tx,ty))return true;const b=G.bAt[idx(tx,ty)];return !!b&&(b.type==='wall'||b.type==='gate')&&!isWalkable(tx,ty,u.team)};
+ const cx=Math.floor(ox),cy=Math.floor(oy);
+ const shut=(x,y)=>{const tx=Math.floor(x),ty=Math.floor(y);if(tx===cx&&ty===cy)return false;if(wall(tx,ty))return true;return tx!==cx&&ty!==cy&&wall(tx,cy)&&wall(cx,ty)};
+ if(!wall(cx,cy)&&shut(u.x,u.y)){if(!shut(u.x,oy))u.y=oy;else if(!shut(ox,u.y))u.x=ox;else{u.x=ox;u.y=oy}}
  if(!wet(u.x,u.y)||wet(ox,oy))return;if(!wet(u.x,oy))u.y=oy;else if(!wet(ox,u.y))u.x=ox;else{u.x=ox;u.y=oy}}
 function update(){for(const r of G.relics)if(r.holder&&!r.holder.inside){r.x=r.holder.x;r.y=r.holder.y}G.tick++;G.time+=DT;buildGrid();
  for(const p of G.players)if(p.ai&&!p.dead&&G.tick%20===(p.team*7)%20)aiThink(p);
+ if(G.tick%20===10)for(const p of G.players)if(p.bell&&!p.ai&&!p.dead)bellCalm(p);
  for(const b of G.buildings)updateBuilding(b);
  for(const u of G.units){const ox=u.x,oy=u.y;updateUnit(u);keepOnWalkable(u,ox,oy)}
  separation();updateProjectiles();
@@ -1088,7 +1115,11 @@ function buyPrice(p,k){return Math.round(G.market[k]*(civ(p).trade?1.2:1.3))}
 function sellPrice(p,k){return Math.round(G.market[k]*(civ(p).trade?0.8:0.7))}
 function marketBuy(p,k){const price=buyPrice(p,k);if(p.res.gold<price){msg('Not enough gold.',p.team);return false}p.res.gold-=price;p.res[k]+=100;G.market[k]=Math.min(2000,G.market[k]+6);return true}
 function marketSell(p,k){if(p.res[k]<100){msg('Not enough '+k+'.',p.team);return false}const price=Math.round(G.market[k]*(civ(p).trade?0.8:0.7));p.res[k]-=100;p.res.gold+=price;stat(p,'trade',price);G.market[k]=Math.max(15,G.market[k]-6);return true}
-function townBell(p){const t=p.team;if(!p.bell){p.bell=true;let n=0;for(const u of G.units){if(u.team!==t||u.type!=='villager'||u.inside||u.dead)continue;const b=nearestBuilding(t,null,u.x,u.y,true,b=>BUILDINGS[b.type].garrison&&b.garrison.length+1<=BUILDINGS[b.type].garrison&&rectDist(u.x,u.y,rectOf(b))<20);if(!b)continue;if(u.state==='gather'&&u.target&&!u.target.dead)u.prev={k:'gather',t:u.target};else if(u.state==='build'&&u.target)u.prev={k:'build',t:u.target};else u.prev=null;issue(u,{k:'garrison',t:b},false);n++}msg(n?'Town bell rung: villagers are taking shelter.':'No shelter nearby for villagers.',t)}
+// A person's rung bell lifts by itself ("All clear") once no enemy soldier has come within 10 tiles of their buildings for 20 s
+// (checked once a second); computer players lift theirs in aiThink.
+function bellCalm(p){const t=p.team;let near=false;for(const u of G.units){if(u.dead||u.inside||allied(u.team,t)||!isMil(u))continue;for(const b of G.buildings)if(b.team===t&&!b.dead&&rectDist(u.x,u.y,rectOf(b))<10){near=true;break}if(near)break}
+ p.bellCalm=near?0:(p.bellCalm||0)+1;if(p.bellCalm>=20){msg('All clear.',t);townBell(p)}}
+function townBell(p){const t=p.team;if(!p.bell){p.bell=true;p.bellCalm=0;let n=0;for(const u of G.units){if(u.team!==t||u.type!=='villager'||u.inside||u.dead)continue;const b=nearestBuilding(t,null,u.x,u.y,true,b=>BUILDINGS[b.type].garrison&&b.garrison.length+1<=BUILDINGS[b.type].garrison&&rectDist(u.x,u.y,rectOf(b))<20);if(!b)continue;if(u.state==='gather'&&u.target&&!u.target.dead)u.prev={k:'gather',t:u.target};else if(u.state==='build'&&u.target)u.prev={k:'build',t:u.target};else u.prev=null;issue(u,{k:'garrison',t:b},false);n++}msg(n?'Town bell rung: villagers are taking shelter.':'No shelter nearby for villagers.',t)}
  else{p.bell=false;for(const b of G.buildings)if(b.team===t&&b.garrison.length)ejectAll(b,false);for(const u of G.units)if(u.team===t&&u.state==='garrison')stop(u);msg('Back to work!',t)}}
 // ================= COMMANDS =================
 // Every player action is a plain-data command applied through applyCmd(seat,c). Single-player applies it at once;
@@ -33182,7 +33213,7 @@ function pixSet(g, x, y, ch) { x = Math.round(x); y = Math.round(y); if (y >= 0 
 function pixGrid(w, h, ch = '.') { return Array.from({ length: h }, () => Array(w).fill(ch)); }
 function pixDraw(spec, frame, i, tc, x = 0, y = 0, o) { pixBlit(ctx, spec, frame, i, tc, x, y, o); }
 function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
-  let c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
+  let c = pixFrame(spec, frame, i, tc, true); const sc = spec.scale || 1;
   if (o && o.flash) c = pixFlash(c);
   if (typeof PIX_DIM !== 'undefined' && PIX_DIM) c = pixDim(c);   // fog-dimmed sprites (game-side flag)
   const m = c2d.getTransform();
@@ -33208,16 +33239,17 @@ function pixTint(base, team, t) {
   const lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2], m = a.map((v, i) => v + (b[i] - v) * t), d = lum(a) - lum(m);
   return '#' + m.map(v => Math.max(0, Math.min(255, Math.round(v + d))).toString(16).padStart(2, '0')).join('');
 }
-function pixFrame(spec, frame, i, tc) {
+function pixFrame(spec, frame, i, tc, soft) {
   const list = spec.frames[frame] || spec.frames.idle || Object.values(spec.frames)[0];
   const n = list.length, k = ((Math.floor(i) % n) + n) % n;
   const key = spec.id + '|' + frame + '|' + k + '|' + (tc ? tc.c : '');
   let c = PIX_CACHE[key];
   if (!c) {
-    // building a frame costs 1-30 ms: past this frame's budget, show an already built frame of the same animation instead
+    // building a frame costs 1-30 ms: past this frame's budget, a direct draw (soft) shows an already built frame of the same
+    // animation instead. Never soft for anything that caches the result (resSprite, icons): it would keep the stand-in.
     // (the game sets PIX_BUDGET.until during render, so a fast pan over a new town spreads the work over a few frames)
     const ak = spec.id + '|' + frame + '|' + (tc ? tc.c : ''), B = typeof PIX_BUDGET !== 'undefined' ? PIX_BUDGET : null;
-    if (B && B.any[ak] && performance.now() > B.until) return B.any[ak];
+    if (soft && B && B.any[ak] && performance.now() > B.until) return B.any[ak];
     c = pixBuild(spec, list[k], tc); PIX_CACHE[key] = c; if (B) B.any[ak] = c;
   }
   return c;
@@ -33362,7 +33394,7 @@ function fxShadows(onscreen,x0,y0,x1,y1){const q=cam.zoom>=1?0.5:1,lw=Math.ceil(
   const sp=resSprite(r.res,r.v),s=r.res==='food'?1:0.55+0.45*r.amount/r.max,sh=fxVolShadow(sp,32,68),x=wx-32*s,y=wy-68*s;L.drawImage(sh.cv,x-sh.pad*s,y-sh.pad*s,sh.cv.width*s,sh.cv.height*s)}
  for(const b of G.buildings){if(b.type==='farm'||BUILDINGS[b.type].water)continue;const s=FX.seen.get(b.id);if(!s||!s.c||s.clip<1)continue;const wx=wpx(b.tx+b.w/2,b.ty+b.h/2),wy=wpy(b.tx+b.w/2,b.ty+b.h/2);if(!onscreen(wx,wy))continue;if(!allied(b.team,ME)&&!exploredBy(ME,b.tx+b.w/2,b.ty+b.h/2))continue;
   const sh=fxShadowCanvas(s.c,s.an[0],s.an[1],s.w,s.h);L.drawImage(sh.cv,s.dx-sh.pad,s.dy-sh.pad)}
- for(const u of G.units){if(u.inside)continue;const d=UNITS[u.type];if(d.naval)continue;const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);if(!onscreen(wx,wy))continue;if(!allied(u.team,ME)&&!visibleTo(ME,u.x,u.y))continue;
+ for(const u of G.units){if(u.inside)continue;const d=UNITS[u.type];if(d.naval)continue;const P=drawPos(u),wx=wpx(P.x,P.y),wy=wpy(P.x,P.y);if(!onscreen(wx,wy))continue;if(!allied(u.team,ME)&&!visibleTo(ME,u.x,u.y))continue;
   const sp=PIXELS[u.type],an=sp&&sp.anchor;fxBodyShadow(L,wx,wy,an?an[0]*2:14,an?an[1]:22)}
  for(const r of G.relics){if(r.holder||r.temple)continue;const wx=wpx(r.x,r.y),wy=wpy(r.x,r.y);if(onscreen(wx,wy)&&exploredBy(ME,r.x,r.y))fxBodyShadow(L,wx,wy,14,12)}
  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=SUN.a;ctx.imageSmoothingEnabled=true;ctx.drawImage(fxShL,0,0,lw/q,lh/q);ctx.restore()}
@@ -33530,7 +33562,9 @@ function drawBuilding(b,sel){const d=BUILDINGS[b.type];const cx=wpx(b.tx,b.ty),c
    const nb=(dx,dy)=>joins(at(b.tx+dx,b.ty+dy));
    const m=nb(1,0)|nb(0,1)<<1|nb(-1,0)<<2|nb(0,-1)<<3;
    const S=pixAge(PIXELS.wall,b);
-   pixDraw(S,((b.tx+b.ty)&1?'p':'t')+m,Math.floor(G.time*6+b.id),tc,bm.Bm[0],bm.Bm[1],{clip:p})
+   // a diagonal wall is a staircase of corner pieces: banners on every step read as clutter, so steps fly one every 6 tiles
+   const step=m===3||m===6||m===12||m===9;
+   pixDraw(S,(step?(b.tx+b.ty)%6!==0:(b.tx+b.ty)&1)?'p'+m:'t'+m,Math.floor(G.time*6+b.id),tc,bm.Bm[0],bm.Bm[1],{clip:p})
    break}
   case'gate':{
    const at=(x,y)=>G.bAt&&typeof inMap==='function'&&inMap(x,y)?G.bAt[idx(x,y)]:null;
@@ -33585,7 +33619,11 @@ function selRing(x,y,r){r=Math.round(r);let c=RING_CV[r];if(!c){const a=r,b=r*0.
   for(let Y=0;Y<H2;Y++)for(let X=0;X<W2;X++)if(on(X,Y)){g.fillStyle=Y<cy?'#d8d4cc':'#ffffff';g.fillRect(X,Y,1,1)}
   c.ox=cx;c.oy=cy;RING_CV[r]=c}
  const m=ctx.getTransform();ctx.save();ctx.setTransform(m.a,m.b,m.c,m.d,Math.round(m.e),Math.round(m.f));ctx.imageSmoothingEnabled=Math.hypot(m.a,m.b)<0.99;ctx.drawImage(c,Math.round(x)-c.ox,Math.round(y)-c.oy);ctx.restore()}
-function drawUnit(u,sel){const wx=wpx(u.x,u.y),wy=wpy(u.x,u.y);const tc=TEAM[u.team]||WILD;const d=UNITS[u.type];const r=d.naval?14:d.hp>80||d.pop>1?10:7;
+// where a unit is drawn: its position, except a berry picker, drawn leaning in to its bush (the bush is small and sits
+// mid-tile, so from the edge of the tile the picker looked a step away). Render only; the unit's shadow uses it too.
+function drawPos(u){const L=u.state==='gather'&&u.phase==='gathering'&&u.target&&u.target.kind==='res'&&u.target.res==='food'&&!u.target.fish&&!u.target.carcass?u.target:null;if(!L)return {x:u.x,y:u.y};
+ const dx=L.tx+0.5-u.x,dy=L.ty+0.5-u.y,dd=Math.hypot(dx,dy),k=dd>0.5?Math.min(0.3,dd-0.5)/dd:0;return {x:u.x+dx*k,y:u.y+dy*k}}
+function drawUnit(u,sel){const P=drawPos(u);const wx=wpx(P.x,P.y),wy=wpy(P.x,P.y);const tc=TEAM[u.team]||WILD;const d=UNITS[u.type];const r=d.naval?14:d.hp>80||d.pop>1?10:7;
  if(d.naval){ctx.fillStyle='rgba(0,30,60,0.25)';ctx.beginPath();ctx.ellipse(wx+r*0.22,wy-0.5,r*1.05,r*0.45,-0.12,0,7);ctx.fill()}
  else{ctx.fillStyle='rgba(13,11,15,0.16)';ctx.beginPath();ctx.ellipse(wx+1,wy,r*0.95,r*0.42,0,0,7);ctx.fill();ctx.fillStyle='rgba(13,11,15,0.2)';ctx.beginPath();ctx.ellipse(wx+1,wy,r*0.62,r*0.27,0,0,7);ctx.fill()} /* contact shade at the feet, nudged with the light; the long cast shadow is the render FX's (fxShadows, one light) */
  if(sel)selRing(wx,wy,r+2);
@@ -33785,11 +33823,7 @@ function cliffRender(tx,ty){const[nA,nB,nC]=cliffN;const open=[];for(let oy=-1;o
 function drawResource(r,dim){
  // trees come in species patches of 4x4 tiles (a quarter mixed in), two forms per species, so a wood reads as one stand; drawing only, the sim never sees it
  function woodVariant(r){const h=(a,b)=>{let x=(a*374761393+b*668265263)|0;x=Math.imul(x^(x>>>13),1274126177);return((x^(x>>>16))>>>0)/4294967296};let sp=Math.floor(h(r.tx>>2,r.ty>>2)*3);if(h(r.tx,r.ty+99)<0.25)sp=r.v%3;return sp+(h(r.tx+7,r.ty)<0.5?0:3)}
- const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){wtrFish(wx,wy,G.time*1.5+r.tx);return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;if(r.res==='food'&&!r.carcass){const o=berryNudge(r);ctx.drawImage(sp,Math.round(wx+o.x-32),Math.round(wy+o.y-68),64,80);return}ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
-// a berry bush leans toward the other bushes of its patch (render only), so a patch reads as one clump
-const BERRY_NUDGE=new WeakMap();
-function berryNudge(r){if(!G||!G.rAt||!G.resources||!(r.tx>=0))return {x:0,y:0};let o=BERRY_NUDGE.get(r);if(o&&o.n===G.resources.length)return o;let sx=0,sy=0,c=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy||!inMap(r.tx+dx,r.ty+dy))continue;const q=G.rAt[idx(r.tx+dx,r.ty+dy)];if(q&&q.res==='food'&&!q.carcass&&!q.fish){sx+=dx;sy+=dy;c++}}
- const k=c?0.34/Math.max(1,Math.hypot(sx/c,sy/c)*1.4):0,mx=c?sx/c*k:0,my=c?sy/c*k:0;o={x:(mx-my)*HW,y:(mx+my)*HH,n:G.resources.length};BERRY_NUDGE.set(r,o);return o}
+ const wx=wpx(r.tx+0.5,r.ty+0.5),wy=wpy(r.tx+0.5,r.ty+0.5);if(r.cliff){ctx.drawImage(cliffSprite(r,dim),wpx(r.tx,r.ty)-CLIFF_OX,wpy(r.tx,r.ty)-CLIFF_OY);return}if(r.fish){wtrFish(wx,wy,G.time*1.5+r.tx);return}if(r.carcass&&PIXELS[r.carcass]&&PIXELS[r.carcass].frames.death){const cs=PIXELS[r.carcass];ctx.save();ctx.translate(wpx(r.x??r.tx+0.5,r.y??r.ty+0.5),wpy(r.x??r.tx+0.5,r.y??r.ty+0.5));pixDraw(cs,'death',cs.frames.death.length-1,null);ctx.restore();return}const v=r.res==='wood'?woodVariant(r):r.v;const sp=dim?resSpriteDim(r.res,v):resSprite(r.res,v);const s=r.res==='wood'||r.res==='food'?1:0.55+0.45*r.amount/r.max;const jx=r.res==='wood'?((r.tx*73+r.ty*151)%7)-3:0,jy=r.res==='wood'?((r.tx*31+r.ty*57)%5)-2:0;if(r.res==='food'&&!r.carcass){ctx.drawImage(sp,Math.round(wx-32),Math.round(wy-68),64,80);return}ctx.drawImage(sp,wx+jx-32*s,wy+jy-68*s,64*s,80*s)}
 let fogCv=null,fogData=null,fogLo=null,fogBl=null;const FOGS=8;
 function updateFog(){if(!fogCv){fogCv=document.createElement('canvas');fogCv.width=fogCv.height=MAP*4;fogData=fogCv.getContext('2d').createImageData(MAP*4,MAP*4)}const v=G.vis[ME];const d=fogData.data;
  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){const a=v[idx(x,y)]===2?0:v[idx(x,y)]===1?120:255;for(let yy=0;yy<4;yy++)for(let xx=0;xx<4;xx++){const i=((y*4+yy)*MAP*4+(x*4+xx))*4;d[i]=6;d[i+1]=4;d[i+2]=2;d[i+3]=a}}fogCv.getContext('2d').putImageData(fogData,0,0)}
@@ -33919,12 +33953,15 @@ function scoresOn(){try{return localStorage.getItem('age-up-scoreboard')!=='0'}c
 function toggleScores(){const on=scoresOn();try{localStorage.setItem('age-up-scoreboard',on?'0':'1')}catch(e){}if(G)renderScores();syncScoresBtn()}
 function syncScoresBtn(){const b=$('scoresbtn');if(b)b.textContent=scoresOn()?'Hide scoreboard':'Show scoreboard'}
 $('scoresbtn').onclick=toggleScores;
+$('b-full').addEventListener('mousedown',e=>{if(e.button!==0)return;e.preventDefault();try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}catch(err){}}); // mousedown + preventDefault: the button never takes focus, so Space stays the game's
+document.addEventListener('fullscreenchange',()=>{const b=$('b-full');b.title=document.fullscreenElement?'Leave full screen':'Full screen';b.classList.toggle('on',!!document.fullscreenElement)});
+$('hint').addEventListener('click',e=>{if(e.target.closest('.bellbtn')&&G&&player(ME).bell)submit({v:'bell'})});
 function updateTop(){const p=player(ME);hudIcons();for(const k of RES_KINDS){$('r-'+k).textContent=fmt(p.res[k]);let n=0;for(const u of G.units)if(u.team===ME&&u.type==='villager'&&(u.state==='gather'||u.state==='hunt')&&u.carryKind===k)n++;$('w-'+k).textContent=n?n:''}
  {const bp=$('b-pause');bp.classList.toggle('on',!!G.paused);const pl=G.paused?'\u25b6':'\u275a\u275a';if(bp.textContent!==pl)bp.textContent=pl;bp.title=G.paused?'Resume (P)':'Pause (P)'}$('r-pop').textContent=p.pop+'/'+p.popCap;$('r-pop').style.color=p.pop>=p.popCap?'#f66':'';$('age').textContent=AGES[p.age]+(p.ageing?' → '+AGES[p.age+1]:'');const m=Math.floor(G.time/60),s=Math.floor(G.time%60);$('clock').textContent=m+':'+(s<10?'0':'')+s;$('score').textContent='Score '+p.score;renderScores();
  let tm='';const ft=x=>{const mm=Math.floor(Math.max(0,x)/60),ss=Math.floor(Math.max(0,x)%60);return mm+':'+(ss<10?'0':'')+ss};if(G.wonderTimer)tm+=(allied(G.wonderTimer.team,ME)?'Your':TEAM[G.wonderTimer.team].n)+' Wonder '+ft(G.wonderTimer.left)+'  ';if(G.relicTimer)tm+=(G.relicTimer.side===p.side?'Your':'Enemy')+' relics '+ft(G.relicTimer.left);if(G.setup.victory==='time')tm+='Time left '+ft(40*60-G.time);if(G.setup.victory==='score'){const b=alivePlayers().slice().sort((a,b)=>b.score-a.score)[0];if(b)tm+='Leader '+(b.team===ME?'you':TEAM[b.team].n)+' '+b.score+'/6000'}$('timers').textContent=tm;
  const idle=G.units.filter(u=>u.team===ME&&u.type==='villager'&&u.state==='idle').length;const idleM=G.units.filter(u=>u.team===ME&&isMil(u)&&u.state==='idle'&&!u.inside).length;
  const bi=$('b-idle'),ba=$('b-army');bi.classList.toggle('on',idle>0);bi.querySelector('b').textContent=idle||'';ba.classList.toggle('on',idleM>0);ba.querySelector('b').textContent=idleM||'';
- {const h=(G.paused?'<span style="color:#fff">PAUSED</span><br>':'')+(ui.mode==='amove'?'<span style="color:#f88">Attack-move: click a target</span><br>':ui.mode==='patrol'?'<span style="color:#f88">Patrol: click a point</span><br>':ui.mode==='repair'?'<span style="color:#8f8">Repair: click a damaged building</span><br>':'')+(ui.build?`<span style="color:#8f8">Placing ${BUILDINGS[ui.build.type].name}${ui.build.type==='wall'?' — drag a line':''}. Shift keeps placing, Esc cancels</span><br>`:'')+(p.bell?'<span style="color:#ffd27a">Town bell rung — villagers sheltering</span><br>':'')+(G.speed!==1?`speed ${G.speed}x<br>`:'');if(h!==ui.hintHtml){ui.hintHtml=h;$('hint').innerHTML=h}};
+ {const h=(G.paused?'<span style="color:#fff">PAUSED</span><br>':'')+(ui.mode==='amove'?'<span style="color:#f88">Attack-move: click a target</span><br>':ui.mode==='patrol'?'<span style="color:#f88">Patrol: click a point</span><br>':ui.mode==='repair'?'<span style="color:#8f8">Repair: click a damaged building</span><br>':'')+(ui.build?`<span style="color:#8f8">Placing ${BUILDINGS[ui.build.type].name}${ui.build.type==='wall'?' — drag a line':''}. Shift keeps placing, Esc cancels</span><br>`:'')+(p.bell?'<span class="bellbtn" title="Send the villagers back to work (B on the Town Hall)">Town bell rung · villagers sheltering · <u>Back to work</u></span><br>':'')+(G.speed!==1?`speed ${G.speed}x<br>`:'');if(h!==ui.hintHtml){ui.hintHtml=h;$('hint').innerHTML=h}};
  const m2=$('msgs');m2.innerHTML=G.msgs.filter(x=>G.time-x.at<9).map(x=>`<div style="opacity:${Math.min(1,(9-(G.time-x.at))/2)}">${x.t}</div>`).join('')}
 function selKind(){const s=G.sel||[];if(!s.length)return null;if(s.some(e=>e.kind==='unit'&&e.team===ME&&!isAnimal(e))){return s.some(e=>isMil(e)||e.type==='monk')?'mil':s.every(e=>e.naval)?'mil':'vill'}if(s[0].kind==='bld'&&s[0].team===ME)return 'bld';return 'other'}
 function buildButtons(){const s=G.sel||[];const p=player(ME);const out=[];const kind=selKind();if(!kind)return out;
@@ -34004,7 +34041,7 @@ function renderInfo(){const s=G.sel||[];const el=$('info');if(!s.length){el.inne
  if(e.kind==='relic'){el.innerHTML='<h3>Relic</h3><div class="row">Send a Monk to pick it up and carry it to a Temple for a steady gold trickle.</div>';return}
  if(e.kind==='unit'){const d=UNITS[e.type];const maxhp=unitStat(e,'maxhp');el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*e.hp/maxhp}%"></i></div>${d.animal?resLeft('food',d.food,d.food):''}<div class="row">HP ${Math.ceil(e.hp)}/${maxhp}${d.animal?'':' · Attack '+unitStat(e,'atk')+' · Armor '+unitStat(e,'armor')+'/'+unitStat(e,'parmor')+(d.range>1?' · Range '+unitStat(e,'range')+(d.minRange?' (min '+d.minRange+')':''):'')+(d.packs?' · '+(e.state==='pack'?(e.packGoal?'Packing…':'Unpacking…'):e.packed===false?'Deployed: fires, cannot move':'Packed: moves, cannot fire'):'')}</div><div class="row">${e.explore?'Exploring':e.state==='gather'?'Gathering '+e.carryKind+' ('+fmt(e.carry)+'/'+unitStat(e,'carry')+')':e.state==='hunt'?'Hunting':e.state==='build'?'Building':e.state==='repair'?'Repairing':e.state==='attack'?'Fighting':e.state==='amove'?(e.patrol?'Patrolling':'Attack-moving'):e.state==='convert'?'Converting…':e.state==='idle'?'Idle':e.state}${e.stance==='ground'?' · stand ground':''}${e.faith>0?' · recharging '+Math.ceil(e.faith)+'s':''}${e.relic?' · carrying a relic':''}</div><div class="row" style="font-size:11px">${d.desc}</div>${d.animal?'':counterLines(e.type,4).map(l=>`<div class="row cv" title="+n is extra damage per hit">${l}</div>`).join('')}`;return}
  const d=BUILDINGS[e.type];const maxhp=bldHp(e);let q='';if(e.queue.length&&allied(e.team,ME))q='<div class="q">'+e.queue.map((x,i)=>{const n=x.unit?UNITS[x.unit].name:x.age?AGES[x.age]:TECHS[x.tech].name[x.lvl];return `<span>${n}${i===0?' '+Math.floor(100*x.t/(x.total||1))+'%':''}</span>`}).join('')+'</div>';
- el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*(e.built?e.hp/maxhp:e.progress)}%;background:${e.built?'#4caf50':'#aaa'}"></i></div><div class="row">${e.built?'HP '+Math.ceil(e.hp)+'/'+maxhp:'Building '+Math.floor(e.progress*100)+'%'+(e.builders?'':' — needs a villager')}${e.garrison&&e.garrison.length&&allied(e.team,ME)?' · '+e.garrison.length+'/'+d.garrison+' inside':''}${e.relics?' · '+e.relics+' relic'+(e.relics>1?'s':''):''}</div>${e.type==='market'&&e.team===ME?marketTable(player(ME)):''}${e.built&&(d.trains||d.garrison)&&e.team===ME?'<div class="row" style="font-size:11px">Right-click to set a rally point'+(d.garrison?' · right-click with units to garrison':'')+'</div>':''}<div class="row" style="font-size:11px">${d.desc}</div>${q}`}
+ el.innerHTML=`<h3>${d.name}${who}</h3><div class="bar"><i style="width:${100*(e.built?e.hp/maxhp:e.progress)}%;background:${e.built?'#4caf50':'#aaa'}"></i></div><div class="row">${e.built?'HP '+Math.ceil(e.hp)+'/'+maxhp:'Building '+Math.floor(e.progress*100)+'%'+(e.builders?' · '+e.builders+' builder'+(e.builders>1?'s':'')+' ('+(+bldRate(e.builders).toFixed(1))+'× speed)':' — needs a villager')+' · HP '+Math.ceil(e.hp)+'/'+maxhp}${e.garrison&&e.garrison.length&&allied(e.team,ME)?' · '+e.garrison.length+'/'+d.garrison+' inside':''}${e.relics?' · '+e.relics+' relic'+(e.relics>1?'s':''):''}</div>${e.type==='market'&&e.team===ME?marketTable(player(ME)):''}${e.built&&(d.trains||d.garrison)&&e.team===ME?'<div class="row" style="font-size:11px">Right-click to set a rally point'+(d.garrison?' · right-click with units to garrison':'')+'</div>':''}<div class="row" style="font-size:11px">${d.desc}</div>${q}`}
 function setSel(list){G.sel=list;renderCmds();renderInfo();if(list.length&&list[0].team===ME)sfx('select')}
 function selOne(id){const e=(G.sel||[]).find(x=>x.id===id);if(e)setSel([e])}
 
@@ -34094,7 +34131,7 @@ cv.addEventListener('mousedown',e=>{if(!G||G.over)return;const r=cv.getBoundingC
   if(ui.mode==='repair'){const e=entityAt(sx,sy);ui.mode=null;renderCmds();if(e&&(e.kind==='bld'||(e.kind==='unit'&&UNITS[e.type].pop>1))&&allied(e.team,ME)){const list=(G.sel||[]).filter(u=>u.kind==='unit'&&u.type==='villager').map(u=>({id:u.id,c:{k:'repair',t:e.id}}));if(list.length)submit({v:'orders',list,q:false});sfx('order')}else sfx('error');return}
   if(ui.mode==='amove'||ui.mode==='patrol'){const w=s2w(sx,sy);const k=ui.mode;const us=(G.sel||[]).filter(u=>u.kind==='unit'&&u.team===ME&&!isAnimal(u));const fp=formation(us,w.x,w.y);const list=us.map((u,i)=>({id:u.id,c:{k,x:fp[i].x,y:fp[i].y}}));if(list.length)submit({v:'orders',list,q:!!e.shiftKey});ui.mode=null;sfx('order');G.pings.push({x:w.x,y:w.y,t:G.time,kind:'order'});renderCmds();return}
   ui.drag={x0:sx,y0:sy,x1:sx,y1:sy};ui.dragging=false}});
-window.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;ui.mouse.x=sx;ui.mouse.y=sy;ui.mouse.in=sx>=0&&sy>=0&&sx<=r.width&&sy<=r.height;
+window.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;ui.mouse.x=sx;ui.mouse.y=sy;ui.mouse.in=sx>=0&&sy>=0&&sx<=r.width&&sy<=r.height;ui.mouse.cx=e.clientX;ui.mouse.cy=e.clientY;ui.mouse.win=true;
  if(ui.mid){cam.x=ui.mid.cx-(e.clientX-ui.mid.x)/cam.zoom;cam.y=ui.mid.cy-(e.clientY-ui.mid.y)/cam.zoom;clampCam()}
  if(ui.drag){ui.drag.x1=sx;ui.drag.y1=sy;if(Math.abs(sx-ui.drag.x0)+Math.abs(sy-ui.drag.y0)>6)ui.dragging=true}
  if(ui.build){const w=s2w(sx,sy);aimBuild(w);if(ui.build.type==='wall'&&ui.build.start)ui.build.tiles=wallLine(ui.build.start,{x:Math.floor(w.x),y:Math.floor(w.y)})}});
@@ -34106,6 +34143,7 @@ function miniToWorld(e){const r=mini.getBoundingClientRect();const mx=e.clientX-
 mini.addEventListener('mousedown',e=>{if(!G)return;const w=miniToWorld(e);if(e.button===2){const units=(G.sel||[]).filter(u=>u.kind==='unit'&&u.team===ME&&!isAnimal(u));const pts=formation(units,w.x,w.y);if(units.length)submit({v:'orders',list:units.map((u,i)=>({id:u.id,c:{k:'move',x:pts[i].x,y:pts[i].y}})),q:!!e.shiftKey});return}centerOn(w.x,w.y);ui.miniDrag=true});
 mini.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('mousemove',e=>{if(ui.miniDrag&&e.buttons&1){const w=miniToWorld(e);centerOn(w.x,w.y)}});
+document.addEventListener('mouseout',e=>{if(!e.relatedTarget)ui.mouse.win=false});
 window.addEventListener('mouseup',()=>{ui.miniDrag=false});
 window.addEventListener('keydown',e=>{if(!G||G.over){return}const k=e.key;ui.keys[k]=true;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
  if(k==='Escape'){if(ui.menu||(G.paused&&!NET.active)){$('play').click();return}ui.build=null;ui.mode=null;renderCmds();return}
@@ -34133,7 +34171,7 @@ const TURN_TICKS=4, MAX_LEAD=6, HASH_EVERY=5;
 let WATCHING=false;
 const NET={active:false,host:false,hostId:null,tr:null,mode:'online',room:'',name:'',lobby:null,peers:new Map(),inbox:[],turns:new Map(),hashes:new Map(),waiting:null,rtt:0,desync:0};
 function netReset(){NET.active=false;NET.host=false;NET.hostId=null;NET.lobby=null;NET.peers.clear();NET.inbox.length=0;NET.turns.clear();NET.hashes.clear();NET.waiting=null;NET.rtt=0;NET.desync=0;NET.ready=false;if(NET.tr){try{NET.tr.close()}catch(e){}NET.tr=null}ME=0;stopBgTicker()}
-NET.leave=function(){if(NET.tr&&!NET.host)NET.send({t:'leave'});netReset();renderLobby();netStatus()};
+NET.leave=function(){const guest=NET.tr&&!NET.host;if(guest)NET.send({t:'leave'});netReset();if(guest&&NET.name)$('pn-0').value=NET.name;renderLobby();netStatus()}; // a guest's row 1 showed the host: put their own name back
 NET.send=function(body,to){if(!NET.tr)return;NET.tr.send(to===undefined?(NET.host?null:NET.hostId):to,body)};
 NET.submit=function(c){if(NET.host)NET.inbox.push({seat:ME,c,at:Math.floor(G.tick/TURN_TICKS)+fairDelay()});else NET.send({t:'cmd',c})};
 // Fairness: a client's order takes about one round trip to come back inside a turn packet, so the host holds its
@@ -34261,9 +34299,14 @@ function netGate(){if(G.tick%TURN_TICKS!==0)return true;const n=G.tick/TURN_TICK
  const cmds=NET.turns.get(n);if(!cmds){if(!NET.host&&!NET.waiting)NET.waiting='the host';return false}
  if(!NET.host){const a={t:'ack',n};if(n%HASH_EVERY===0){a.h=stateHash();a.rtt=NET.rtt}NET.send(a);NET.waiting=null}
  for(const x of cmds){try{applyCmd(x.seat|0,x.c)}catch(e){console.error('cmd',e)}}NET.turns.delete(n);return true}
-function netStatus(){const el=$('netbar');if(!NET.active){if(el.textContent)el.textContent='';el.classList.remove('wait');return}
- let t=NET.mode==='local'?'local game':'room '+NET.room;if(NET.host){const d=fairDelay();if(d)t+=' · your orders wait '+d*TURN_TICKS*50+' ms for fairness'}else t+=' · '+NET.rtt+' ms';if(NET.desync)t+=' · resyncs '+NET.desync;if(NET.waiting)t='Waiting for '+NET.waiting+'… · '+t;
- if(el.textContent!==t)el.textContent=t;el.classList.toggle('wait',!!NET.waiting)}
+// The guest waits a few ms for nearly every turn, so "Waiting for…" shows only after half a second of it, and the round trip
+// is smoothed and rounded, so the bar holds still instead of flickering.
+const NETBAR={since:0,rtt:0};
+function netStatus(){const el=$('netbar');if(!NET.active){if(el.textContent)el.textContent='';el.classList.remove('wait');NETBAR.since=0;NETBAR.rtt=0;return}
+ const now=performance.now();if(NET.waiting){if(!NETBAR.since)NETBAR.since=now}else NETBAR.since=0;const waiting=NET.waiting&&now-NETBAR.since>500;
+ if(NET.rtt){NETBAR.rtt=NETBAR.rtt?NETBAR.rtt+(NET.rtt-NETBAR.rtt)*0.05:NET.rtt}
+ let t=NET.mode==='local'?'local game':'room '+NET.room;if(NET.host){const d=fairDelay();if(d)t+=' · your orders wait '+d*TURN_TICKS*50+' ms for fairness'}else t+=' · '+(Math.round(NETBAR.rtt/10)*10)+' ms';if(NET.desync)t+=' · resyncs '+NET.desync;if(waiting)t='Waiting for '+NET.waiting+'… · '+t;
+ if(el.textContent!==t)el.textContent=t;el.classList.toggle('wait',!!waiting)}
 // A hidden tab stops requestAnimationFrame, which would stall the other player; a worker timer keeps the sim ticking.
 let bgW=null;function startBgTicker(){if(bgW)return;try{const u=URL.createObjectURL(new Blob(['setInterval(function(){postMessage(0)},50)'],{type:'text/javascript'}));bgW=new Worker(u);bgW.onmessage=()=>{if(document.hidden&&G&&NET.active)stepSim(performance.now(),20)}}catch(e){}}
 function stopBgTicker(){if(bgW){bgW.terminate();bgW=null}}
@@ -34283,7 +34326,10 @@ function frame(t){requestAnimationFrame(frame);if(!G)return;stepSim(t);netStatus
  if(!G.paused&&!G.over){
   // scrolling
   const sp=14/cam.zoom;let mx=0,my=0;if(ui.keys.ArrowLeft)mx-=sp;if(ui.keys.ArrowRight)mx+=sp;if(ui.keys.ArrowUp)my-=sp;if(ui.keys.ArrowDown)my+=sp;
-  if(ui.mouse.in&&!ui.mid&&document.hasFocus()){const m=ui.mouse;if(m.x<6)mx-=sp;if(m.x>W-6)mx+=sp;if(m.y<6)my-=sp;if(m.y>H-6)my+=sp}
+  // edge scrolling: the window's edges (also over the top bar and the bottom panel), so it works in a window as well as full
+  // screen, plus the view's own edges as before
+  if(ui.mouse.win&&!ui.mid&&document.hasFocus()&&$('overlay').classList.contains('hidden')){const m=ui.mouse,E=14,vw=innerWidth,vh=innerHeight;
+   if(m.cx<E||(ui.mouse.in&&m.x<6))mx-=sp;if(m.cx>vw-1-E||(ui.mouse.in&&m.x>W-6))mx+=sp;if(m.cy<E||(ui.mouse.in&&m.y<6))my-=sp;if(m.cy>vh-1-E||(ui.mouse.in&&m.y>H-6))my+=sp}
   if(mx||my){cam.x+=mx;cam.y+=my;clampCam()}
   if(G.tick%5===0){updateTop();if(G.tick%10===0){renderCmds();renderInfo()}if(ui.menu&&G.tick%20===0)renderDiplomacy()}}
  render()}
@@ -34477,7 +34523,7 @@ function menuBackdrop(){if(ui.backdrop||G)return;try{const oz=cam.zoom,ox=cam.x,
  G=null;terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=oz;cam.x=ox;cam.y=oy;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fillRect(0,0,W,H)}catch(e){G=null;console.warn('backdrop',e)}}
 setTimeout(menuBackdrop,80);
 $('watch').onclick=()=>{$('overlay').classList.add('hidden')};
-$('again').onclick=()=>{NET.leave();$('end').classList.add('hidden');$('start').classList.remove('hidden');$('start').classList.remove('ingame');$('game').classList.add('nogame');$('play').textContent='Play';G=null;refreshMenu()};
+$('again').onclick=()=>{NET.leave();$('end').classList.add('hidden');$('start').classList.remove('hidden');$('setupwrap').classList.remove('hidden');$('start').classList.remove('ingame');$('game').classList.add('nogame');$('play').textContent='Play';G=null;refreshMenu()};
 resize();requestAnimationFrame(frame);
 // headless/debug hooks
 function fuzzCmd(seat,fr){const p=G.players[seat];if(!p||p.dead)return null;const mine=G.units.filter(u=>u.team===seat&&!u.inside&&!isAnimal(u));const blds=G.buildings.filter(b=>b.team===seat);const pick=a=>a[Math.floor(fr()*a.length)];const r=fr();

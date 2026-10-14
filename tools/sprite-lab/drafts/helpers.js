@@ -31,16 +31,17 @@ export function pixTint(base, team, t) {
   return '#' + m.map(v => Math.max(0, Math.min(255, Math.round(v + d))).toString(16).padStart(2, '0')).join('');
 }
 /** Cached canvas for frame i of animation `frame` (wraps), coloured for team tc. */
-export function pixFrame(spec, frame, i, tc) {
+export function pixFrame(spec, frame, i, tc, soft) {
   const list = spec.frames[frame] || spec.frames.idle || Object.values(spec.frames)[0];
   const n = list.length, k = ((Math.floor(i) % n) + n) % n;
   const key = spec.id + '|' + frame + '|' + k + '|' + (tc ? tc.c : '');
   let c = PIX_CACHE[key];
   if (!c) {
-    // building a frame costs 1-30 ms: past this frame's budget, show an already built frame of the same animation instead
+    // building a frame costs 1-30 ms: past this frame's budget, a direct draw (soft) shows an already built frame of the same
+    // animation instead. Never soft for anything that caches the result (resSprite, icons): it would keep the stand-in.
     // (the game sets PIX_BUDGET.until during render, so a fast pan over a new town spreads the work over a few frames)
     const ak = spec.id + '|' + frame + '|' + (tc ? tc.c : ''), B = typeof PIX_BUDGET !== 'undefined' ? PIX_BUDGET : null;
-    if (B && B.any[ak] && performance.now() > B.until) return B.any[ak];
+    if (soft && B && B.any[ak] && performance.now() > B.until) return B.any[ak];
     c = pixBuild(spec, list[k], tc); PIX_CACHE[key] = c; if (B) B.any[ak] = c;
   }
   return c;
@@ -48,7 +49,7 @@ export function pixFrame(spec, frame, i, tc) {
 
 /** Blit onto any 2D context with the sprite's anchor at (x,y) of the current transform. o.clip (0..1) reveals the bottom part only — construction. */
 export function pixBlit(c2d, spec, frame, i, tc, x = 0, y = 0, o) {
-  let c = pixFrame(spec, frame, i, tc); const sc = spec.scale || 1;
+  let c = pixFrame(spec, frame, i, tc, true); const sc = spec.scale || 1;
   if (o && o.flash) c = pixFlash(c);
   if (typeof PIX_DIM !== 'undefined' && PIX_DIM) c = pixDim(c);   // fog-dimmed sprites (game-side flag)
   const m = c2d.getTransform();

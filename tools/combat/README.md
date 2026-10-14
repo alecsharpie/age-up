@@ -24,6 +24,10 @@ A **stall** is 3 s in which a unit that wants to move (not idle, not working, no
 | `workers` | 6 farmers (share of samples standing off their plot), builders on a house, barracks, town hall and wall line (distance from the footprint while building; `far` = over 1.2). | offPlot 0, builders ~0.4 |
 | `sheep` | A captured sheep: selectable (`ownSheep`, box select), walks where right-clicked, ignores attack orders, can still be eaten. | all true except `fought` |
 | `aigame` | 13 minutes of a hard AI-vs-AI game: stalls, soldiers hit by enemy units that are not fighting a unit 3 s later, builders far from their foundation, farmers off their plot. `AIMINS` is read from `globalThis`. | near 0 everywhere |
+| `walls` | Archers inside a ring of wall (straight sides, staircase diagonals) and inside a diamond of corner-touching wall tiles; enemy swordsmen and horsemen attack-move to the middle or are sent straight at an archer. Walls are unbreakable. `inside` = enemies that ever stood inside. | inside 0 |
+| `construction` | Seconds for 1 / 2 / 4 / 8 villagers to build a house; a barracks foundation with 3 builders attacked by 4 swordsmen. | each builder helps; foundation loses HP and falls |
+| `villAnswer` | A villager chopping wood hit by an enemy villager. | `fought`, then back to the same tree |
+| `berries` | Every berry bush on six 4-player maps: bushes with no open side (`shut`), free cells beside a patch walled in on all four sides (`pockets`). | near 0 |
 
 Numbers from the first run (before the fixes in the same commit) and after:
 
@@ -38,3 +42,14 @@ Numbers from the first run (before the fixes in the same commit) and after:
 | sheep selectable / walks | no / no | yes / yes |
 | AI game stalls (units) | 118 (17), villagers at drop sites and resources | 1 (1) |
 | AI game farmers off plot | 7827 of 8151 samples | 0 |
+
+Playtest 6 (2026-10-15), main before → after:
+
+| | before | after |
+|---|---|---|
+| enemies that got inside a wall ring / diamond | 6 of 8 / 6 of 8 | 0 / 0 |
+| house build time, 1 / 2 / 4 / 8 builders | 21.9 / 16.5 / 11.8 / 7.8 s | 21.9 / 15.3 / 9.9 / 7.3 s |
+| foundation under attack: lowest HP | 222 (healed back every tick) | 20, then destroyed |
+| villager hit by a villager while chopping | kept chopping | fought back, then back to its tree |
+| bushes with no open side (6 maps) | 74 of 435 | 4 of 425 |
+| AI game stalls | 56 | 0 |

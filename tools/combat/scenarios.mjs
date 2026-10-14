@@ -217,6 +217,79 @@ S.aigame = () => {
   return { minutes: G.time / 60 | 0, stalls: sw.events(), stalledUnits: sw.units(), stallTop: Object.entries(sw.list().reduce((m, s) => { const k = s.type + ':' + s.state + (s.phase ? '/' + s.phase : ''); m[k] = (m[k] || 0) + s.n; return m }, {})).sort((a, b) => b[1] - a[1]).slice(0, 8), hitPairs: checked, unanswered, why: Object.entries(why).sort((a, b) => b[1] - a[1]).slice(0, 8), builderSamples: bs, builderFar: bfar, farmerSamples: fs, farmerOff: foff };
 };
 
+// Walls hold: a ring of wall (straight sides, staircase diagonals) and a diamond of corner-touching wall tiles, each around
+// archers. Enemy swordsmen and horsemen attack-move to the middle or go straight for an archer; walls are unbreakable. `inside`
+// counts enemy units that ever stood on a cell inside the wall (should be 0). `blocked` = still outside, held by the wall.
+S.walls = () => {
+  const res = {};
+  for (const shape of ['ring', 'diamond']) {
+    CB.arena(6);
+    const cells = new Set(); const put = (x, y) => { const k = x + ',' + y; if (cells.has(k)) return; cells.add(k); const b = CB.bld('wall', 0, x, y); b.hp = 1e9 };
+    if (shape === 'ring') { const pts = [[-3, -6], [3, -6], [6, -3], [6, 3], [3, 6], [-3, 6], [-6, 3], [-6, -3], [-3, -6]];
+      for (let i = 0; i < pts.length - 1; i++) for (const t of wallLine({ x: pts[i][0], y: pts[i][1] }, { x: pts[i + 1][0], y: pts[i + 1][1] })) put(t.x, t.y) }
+    else { for (let k = 0; k <= 6; k++) { put(k, -6 + k); put(6 - k, k); put(-k, 6 - k); put(-6 + k, -k) } }
+    // inside = flood fill from the middle over cells that are not wall
+    const inside = new Set(['0,0']); const st = [[0, 0]];
+    while (st.length) { const [x, y] = st.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = nx + ',' + ny; if (Math.abs(nx) > 8 || Math.abs(ny) > 8 || cells.has(k) || inside.has(k)) continue; inside.add(k); st.push([nx, ny]) } }
+    const archers = []; for (let k = 0; k < 4; k++) archers.push(CB.unit('archer', 0, -1 + k * 0.7, 0.5));
+    for (const a of archers) applyCmd(0, { v: 'stance', ids: [a.id], s: 'ground' });
+    // half attack-move to the middle, half are sent straight at an archer (what a soldier shot over the wall does)
+    const foes = []; for (let k = 0; k < 8; k++) { const ang = k / 8 * Math.PI * 2; const u = CB.unit(k % 2 ? 'horseman' : 'swordsman', 1, Math.cos(ang) * 8, Math.sin(ang) * 8); u.hp = 1e6; foes.push(u) }
+    CB.order(1, foes.filter((u, k) => k % 4 === 0), { k: 'amove', x: 0, y: 0 });
+    foes.forEach((u, k) => { if (k % 4) cmdAttack(u, archers[k % 4]) });
+    for (const a of archers) a.hp = 1e6;
+    const crossed = new Set(); const stall = CB.stallWatch(u => u.team === 1);
+    CB.tick(20 * 40, () => { stall(); for (const u of foes) { const k = Math.floor(u.x - CB.CX) + ',' + Math.floor(u.y - CB.CY); if (inside.has(k)) crossed.add(u.id) } });
+    res[shape] = { walls: cells.size, inside: crossed.size, blocked: foes.filter(u => !crossed.has(u.id)).length, archerShots: foes.filter(u => u.hp < 1e6).length };
+  }
+  return res;
+};
+
+// Building: time for 1, 2, 4 and 8 villagers to put up a house; a barracks foundation with 3 builders under attack by 4
+// swordsmen must lose HP and fall (it used to heal back to its progress every tick).
+S.construction = () => {
+  const out = { secs: {} };
+  for (const n of [1, 2, 4, 8]) {
+    CB.arena(7); const vs = []; for (let k = 0; k < n; k++) vs.push(CB.unit('villager', 0, -2 + (k % 4) * 0.6, 2 + (k >> 2) * 0.6));
+    const b = tryPlace('house', CB.CX, CB.CY - 1, 0, null, false); CB.order(0, vs, { k: 'build', t: b });
+    let t = 0; CB.tick(20 * 120, () => { if (!t && b.built) t = G.time }); out.secs[n] = +(t - 0).toFixed(1);
+  }
+  CB.arena(8); const vs = []; for (let k = 0; k < 3; k++) vs.push(CB.unit('villager', 0, -3 + k, 3)); for (const v of vs) v.hp = 1e6;
+  const b = tryPlace('barracks', CB.CX, CB.CY - 1, 0, null, false); CB.order(0, vs, { k: 'build', t: b });
+  CB.tick(20 * 5); const hp5 = b.hp;
+  const sw = []; for (let k = 0; k < 4; k++) { const u = CB.unit('swordsman', 1, 4, -2 + k); sw.push(u); cmdAttack(u, b) }
+  let minHp = b.hp, fell = -1; CB.tick(20 * 60, () => { if (!b.dead) minHp = Math.min(minHp, b.hp); else if (fell < 0) fell = G.time });
+  out.underAttack = { hpAt5s: Math.round(hp5), minHp: Math.round(minHp), fell: b.dead, progress: +b.progress.toFixed(2) };
+  return out;
+};
+
+// A villager chopping wood hit by an enemy villager hits back, then goes back to chopping once the other is dead.
+S.villAnswer = () => {
+  CB.arena(9); CB.bld('townhall', 0, -8, -8); const t = CB.tree(1, 0);
+  const v = CB.unit('villager', 0, 0.5, 0.5); v.hp = 200; CB.order(0, [v], { k: 'gather', t }); CB.tick(60);
+  const e = CB.unit('villager', 1, 0.5, 2); e.hp = 20; cmdAttack(e, v);
+  let fought = false; CB.tick(20 * 30, () => { if (v.state === 'attack' && v.target === e) fought = true });
+  return { fought, attackerDead: e.dead, backTo: v.state, sameTree: v.target === t || (v.target && v.target.res === 'wood') };
+};
+
+// Berry patches on 6 maps: bushes with no open side (no reachable spot to pick from), and free cells next to a patch that
+// are walled in on all four sides (a villager shoved in there is trapped).
+S.berries = () => {
+  let bushes = 0, shut = 0, pockets = 0;
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    dbg.start(seed, 2, { players: 4, mapType: 'plains', mapSize: 'medium' });
+    const free = (x, y) => isWalkable(x, y, 0);
+    const seen = new Set();
+    for (const r of G.resources) {
+      if (r.res !== 'food' || r.fish || r.carcass) continue; bushes++;
+      if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => free(r.tx + dx, r.ty + dy))) shut++;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = r.tx + dx, y = r.ty + dy, k = x + ',' + y; if (seen.has(k) || !free(x, y)) continue; seen.add(k);
+        if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => free(x + a, y + b))) pockets++ }
+    }
+  }
+  return { bushes, shut, pockets };
+};
+
 const only = process.env.ONLY ? process.env.ONLY.split(',') : Object.keys(S);
 const out = {};
 for (const k of only) {
