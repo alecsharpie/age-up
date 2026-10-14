@@ -184,6 +184,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
 #overlay table.st tr.total td.best{color:var(--gold)}
 #overlay table.st tr.sec td{color:var(--gold);padding-top:10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:0}
 #endBody{position:relative}
+#backres{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:6;height:32px;font-size:14px;box-shadow:0 2px 10px #000}
 /* the results card: wide, and the same size on every tab (the body scrolls if a tab is long) */
 #overlay #end.card{max-width:1240px;width:96vw}
 #overlay:has(#end:not(.hidden)){position:fixed;z-index:50} /* the results cover the whole window, bottom panel included */
@@ -292,6 +293,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
   <div id="view">
     <canvas id="c"></canvas>
     <div id="msgs"></div>
+    <button class="tb hidden" id="backres">Back to the results (Esc)</button>
     <div id="tr"><div id="scoreboard"></div><div id="hint"></div></div>
     <input id="chat" class="hidden" placeholder="taunt 1-10, or a cheat word…" style="position:absolute;left:12px;bottom:12px;width:320px;background:rgba(20,14,8,.9);color:var(--text);border:1px solid var(--edge);padding:6px;font:13px Georgia,serif">
     <div id="overlay">
@@ -375,6 +377,7 @@ canvas#mini{width:264px;height:156px;background:#0a0806;border:1px solid var(--e
         <div class="tabs" id="endTabs"></div>
         <div id="endBody"></div>
         <button class="big hidden" id="watch" style="background:#3a4a30">Keep watching</button>
+        <button class="big hidden" id="viewmap" style="background:#3a4a30">Look around the map</button>
         <button class="big" id="again">Play again</button>
       </div>
     </div>
@@ -34138,7 +34141,7 @@ function cycleTH(){const ths=G.buildings.filter(b=>b.team===ME&&b.type==='townha
 
 // ---- events ----
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('mousedown',e=>{if(!G||G.over)return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
+cv.addEventListener('mousedown',e=>{if(!G||(G.over&&!VIEW_END))return;if(G.over&&e.button===2)return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
  if(e.button===0&&ui.attackArrows){const hit=ui.attackArrows.find(q=>Math.hypot(q.x-sx,q.y-sy)<26);if(hit){centerOn(hit.a.x,hit.a.y);return}}
  if(e.button===1){ui.mid={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};e.preventDefault();return}
  if(e.button===2){if(ui.build){ui.build=null;renderCmds();return}if(ui.mode){ui.mode=null;renderCmds();return}rightClick(sx,sy,e.shiftKey);return}
@@ -34150,17 +34153,17 @@ window.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();const
  if(ui.mid){cam.x=ui.mid.cx-(e.clientX-ui.mid.x)/cam.zoom;cam.y=ui.mid.cy-(e.clientY-ui.mid.y)/cam.zoom;clampCam()}
  if(ui.drag){ui.drag.x1=sx;ui.drag.y1=sy;if(Math.abs(sx-ui.drag.x0)+Math.abs(sy-ui.drag.y0)>6)ui.dragging=true}
  if(ui.build){const w=s2w(sx,sy);aimBuild(w);if(ui.build.type==='wall'&&ui.build.start)ui.build.tiles=wallLine(ui.build.start,{x:Math.floor(w.x),y:Math.floor(w.y)})}});
-window.addEventListener('mouseup',e=>{if(e.button===1){ui.mid=null;return}if(!G||G.over)return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
+window.addEventListener('mouseup',e=>{if(e.button===1){ui.mid=null;return}if(!G||(G.over&&!VIEW_END))return;const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
  if(e.button===0&&ui.build&&ui.build.type==='wall'&&ui.build.start){if(!ui.build.tiles)ui.build.tiles=[ui.build.start];placeBuild(true);ui.build.start=null;ui.build.tiles=null;return}
  if(e.button===0&&ui.drag){const d=ui.drag;ui.drag=null;if(ui.dragging){selectBox(d.x0,d.y0,d.x1,d.y1,e.shiftKey)}else{const now=performance.now();const dbl=now-ui.lastClick<350;ui.lastClick=now;clickSelect(sx,sy,e.shiftKey,dbl)}ui.dragging=false}});
 cv.addEventListener('wheel',e=>{e.preventDefault();const r=cv.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;const before=s2w(sx,sy);cam.zoom=Math.max(0.5,Math.min(2,cam.zoom*(e.deltaY>0?0.9:1.1)));const after=s2w(sx,sy);cam.x+=(wpx(before.x,before.y)-wpx(after.x,after.y));cam.y+=(wpy(before.x,before.y)-wpy(after.x,after.y));clampCam()},{passive:false});
 function miniToWorld(e){const r=mini.getBoundingClientRect();const mx=e.clientX-r.left,my=e.clientY-r.top;const s=(mini.width-4)/(MAP*TW);const wx=(mx-mini.width/2)/s,wy=(my-4)/s;return{x:(wx/HW+wy/HH)/2,y:(wy/HH-wx/HW)/2}}
-mini.addEventListener('mousedown',e=>{if(!G)return;const w=miniToWorld(e);if(e.button===2){const units=(G.sel||[]).filter(u=>u.kind==='unit'&&u.team===ME&&!isAnimal(u));const pts=formation(units,w.x,w.y);if(units.length)submit({v:'orders',list:units.map((u,i)=>({id:u.id,c:{k:'move',x:pts[i].x,y:pts[i].y}})),q:!!e.shiftKey});return}centerOn(w.x,w.y);ui.miniDrag=true});
+mini.addEventListener('mousedown',e=>{if(!G)return;const w=miniToWorld(e);if(e.button===2){if(G.over)return;const units=(G.sel||[]).filter(u=>u.kind==='unit'&&u.team===ME&&!isAnimal(u));const pts=formation(units,w.x,w.y);if(units.length)submit({v:'orders',list:units.map((u,i)=>({id:u.id,c:{k:'move',x:pts[i].x,y:pts[i].y}})),q:!!e.shiftKey});return}centerOn(w.x,w.y);ui.miniDrag=true});
 mini.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('mousemove',e=>{if(ui.miniDrag&&e.buttons&1){const w=miniToWorld(e);centerOn(w.x,w.y)}});
 document.addEventListener('mouseout',e=>{if(!e.relatedTarget)ui.mouse.win=false});
 window.addEventListener('mouseup',()=>{ui.miniDrag=false});
-window.addEventListener('keydown',e=>{if(!G||G.over){return}const k=e.key;ui.keys[k]=true;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+window.addEventListener('keydown',e=>{if(!G)return;if(G.over){if(!VIEW_END)return;if(e.key==='Escape'){viewEnd(false);return}ui.keys[e.key]=true;return}const k=e.key;ui.keys[k]=true;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
  if(k==='Escape'){if(ui.menu||(G.paused&&!NET.active)){$('play').click();return}ui.build=null;ui.mode=null;renderCmds();return}
  if(k==='F4'){e.preventDefault();toggleScores();return}
  if(k==='F1'){e.preventDefault();openMenu();return}
@@ -34184,6 +34187,9 @@ window.addEventListener('blur',()=>{ui.keys={}});
 // Hashes are exchanged every HASH_EVERY turns; on a mismatch the host sends a full snapshot and the client restores it.
 const TURN_TICKS=4, MAX_LEAD=6, HASH_EVERY=5;
 let WATCHING=false;
+// VIEW_END: the game is over and the results are set aside to look around the revealed map (pan, zoom, minimap, select)
+let VIEW_END=false;
+function viewEnd(on){VIEW_END=!!on;$('overlay').classList.toggle('hidden',VIEW_END);$('backres').classList.toggle('hidden',!VIEW_END);$('cmds').style.visibility=VIEW_END?'hidden':'';ui.keys={}} // no orders once it is over: the command buttons are hidden
 const NET={active:false,host:false,hostId:null,tr:null,mode:'online',room:'',name:'',lobby:null,peers:new Map(),inbox:[],turns:new Map(),hashes:new Map(),waiting:null,rtt:0,desync:0};
 function netReset(){NET.active=false;NET.host=false;NET.hostId=null;NET.lobby=null;NET.peers.clear();NET.inbox.length=0;NET.turns.clear();NET.hashes.clear();NET.waiting=null;NET.rtt=0;NET.desync=0;NET.ready=false;if(NET.tr){try{NET.tr.close()}catch(e){}NET.tr=null}ME=0;stopBgTicker()}
 NET.leave=function(){const guest=NET.tr&&!NET.host;if(guest)NET.send({t:'leave'});netReset();if(guest&&NET.name)$('pn-0').value=NET.name;renderLobby();netStatus()}; // a guest's row 1 showed the host: put their own name back
@@ -34338,7 +34344,7 @@ let last=0,acc=0;
 function stepSim(t,maxN){const dt=Math.min(maxN?1:0.1,(t-last)/1000||0);last=t;if(!G||G.paused||G.over)return 0;acc+=dt*(NET.active?1:G.speed);let n=0;const lim=maxN||8;
  while(acc>=DT&&n<lim){if(NET.active&&!netGate())break;update();acc-=DT;n++}if(n>=lim)acc=0;if(NET.active&&NET.waiting)acc=Math.min(acc,0.25);return n}
 function frame(t){requestAnimationFrame(frame);if(!G)return;stepSim(t);netStatus();
- if(!G.paused&&!G.over){
+ if((!G.paused&&!G.over)||VIEW_END){
   // scrolling
   const sp=14/cam.zoom;let mx=0,my=0;if(ui.keys.ArrowLeft)mx-=sp;if(ui.keys.ArrowRight)mx+=sp;if(ui.keys.ArrowUp)my-=sp;if(ui.keys.ArrowDown)my+=sp;
   // edge scrolling: the window's edges (also over the top bar and the bottom panel), so it works in a window as well as full
@@ -34346,9 +34352,10 @@ function frame(t){requestAnimationFrame(frame);if(!G)return;stepSim(t);netStatus
   if(ui.mouse.win&&!ui.mid&&document.hasFocus()&&$('overlay').classList.contains('hidden')){const m=ui.mouse,E=14,vw=innerWidth,vh=innerHeight;
    if(m.cx<E||(ui.mouse.in&&m.x<6))mx-=sp;if(m.cx>vw-1-E||(ui.mouse.in&&m.x>W-6))mx+=sp;if(m.cy<E||(ui.mouse.in&&m.y<6))my-=sp;if(m.cy>vh-1-E||(ui.mouse.in&&m.y>H-6))my+=sp}
   if(mx||my){cam.x+=mx;cam.y+=my;clampCam()}
-  if(G.tick%5===0){updateTop();if(G.tick%10===0){renderCmds();renderInfo()}if(ui.menu&&G.tick%20===0)renderDiplomacy()}}
+  if(VIEW_END){if((ui.vf=(ui.vf||0)+1)%10===0)renderInfo()} // the sim has stopped: refresh the selection's panel by frames
+  else if(G.tick%5===0){updateTop();if(G.tick%10===0){renderCmds();renderInfo()}if(ui.menu&&G.tick%20===0)renderDiplomacy()}}
  render()}
-function endGame(won,reason,keep){if(G.over||(keep&&WATCHING))return;if(keep)WATCHING=true;else G.over=true;REVEAL_END=true;if(G.vis[ME]){G.vis[ME].fill(2);miniTick=-1}sfx(won?'win':'lose');$('overlay').classList.remove('hidden');$('start').classList.add('hidden');$('end').classList.remove('hidden');$('watch').classList.toggle('hidden',!keep);$('endTitle').textContent=(won?'Victory':'Defeat')+(G.cheated?' (cheats used)':'');
+function endGame(won,reason,keep){if(G.over||(keep&&WATCHING))return;if(keep)WATCHING=true;else G.over=true;REVEAL_END=true;if(G.vis[ME]){G.vis[ME].fill(2);miniTick=-1}sfx(won?'win':'lose');$('overlay').classList.remove('hidden');$('start').classList.add('hidden');$('end').classList.remove('hidden');$('watch').classList.toggle('hidden',!keep);$('viewmap').classList.toggle('hidden',!!keep);$('endTitle').textContent=(won?'Victory':'Defeat')+(G.cheated?' (cheats used)':'');
  const m=Math.floor(G.time/60),s=Math.floor(G.time%60);const ais=G.players.filter(p=>p.ai);$('endSub').textContent=(reason||'')+` after ${m}:${s<10?'0':''}${s}.`+(ais.length?` Difficulty: ${aiSummary(G.setup)==='mixed levels'?ais.map(p=>DIFF_NAMES[aiLevel(p)]).join(', '):aiSummary(G.setup)}.`:'');
  for(const p of G.players)p.score=computeScore(p);G.timeline=G.timeline||[];if(!G.timeline.length||G.timeline[G.timeline.length-1].t<G.time)timelineSample();
  ui.endWon=won;endTab(ui.endTab||'score')}
@@ -34496,7 +34503,7 @@ buildPlayerRows();try{$('pn-0').value=localStorage.getItem('ageup-name')||''}cat
 {let m='subtle';try{m=localStorage.getItem('age-up-team-roofs')||'subtle'}catch(e){}$('s-roofs').value=m}
 $('s-roofs').onchange=()=>{try{localStorage.setItem('age-up-team-roofs',$('s-roofs').value)}catch(e){}pixTeamRoofs.v=undefined;for(const k in PIX_CACHE)delete PIX_CACHE[k];PIX_BUDGET.any={}};
 hudIcons();
-function startGame(setup){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();ui.mouse.in=false;ui.keys={};WATCHING=false;REVEAL_END=false;ui.menu=false;newGame(setup);terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};G.sel=[];const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall');if(th){const c=center(th);centerOn(c.x+1,c.y+1);setSel([th])}else{const v=G.units.find(u=>u.team===ME&&u.type==='villager');centerOn(v.x,v.y);setSel(G.units.filter(u=>u.team===ME&&u.type==='villager'));msg('Nomad start: you have no Town Hall. Pick a spot near wood and food and build one (T).')}updateTop();renderCmds();renderInfo();
+function startGame(setup){$('game').classList.remove('nogame');$('start').classList.remove('ingame');resize();ui.mouse.in=false;ui.keys={};WATCHING=false;REVEAL_END=false;viewEnd(false);$('overlay').classList.add('hidden');ui.menu=false;newGame(setup);terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=1;ui.build=null;ui.mode=null;ui.groups={};G.sel=[];const th=G.buildings.find(b=>b.team===ME&&b.type==='townhall');if(th){const c=center(th);centerOn(c.x+1,c.y+1);setSel([th])}else{const v=G.units.find(u=>u.team===ME&&u.type==='villager');centerOn(v.x,v.y);setSel(G.units.filter(u=>u.team===ME&&u.type==='villager'));msg('Nomad start: you have no Town Hall. Pick a spot near wood and food and build one (T).')}updateTop();renderCmds();renderInfo();
  const foes=G.players.filter(p=>!allied(p.team,ME)).map(p=>TEAM[p.team].n+' ('+CIVS[p.civ].name+')').join(', ');msg(`${MAP_TYPES[G.mapType]} · you are ${CIVS[player(ME).civ].name}: ${CIVS[player(ME).civ].desc}`);msg(`Enemies: ${foes}. F1 for help.`);$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('setupwrap').classList.remove('hidden')}
 $('play').onclick=()=>{if(NET.tr&&!NET.active){if(NET.host)hostStart();return}if(G&&!G.over&&(G.paused||ui.menu)){ui.menu=false;if(!NET.active)G.paused=false;$('overlay').classList.add('hidden');$('resign').classList.add('hidden');$('resign-ask').classList.add('hidden');$('setupwrap').classList.remove('hidden');return}startGame(readSetup());sfx('select')};
 function askResign(on){$('resign').classList.toggle('hidden',!!on);$('resign-ask').classList.toggle('hidden',!on);$('resign-mp').classList.toggle('hidden',!NET.active);if(on)$('resign-no').focus()}
@@ -34538,7 +34545,8 @@ function menuBackdrop(){if(ui.backdrop||G)return;try{const oz=cam.zoom,ox=cam.x,
  G=null;terrainCv=null;fogCv=null;miniImg=null;miniTick=-1;cam.zoom=oz;cam.x=ox;cam.y=oy;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#070503';ctx.fillRect(0,0,W,H)}catch(e){G=null;console.warn('backdrop',e)}}
 setTimeout(menuBackdrop,80);
 $('watch').onclick=()=>{$('overlay').classList.add('hidden')};
-$('again').onclick=()=>{NET.leave();$('end').classList.add('hidden');$('start').classList.remove('hidden');$('setupwrap').classList.remove('hidden');$('start').classList.remove('ingame');$('game').classList.add('nogame');$('play').textContent='Play';G=null;refreshMenu()};
+$('viewmap').onclick=()=>viewEnd(true);$('backres').onclick=()=>viewEnd(false);
+$('again').onclick=()=>{VIEW_END=false;$('backres').classList.add('hidden');NET.leave();$('end').classList.add('hidden');$('start').classList.remove('hidden');$('setupwrap').classList.remove('hidden');$('start').classList.remove('ingame');$('game').classList.add('nogame');$('play').textContent='Play';G=null;refreshMenu()};
 resize();requestAnimationFrame(frame);
 // headless/debug hooks
 function fuzzCmd(seat,fr){const p=G.players[seat];if(!p||p.dead)return null;const mine=G.units.filter(u=>u.team===seat&&!u.inside&&!isAnimal(u));const blds=G.buildings.filter(b=>b.team===seat);const pick=a=>a[Math.floor(fr()*a.length)];const r=fr();

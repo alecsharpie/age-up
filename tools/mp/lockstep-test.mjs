@@ -72,8 +72,11 @@ await sleep(1500);
 const again = await open('rejoin');
 await again.evaluate(() => { document.getElementById('mp-tr').value = 'local'; document.getElementById('pn-0').value = 'Bob'; document.getElementById('mp-join').click(); });
 await again.waitForFunction(() => dbg.net().active && G && !dbg.net().waiting && G.tick > 0, null, { timeout: 25000 }).catch(() => {});
-const rj = await again.evaluate(() => ({ me: dbg.me(), tick: G ? G.tick : -1, waiting: dbg.net().waiting, status: dbg.net().lobby && dbg.net().lobby.status }));
-const ht = await host.evaluate(() => G.tick);
+// right after the snapshot the rejoined page is still catching up (8 ticks a frame), more so on a loaded machine: give it 5 s
+let rj, ht; for (let k = 0; k < 25; k++) {
+  rj = await again.evaluate(() => ({ me: dbg.me(), tick: G ? G.tick : -1, waiting: dbg.net().waiting, status: dbg.net().lobby && dbg.net().lobby.status }));
+  ht = await host.evaluate(() => G.tick); if (!rj.waiting && Math.abs(ht - rj.tick) <= 24) break; await sleep(200);
+}
 check(rj.me === 1 && !rj.waiting && Math.abs(ht - rj.tick) <= 24, `rejoined player is back in seat 1 and in step (host ${ht}, rejoined ${rj.tick})`);
 await sleep(3000);
 check(await host.evaluate(() => dbg.net().desync) === 1, 'rejoined player stays in sync');
